@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
         <!-- Logo -->
         <div class="flex items-center justify-between h-16 px-6 border-b border-gray-700">
             <a href="dashboard.php" class="flex items-center">
-                <img src="/assets/img/logo.png" alt="Addins Meals" class="h-8 w-auto">
+                <img src="/assets/img/Addin-logo.jpeg" alt="Addins Meals" class="h-8 w-auto">
                 <span class="ml-3 text-xl font-semibold">Addins Meals</span>
             </a>
         </div>

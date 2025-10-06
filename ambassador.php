@@ -228,7 +228,7 @@ $page_title = "Addins Ambassador Program - Join Our Community";
 
                 <div class="p-8">
                     <?php if ($success): ?>
-                        <div class="mb-8 p-6 bg-green-50 border border-green-200 rounded-lg">
+                        <div id="success-message" class="mb-8 p-6 bg-green-50 border border-green-200 rounded-lg">
                             <div class="flex items-center">
                                 <i class="fas fa-check-circle text-green-500 text-2xl mr-4"></i>
                                 <div>
@@ -238,7 +238,7 @@ $page_title = "Addins Ambassador Program - Join Our Community";
                             </div>
                         </div>
                     <?php elseif ($error): ?>
-                        <div class="mb-8 p-6 bg-red-50 border border-red-200 rounded-lg">
+                        <div id="error-message" class="mb-8 p-6 bg-red-50 border border-red-200 rounded-lg">
                             <div class="flex items-center">
                                 <i class="fas fa-exclamation-circle text-red-500 text-2xl mr-4"></i>
                                 <div>
@@ -592,11 +592,11 @@ $page_title = "Addins Ambassador Program - Join Our Community";
 </section>
 
 <!-- CTA Section -->
-<section class="py-16 bg-gradient-to-br from-primary via-primary-dark to-secondary text-white">
+<section class="py-16 bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white">
     <div class="container mx-auto px-4 text-center">
         <div class="max-w-4xl mx-auto">
             <h2 class="text-3xl md:text-4xl font-bold mb-6">Questions About the Program?</h2>
-            <p class="text-xl mb-8 text-gray-300">Our ambassador support team is here to help you succeed. Get in touch for more information or assistance.</p>
+            <p class="text-xl mb-8 text-blue-100">Our ambassador support team is here to help you succeed. Get in touch for more information or assistance.</p>
 
             <div class="grid md:grid-cols-3 gap-8 mb-12">
                 <div class="flex flex-col items-center">
@@ -604,8 +604,8 @@ $page_title = "Addins Ambassador Program - Join Our Community";
                         <i class="fas fa-envelope text-2xl text-white"></i>
                     </div>
                     <h3 class="font-bold mb-2">Email Support</h3>
-                    <p class="text-gray-300 mb-2">ambassadors@addinsmeals.com</p>
-                    <p class="text-sm text-gray-400">Response within 24 hours</p>
+                    <p class="text-blue-200 mb-2">ambassadors@addinsmeals.com</p>
+                    <p class="text-sm text-blue-300">Response within 24 hours</p>
                 </div>
 
                 <div class="flex flex-col items-center">
@@ -613,8 +613,8 @@ $page_title = "Addins Ambassador Program - Join Our Community";
                         <i class="fas fa-phone text-2xl text-white"></i>
                     </div>
                     <h3 class="font-bold mb-2">Phone Support</h3>
-                    <p class="text-gray-300 mb-2">+254 700 123 456</p>
-                    <p class="text-sm text-gray-400">Mon-Fri, 9AM-6PM</p>
+                    <p class="text-blue-200 mb-2">+254 700 123 456</p>
+                    <p class="text-sm text-blue-300">Mon-Fri, 9AM-6PM</p>
                 </div>
 
                 <div class="flex flex-col items-center">
@@ -622,17 +622,67 @@ $page_title = "Addins Ambassador Program - Join Our Community";
                         <i class="fas fa-comments text-2xl text-white"></i>
                     </div>
                     <h3 class="font-bold mb-2">Live Chat</h3>
-                    <p class="text-gray-300 mb-2">Available on website</p>
-                    <p class="text-sm text-gray-400">Instant response</p>
+                    <p class="text-blue-200 mb-2">Available on website</p>
+                    <p class="text-sm text-blue-300">Instant response</p>
                 </div>
             </div>
 
-            <a href="/contact.php" class="inline-flex items-center bg-primary hover:bg-primary-dark text-white font-bold py-4 px-8 rounded-lg transition-colors duration-300 text-lg">
+            <a href="/contact.php" class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg transition-colors duration-300 text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1">
                 <i class="fas fa-comments mr-2"></i>
                 Contact Ambassador Support
             </a>
         </div>
     </div>
 </section>
+
+<script>
+    // Scroll to success or error message on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        <?php if ($success): ?>
+            // Scroll to success message
+            const successMessage = document.getElementById('success-message');
+            if (successMessage) {
+                successMessage.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+
+                // Add a subtle highlight animation
+                successMessage.style.transform = 'scale(1.02)';
+                setTimeout(() => {
+                    successMessage.style.transform = 'scale(1)';
+                }, 200);
+            }
+        <?php elseif ($error): ?>
+            // Scroll to error message
+            const errorMessage = document.getElementById('error-message');
+            if (errorMessage) {
+                errorMessage.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }
+        <?php endif; ?>
+    });
+
+    // Form validation enhancement
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const submitButton = form.querySelector('button[type="submit"]');
+
+        form.addEventListener('submit', function(e) {
+            // Add loading state to button
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting...';
+            submitButton.disabled = true;
+
+            // Show visual feedback
+            const formContainer = document.querySelector('.bg-white.rounded-2xl.shadow-xl');
+            if (formContainer) {
+                formContainer.style.opacity = '0.7';
+                formContainer.style.pointerEvents = 'none';
+            }
+        });
+    });
+</script>
 
 <?php include 'includes/footer.php'; ?>

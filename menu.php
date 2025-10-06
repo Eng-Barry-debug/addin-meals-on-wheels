@@ -9,29 +9,30 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once 'includes/config.php';
-require_once 'includes/Cart.php'; // Make sure Cart class is included
 
-// Fetch active menu items from database
-$menu_items = [];
-$featured_items = [];
-
+// Fetch menu items from database
 try {
     // Get all active menu items
-    $stmt = $pdo->query("SELECT mi.*, c.name as category_name 
-                        FROM menu_items mi 
-                        LEFT JOIN categories c ON mi.category_id = c.id 
-                        WHERE mi.status = 'active' 
-                        ORDER BY mi.name");
+    $stmt = $pdo->query("
+        SELECT mi.*, c.name as category_name
+        FROM menu_items mi
+        LEFT JOIN categories c ON mi.category_id = c.id
+        WHERE mi.status = 'active'
+        ORDER BY c.name, mi.name
+    ");
     $menu_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Get featured menu items
-    $featured_stmt = $pdo->query("SELECT mi.*, c.name as category_name 
-                                FROM menu_items mi 
-                                LEFT JOIN categories c ON mi.category_id = c.id 
-                                WHERE mi.status = 'active' AND mi.is_featured = 1 
-                                ORDER BY RAND() LIMIT 3");
-    $featured_items = $featured_stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
+    // Get featured items
+    $stmt = $pdo->query("
+        SELECT mi.*, c.name as category_name
+        FROM menu_items mi
+        LEFT JOIN categories c ON mi.category_id = c.id
+        WHERE mi.status = 'active' AND mi.is_featured = 1
+        ORDER BY mi.created_at DESC
+        LIMIT 6
+    ");
+    $featured_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     // Format the data to match the expected structure
     $format_item = function($item) {
         // Build the full image path if image exists
@@ -44,7 +45,7 @@ try {
                 $imagePath = 'uploads/menu/' . $item['image'];
             }
         }
-        
+
         return [
             'id' => $item['id'],
             'name' => $item['name'],
@@ -55,10 +56,9 @@ try {
             'is_featured' => (bool)($item['is_featured'] ?? false)
         ];
     };
-    
+
     $menu_items = array_map($format_item, $menu_items);
     $featured_items = array_map($format_item, $featured_items);
-    
 } catch (PDOException $e) {
     // Log error and show user-friendly message
     error_log("Database error: " . $e->getMessage());
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
         $cart = new Cart($pdo);
         
         // Add item to cart using Cart class
-        $cart->addItem($product_id, $product['price'], $quantity);
+        $cart->addItem($product_id, $quantity, $product['price']);
         
         // Get updated cart items to calculate total count
         $cartItems = $cart->getItems();
@@ -264,11 +264,15 @@ $page_title = "Our Menu - Addins Meals on Wheels";
                         </a>
                         
                         <div class="px-4 pb-4">
-                            <button class="add-to-cart-btn w-full bg-primary hover:bg-secondary text-white px-4 py-2 rounded-md font-medium transition-colors duration-200 flex items-center justify-center" 
+                            <button class="add-to-cart-btn w-full bg-primary hover:bg-secondary text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center group hover:shadow-lg transform hover:-translate-y-0.5" 
                                     data-id="<?php echo $item['id']; ?>"
                                     data-name="<?php echo htmlspecialchars($item['name']); ?>"
                                     data-price="<?php echo $item['price']; ?>">
-                                <i class="fas fa-plus mr-2"></i> Add to Cart
+                                <i class="fas fa-plus mr-2 group-hover:scale-110 transition-transform"></i>
+                                <span>Add to Cart</span>
+                                <div class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <i class="fas fa-shopping-cart text-sm"></i>
+                                </div>
                             </button>
                         </div>
                     </div>
@@ -311,11 +315,11 @@ $page_title = "Our Menu - Addins Meals on Wheels";
                             </div>
                             <div class="flex justify-between items-center">
                                 <span class="font-bold">KES <?= number_format($item['price'], 2, '.', ',') ?></span>
-                                <button class="add-to-cart-btn bg-primary hover:bg-secondary text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center" 
+                                <button class="add-to-cart-btn bg-primary hover:bg-secondary text-white px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center group hover:shadow-lg transform hover:-translate-y-0.5" 
                                         data-id="<?= $item['id'] ?>"
                                         data-name="<?= htmlspecialchars($item['name']) ?>"
                                         data-price="<?= $item['price'] ?>">
-                                    <i class="fas fa-plus mr-2"></i> Add to Cart
+                                    <i class="fas fa-plus mr-2 group-hover:scale-110 transition-transform"></i> Add to Cart
                             </div>
                         </div>
                     </div>
@@ -335,16 +339,26 @@ $page_title = "Our Menu - Addins Meals on Wheels";
 </section>
 
 <!-- Add to Cart Modal -->
-<div id="cartModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-bold">Add to Cart</h3>
-            <button id="closeModal" class="text-gray-500 hover:text-dark">
-                <i class="fas fa-times"></i>
+<div id="cartModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform scale-95 opacity-0 transition-all duration-300">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-shopping-cart text-primary mr-3"></i> Add to Cart
+            </h3>
+            <button id="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full">
+                <i class="fas fa-times text-xl"></i>
             </button>
         </div>
-        <div id="modalContent">
-            <!-- Dynamic content will be inserted here -->
+
+        <div id="modalContent" class="space-y-6">
+            <!-- Product info will be inserted here -->
+        </div>
+
+        <!-- Enhanced close button -->
+        <div class="mt-8 pt-6 border-t border-gray-200">
+            <button id="closeModalBottom" class="w-full px-4 py-3 text-gray-600 hover:text-gray-800 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i> Continue Shopping
+            </button>
         </div>
     </div>
 </div>
@@ -373,78 +387,149 @@ filterBtns.forEach(btn => {
     });
 });
 
-// Add to cart functionality
+// Enhanced Add to cart functionality
 document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const id = this.dataset.id;
         const name = this.dataset.name;
         const price = this.dataset.price;
-        
-        // Update modal content
+
+        // Show loading state on button
+        this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding...';
+        this.disabled = true;
+
+        // Update modal content with enhanced design
         document.getElementById('modalContent').innerHTML = `
-            <p class="mb-4">Add <span class="font-semibold">${name}</span> to your cart?</p>
-            <div class="flex items-center mb-4">
-                <label class="mr-4">Quantity:</label>
-                <div class="flex items-center border rounded">
-                    <button type="button" class="px-3 py-1 border-r" onclick="updateQuantity(-1)">-</button>
-                    <input type="number" id="quantity" value="1" min="1" class="w-12 text-center border-0 focus:ring-0">
-                    <button type="button" class="px-3 py-1 border-l" onclick="updateQuantity(1)">+</button>
+            <div class="text-center mb-6">
+                <div class="w-20 h-20 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <i class="fas fa-utensils text-3xl text-white"></i>
+                </div>
+                <h4 class="text-xl font-bold text-gray-800 mb-2">Add to Cart</h4>
+                <p class="text-gray-600">How many <span class="font-semibold text-primary">${name}</span> would you like?</p>
+            </div>
+
+            <div class="bg-gray-50 rounded-xl p-6 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <label class="text-sm font-medium text-gray-700">Quantity:</label>
+                    <span class="text-sm text-gray-500">Max 99 items</span>
+                </div>
+                <div class="flex items-center justify-center bg-white rounded-lg border-2 border-gray-200 hover:border-primary transition-colors">
+                    <button type="button" class="quantity-btn px-4 py-3 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-all duration-200 rounded-l-lg" onclick="updateQuantity(-1)" title="Decrease quantity">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <input type="number" id="quantity" value="1" min="1" max="99" class="w-16 text-center py-3 border-0 focus:ring-0 focus:outline-none text-lg font-semibold">
+                    <button type="button" class="quantity-btn px-4 py-3 hover:bg-green-50 text-gray-600 hover:text-green-600 transition-all duration-200 rounded-r-lg" onclick="updateQuantity(1)" title="Increase quantity">
+                        <i class="fas fa-plus"></i>
+                    </button>
                 </div>
             </div>
-            <div class="flex justify-between items-center">
-                <span>Total: <span id="itemTotal" class="font-bold">KES ${price}</span></span>
-                <button type="button" onclick="addToCart(${id}, '${name.replace(/'/g, "\\'")}', ${price})" class="px-4 py-2 bg-primary text-white rounded hover:bg-secondary transition-colors">
+
+            <div class="bg-primary/5 rounded-xl p-4 mb-6 border border-primary/20">
+                <div class="flex justify-between items-center text-lg">
+                    <span class="font-medium">Total:</span>
+                    <span id="itemTotal" class="font-bold text-primary text-xl">KES ${parseFloat(price).toFixed(2)}</span>
+                </div>
+                <div class="text-sm text-gray-600 mt-1">
+                    <i class="fas fa-info-circle mr-1"></i> Price may vary based on customizations
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="addToCart(${id}, '${name.replace(/'/g, "\\'")}', ${price})"
+                        class="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 px-6 rounded-xl font-bold hover:opacity-90 transition-all transform hover:-translate-y-0.5 shadow-lg hover:shadow-xl group">
+                    <i class="fas fa-shopping-cart mr-2 group-hover:scale-110 transition-transform"></i>
                     Add to Cart
+                </button>
+                <button type="button" onclick="closeModal()"
+                        class="px-6 py-4 border-2 border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-all">
+                    Cancel
                 </button>
             </div>
         `;
-        document.getElementById('cartModal').classList.remove('hidden');
-        document.getElementById('cartModal').classList.add('flex');
+
+        // Show modal with animation
+        const modal = document.getElementById('cartModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // Animate modal in
+        setTimeout(() => {
+            const modalContent = modal.querySelector('.bg-white');
+            modalContent.classList.remove('scale-95', 'opacity-0');
+            modalContent.classList.add('scale-100', 'opacity-100');
+        }, 10);
+
+        // Re-enable button
+        this.innerHTML = '<i class="fas fa-plus mr-2 group-hover:scale-110 transition-transform"></i> <span>Add to Cart</span> <div class="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"> <i class="fas fa-shopping-cart text-sm"></i> </div>';
+        this.disabled = false;
     });
 });
 
-// Close modal
-document.getElementById('closeModal').addEventListener('click', () => {
-    document.getElementById('cartModal').classList.add('hidden');
-    document.getElementById('cartModal').classList.remove('flex');
-});
+// Enhanced close modal functionality
+function closeModal() {
+    const modal = document.getElementById('cartModal');
+    const modalContent = modal.querySelector('.bg-white');
+
+    // Animate modal out
+    modalContent.classList.remove('scale-100', 'opacity-100');
+    modalContent.classList.add('scale-95', 'opacity-0');
+
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }, 200);
+}
+
+// Close modal events
+document.getElementById('closeModal').addEventListener('click', closeModal);
+document.getElementById('closeModalBottom').addEventListener('click', closeModal);
 
 // Close modal when clicking outside
 window.addEventListener('click', (e) => {
     const modal = document.getElementById('cartModal');
     if (e.target === modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
+        closeModal();
     }
 });
 
-// Update quantity
+// Enhanced quantity update
 function updateQuantity(change) {
     const input = document.getElementById('quantity');
     let value = parseInt(input.value) + change;
+
     if (value < 1) value = 1;
+    if (value > 99) value = 99;
+
     input.value = value;
-    
-    // Update total
-    const price = parseFloat(document.querySelector('#modalContent button').dataset.price);
-    document.getElementById('itemTotal').textContent = 'KES ' + (price * value).toFixed(2);
+
+    // Update total with animation
+    const price = parseFloat(document.querySelector('.quantity-btn').closest('div').querySelector('button').dataset.price || 0);
+    const totalElement = document.getElementById('itemTotal');
+
+    if (totalElement) {
+        totalElement.classList.add('animate-pulse');
+        setTimeout(() => {
+            totalElement.textContent = 'KES ' + (price * value).toFixed(2);
+            totalElement.classList.remove('animate-pulse');
+        }, 150);
+    }
 }
 
 // Add to cart
 function addToCart(id, name, price) {
     const quantity = parseInt(document.getElementById('quantity').value);
-    const addToCartBtn = document.querySelector('#modalContent button');
-    
+    const addToCartBtn = document.querySelector('button[onclick*="addToCart"]');
+
     // Disable button to prevent multiple clicks
     addToCartBtn.disabled = true;
-    addToCartBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding...';
-    
+    addToCartBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding to Cart...';
+
     // Create form data
     const formData = new FormData();
     formData.append('add_to_cart', '1');
     formData.append('product_id', id);
     formData.append('quantity', quantity);
-    
+
     // Make AJAX request
     fetch(window.location.href, {
         method: 'POST',
@@ -457,61 +542,82 @@ function addToCart(id, name, price) {
     .then(data => {
         if (data.success) {
             // Update cart count in the header
-            const cartCount = document.querySelectorAll('.cart-count, .fa-shopping-cart + span');
-            if (cartCount.length > 0) {
-                cartCount.forEach(el => {
-                    el.textContent = data.cartCount || 0;
-                });
-            }
-            
-            // Show success message
-            showNotification('success', data.message);
-            
-            // Close modal
-            document.getElementById('cartModal').classList.add('hidden');
-            document.getElementById('cartModal').classList.remove('flex');
-            
-            // Reload the page to update the cart
+            updateCartCount(data.cartCount || quantity);
+
+            // Show enhanced success message
+            showNotification('success', `${name} (${quantity}x) added to cart!`);
+
+            // Close modal with animation
+            closeModal();
+
+            // Optional: Show cart preview or redirect to cart
             setTimeout(() => {
-                window.location.href = 'cart.php';
-            }, 1000);
+                if (confirm('Item added to cart! Would you like to view your cart?')) {
+                    window.location.href = 'cart.php';
+                }
+            }, 1500);
         } else {
             showNotification('error', data.message || 'Failed to add item to cart');
             addToCartBtn.disabled = false;
-            addToCartBtn.innerHTML = 'Add to Cart';
+            addToCartBtn.innerHTML = '<i class="fas fa-shopping-cart mr-2 group-hover:scale-110 transition-transform"></i> Add to Cart';
         }
     })
     .catch(error => {
         console.error('Error:', error);
         showNotification('error', 'An error occurred. Please try again.');
         addToCartBtn.disabled = false;
-        addToCartBtn.innerHTML = 'Add to Cart';
+        addToCartBtn.innerHTML = '<i class="fas fa-shopping-cart mr-2 group-hover:scale-110 transition-transform"></i> Add to Cart';
     });
 }
 
-// Show notification function
+// Update cart count in header
+function updateCartCount(newCount) {
+    const cartCountElements = document.querySelectorAll('.cart-count, .fa-shopping-cart + span');
+    if (cartCountElements.length > 0) {
+        cartCountElements.forEach(el => {
+            el.textContent = newCount > 99 ? '99+' : newCount;
+            el.classList.add('animate-pulse');
+            setTimeout(() => el.classList.remove('animate-pulse'), 1000);
+        });
+    }
+}
+
+// Enhanced notification function
 function showNotification(type, message) {
     // Remove any existing notifications
-    const existingAlert = document.querySelector('.alert-notification');
-    if (existingAlert) {
-        existingAlert.remove();
-    }
-    
-    // Create notification element
-    const alert = document.createElement('div');
-    alert.className = `alert-notification fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white font-medium z-50 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
-    alert.innerHTML = `
+    const existingAlerts = document.querySelectorAll('.menu-notification');
+    existingAlerts.forEach(alert => alert.remove());
+
+    const notification = document.createElement('div');
+    notification.className = `menu-notification fixed top-4 right-4 z-50 px-6 py-4 rounded-xl shadow-lg text-white font-medium transform translate-x-full transition-transform duration-300 ${
+        type === 'success' ? 'bg-green-500' : 'bg-red-500'
+    }`;
+
+    notification.innerHTML = `
         <div class="flex items-center">
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i>
-            <span>${message}</span>
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-3 text-lg"></i>
+            <div class="flex-1">
+                <div class="font-semibold">${type === 'success' ? 'Success!' : 'Error!'}</div>
+                <div class="text-sm opacity-90">${message}</div>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white/70 hover:text-white transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
     `;
-    
-    // Add to body and auto-remove after 3 seconds
-    document.body.appendChild(alert);
+
+    document.body.appendChild(notification);
+
+    // Animate in
     setTimeout(() => {
-        alert.remove();
-    }, 3000);
+        notification.classList.remove('translate-x-full');
+    }, 100);
+
+    // Auto-remove after delay
+    setTimeout(() => {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
 }
 </script>
 

@@ -40,6 +40,22 @@ try {
     $notificationCount = 0;
 }
 
+// Get recent notifications for dropdown
+try {
+    $recentNotificationsStmt = $pdo->prepare("
+        SELECT al.*, u.name as user_name
+        FROM activity_logs al
+        LEFT JOIN users u ON al.user_id = u.id
+        WHERE al.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        ORDER BY al.created_at DESC
+        LIMIT 5
+    ");
+    $recentNotificationsStmt->execute();
+    $recentNotifications = $recentNotificationsStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $recentNotifications = [];
+}
+
 // Get system status for header indicators
 $systemStatus = [
     'database' => true,
@@ -106,6 +122,7 @@ switch($currentPage) {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
         [x-cloak] { display: none !important; }
@@ -353,13 +370,150 @@ switch($currentPage) {
         [x-show].absolute {
             z-index: 60 !important;
         }
+
+        /* ===== THEME SYSTEM ===== */
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --card-bg: #ffffff;
+            --input-bg: #ffffff;
+            --sidebar-bg: #ffffff;
+        }
+
+        /* Dark theme variables */
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --card-bg: #1e293b;
+            --input-bg: #334155;
+            --sidebar-bg: #1e293b;
+        }
+
+        /* Apply theme variables to elements */
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .main-content {
+            background-color: var(--bg-secondary);
+        }
+
+        .bg-white {
+            background-color: var(--card-bg) !important;
+        }
+
+        .bg-gray-50 {
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        .bg-gray-100 {
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        .text-gray-900 {
+            color: var(--text-primary) !important;
+        }
+
+        .text-gray-700 {
+            color: var(--text-secondary) !important;
+        }
+
+        .text-gray-600 {
+            color: var(--text-secondary) !important;
+        }
+
+        .text-gray-500 {
+            color: var(--text-muted) !important;
+        }
+
+        .border-gray-200 {
+            border-color: var(--border-color) !important;
+        }
+
+        .border-gray-300 {
+            border-color: var(--border-color) !important;
+        }
+
+        /* Input fields */
+        input, textarea, select {
+            background-color: var(--input-bg) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        /* Sidebar theme */
+        .sidebar {
+            background-color: var(--sidebar-bg) !important;
+        }
+
+        /* Header theme */
+        .header {
+            background: linear-gradient(135deg, var(--card-bg) 0%, var(--bg-secondary) 100%) !important;
+        }
+
+        /* Shadow adjustments for dark theme */
+        [data-theme="dark"] .shadow-lg {
+            box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px var(--shadow-color) !important;
+        }
+
+        [data-theme="dark"] .shadow-xl {
+            box-shadow: 0 20px 25px -5px var(--shadow-color), 0 10px 10px -5px var(--shadow-color) !important;
+        }
+
+        /* Smooth transitions for theme changes */
+        *, *::before, *::after {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Hide dropdowns by default to prevent flash */
+        .dropdown-content {
+            display: none;
+        }
+
+        /* Show dropdowns only when x-show is true */
+        [x-show="themeOpen"] .dropdown-content,
+        [x-show="chatOpen"] .dropdown-content,
+        [x-show="notificationOpen"] .dropdown-content,
+        [x-show="profileOpen"] .dropdown-content {
+            display: block;
+        }
+
+        /* Alternative: Hide all dropdown divs initially */
+        .theme-dropdown,
+        .chat-dropdown,
+        .notification-dropdown,
+        .profile-dropdown {
+            display: none;
+        }
+
+        /* Show when their respective x-show conditions are met */
+        [x-show="themeOpen"] .theme-dropdown,
+        [x-show="chatOpen"] .chat-dropdown,
+        [x-show="notificationOpen"] .notification-dropdown,
+        [x-show="profileOpen"] .profile-dropdown {
+            display: block;
+        }
     </style>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#C1272D',
+                        primary: '#fc7703',
                         secondary: '#D4AF37',
                         dark: '#1A1A1A',
                         light: '#F5E6D3',
@@ -414,20 +568,42 @@ switch($currentPage) {
                 themeButton.classList.toggle('text-gray-600', theme === 'light');
             }
 
-            // Show feedback
-            showThemeNotification(theme);
+            // Show feedback only if this is an actual theme change, not initialization
+            if (window.themeInitialized) {
+                showThemeNotification(theme);
+            }
         }
 
         function showThemeNotification(theme) {
             const themeName = theme === 'dark' ? 'Dark Mode' : 'Light Mode';
-            // You can replace this with a proper toast notification
-            console.log(`Switched to ${themeName}`);
+
+            // Show a toast notification instead of console.log
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: `Switched to ${themeName}`,
+                showConfirmButton: false,
+                timer: 2000,
+                timerProgressBar: true,
+                background: theme === 'dark' ? '#1e293b' : '#ffffff',
+                color: theme === 'dark' ? '#f1f5f9' : '#1e293b'
+            });
         }
 
         // Initialize theme on page load
         document.addEventListener('DOMContentLoaded', function() {
             const savedTheme = localStorage.getItem('admin_theme') || 'light';
+            window.themeInitialized = true; // Mark that we're initializing, not switching
             setTheme(savedTheme);
+
+            // Ensure dropdowns are properly closed on page load
+            window.dropdownsInitialized = true;
+
+            // Initialize Alpine.js store if not exists
+            if (!Alpine.store('theme')) {
+                Alpine.store('theme', 'light');
+            }
         });
     </script>
 </head>
@@ -453,7 +629,6 @@ switch($currentPage) {
                 <a href="menu.php" class="px-3 py-4 text-sm font-medium border-b-2 border-transparent hover:border-gray-300 hover:text-gray-700 <?php echo basename($_SERVER['PHP_SELF']) == 'menu.php' ? 'border-primary text-primary' : 'text-gray-500'; ?>">
                     <i class="fas fa-utensils mr-1"></i> Menu Items
                 </a>
-                <a href="catering.php" class="px-3 py-4 text-sm font-medium border-b-2 border-transparent hover:border-gray-300 hover:text-gray-700 <?php echo basename($_SERVER['PHP_SELF']) == 'catering.php' ? 'border-primary text-primary' : 'text-gray-500'; ?>">
 
     <!-- Main Content -->
     <div class="main-content">
@@ -522,56 +697,6 @@ switch($currentPage) {
 
                     <!-- Bottom Row: Search, Status, Notifications, Profile -->
                     <div class="flex items-center justify-between lg:justify-end space-x-3">
-                        <!-- Advanced Search -->
-                        <div class="hidden md:block relative" x-data="{ searchOpen: false, searchQuery: '' }">
-                            <div class="relative">
-                                <label for="header-search" class="sr-only">Search orders, customers, and menu items</label>
-                                <input type="text"
-                                       id="header-search"
-                                       x-model="searchQuery"
-                                       @focus="searchOpen = true"
-                                       @blur="setTimeout(() => searchOpen = false, 200)"
-                                       placeholder="Search orders, customers, menu items..."
-                                       aria-describedby="search-help"
-                                       class="w-64 pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 text-sm">
-                                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" aria-hidden="true"></i>
-                                <button type="button"
-                                        title="Advanced search filters"
-                                        class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                                    <i class="fas fa-sliders-h" aria-hidden="true"></i>
-                                </button>
-                                <div id="search-help" class="sr-only">Press Enter to search or use arrow keys to navigate suggestions</div>
-                            </div>
-
-                            <!-- Search Suggestions Dropdown -->
-                            <div x-show="searchOpen && searchQuery.length > 2"
-                                 x-transition:enter="transition ease-out duration-100"
-                                 x-transition:enter-start="transform opacity-0 scale-95"
-                                 x-transition:enter-end="transform opacity-100 scale-100"
-                                 x-transition:leave="transition ease-in duration-75"
-                                 x-transition:leave-start="transform opacity-100 scale-100"
-                                 x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50 search-suggestions">
-                                <div class="p-3">
-                                    <div class="text-xs text-gray-500 uppercase tracking-wide mb-2">Quick Actions</div>
-                                    <div class="space-y-1">
-                                        <a href="orders.php" class="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors">
-                                            <i class="fas fa-shopping-cart mr-3 text-gray-400"></i>
-                                            Search Orders
-                                        </a>
-                                        <a href="customers.php" class="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors">
-                                            <i class="fas fa-users mr-3 text-gray-400"></i>
-                                            Search Customers
-                                        </a>
-                                        <a href="menu.php" class="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors">
-                                            <i class="fas fa-utensils mr-3 text-gray-400"></i>
-                                            Search Menu Items
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- System Status Indicators -->
                         <div class="hidden lg:flex items-center space-x-3">
                             <!-- Database Status -->
@@ -594,14 +719,16 @@ switch($currentPage) {
                         </div>
 
                         <!-- Theme Toggle -->
-                        <div class="relative" x-data="{ themeOpen: false, currentTheme: 'light' }">
+                        <div class="relative" x-data="{ themeOpen: false, currentTheme: 'light' }" x-init="currentTheme = $store.theme || 'light'; themeOpen = false">
                             <button @click="themeOpen = !themeOpen; toggleTheme()"
                                     title="Switch between light and dark theme"
                                     aria-label="Toggle between light and dark theme modes"
                                     :class="currentTheme === 'dark' ? 'text-yellow-400 hover:text-yellow-300 bg-gray-100' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'"
                                     class="theme-toggle header-button focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 transition-all duration-300 relative">
                                 <div class="relative">
-                                    <i :class="currentTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon'" class="text-xl transition-all duration-300" aria-hidden="true"></i>
+                                    <div class="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold shadow-lg ring-2 ring-white">
+                                        <i class="fas fa-moon text-lg transition-all duration-300" aria-hidden="true"></i>
+                                    </div>
                                     <div :class="currentTheme === 'dark' ? 'bg-yellow-400' : 'bg-gray-300'" class="absolute -inset-1 rounded-full opacity-20 transition-all duration-300"></div>
                                 </div>
                             </button>
@@ -615,7 +742,7 @@ switch($currentPage) {
                                  x-transition:leave="transition ease-in duration-75"
                                  x-transition:leave-start="transform opacity-100 scale-100"
                                  x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-50 border border-gray-200 p-3">
+                                 class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-50 border border-gray-200 p-3 theme-dropdown">
 
                                 <div class="mb-3">
                                     <h4 class="text-sm font-medium text-gray-900 mb-2">Theme Settings</h4>
@@ -668,13 +795,15 @@ switch($currentPage) {
                         </div>
 
                         <!-- Customer Support -->
-                        <div class="relative" x-data="{ chatOpen: false }">
+                        <div class="relative" x-data="{ chatOpen: false }" x-init="chatOpen = false">
                             <a href="../chat.php"
                                @click="chatOpen = true"
                                title="Access customer support chat"
                                aria-label="Open customer support chat"
                                class="header-button text-gray-600 hover:text-primary hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 transition-all duration-200 relative">
-                                <i class="fas fa-headset text-xl" aria-hidden="true"></i>
+                                <div class="h-10 w-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-semibold shadow-lg ring-2 ring-white">
+                                    <i class="fas fa-headset text-lg" aria-hidden="true"></i>
+                                </div>
                                 <span class="absolute -top-1 -right-1 w-3 h-3 bg-green-400 border-2 border-white rounded-full animate-pulse" title="Chat support available"></span>
                             </a>
 
@@ -687,7 +816,7 @@ switch($currentPage) {
                                  x-transition:leave="transition ease-in duration-75"
                                  x-transition:leave-start="transform opacity-100 scale-100"
                                  x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 border border-gray-200 p-3">
+                                 class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 border border-gray-200 p-3 chat-dropdown">
                                 <div class="flex items-center space-x-2 mb-2">
                                     <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                                         <i class="fas fa-headset text-green-600 text-sm"></i>
@@ -705,12 +834,14 @@ switch($currentPage) {
                         </div>
 
                         <!-- Notifications -->
-                        <div class="relative" x-data="{ notificationOpen: false }">
+                        <div class="relative" x-data="{ notificationOpen: false }" x-init="notificationOpen = false">
                             <button @click="notificationOpen = !notificationOpen"
                                     title="View notifications and activity logs"
                                     aria-label="View notifications and activity logs"
                                     class="header-button text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 relative transition-all duration-200">
-                                <i class="far fa-bell text-xl" aria-hidden="true"></i>
+                                <div class="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold shadow-lg ring-2 ring-white">
+                                    <i class="far fa-bell text-lg" aria-hidden="true"></i>
+                                </div>
                                 <?php if ($notificationCount > 0): ?>
                                     <span title="<?php echo $notificationCount; ?> new notifications" class="notification-badge absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium animate-pulse">
                                         <?php echo min($notificationCount, 99); ?>
@@ -727,7 +858,7 @@ switch($currentPage) {
                                  x-transition:leave="transition ease-in duration-75"
                                  x-transition:leave-start="transform opacity-100 scale-100"
                                  x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50 border border-gray-200 advanced-dropdown">
+                                 class="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50 border border-gray-200 advanced-dropdown notification-dropdown">
 
                                 <!-- Header with Summary -->
                                 <div class="p-4 border-b border-gray-200 bg-gradient-to-r from-primary/5 to-secondary/5">
@@ -846,7 +977,7 @@ switch($currentPage) {
                         </div>
 
                         <!-- Enhanced User Profile -->
-                        <div class="relative" x-data="{ profileOpen: false }">
+                        <div class="relative" x-data="{ profileOpen: false }" x-init="profileOpen = false">
                             <button @click="profileOpen = !profileOpen"
                                     title="User menu and account options"
                                     aria-label="Open user menu with profile, settings, and logout options"
@@ -870,7 +1001,7 @@ switch($currentPage) {
                                  x-transition:leave="transition ease-in duration-75"
                                  x-transition:leave-start="transform opacity-100 scale-100"
                                  x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 border border-gray-200 advanced-dropdown">
+                                 class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 border border-gray-200 advanced-dropdown profile-dropdown">
 
                                 <!-- User Info Header -->
                                 <div class="p-4 border-b border-gray-200">

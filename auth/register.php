@@ -86,13 +86,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         body { background-color: #F5E6D3; }
         .register-container { max-width: 500px; margin: 50px auto; }
         .btn-primary { 
-            background-color: #C1272D;
+            background-color: #fc7703;
             transition: all 0.3s;
         }
-        .btn-primary:hover { background-color: #A02025; }
+        .btn-primary:hover { background-color: #e66b02; }
         .form-input:focus {
-            border-color: #C1272D;
-            box-shadow: 0 0 0 3px rgba(193, 39, 45, 0.2);
+            border-color: #fc7703;
+            box-shadow: 0 0 0 3px rgba(252, 119, 3, 0.2);
+        }
+        .password-toggle {
+            position: relative;
+            display: block;
+        }
+        .password-toggle input {
+            padding-right: 45px !important;
+            width: 100%;
+        }
+        .password-toggle button {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #6B7280;
+            cursor: pointer;
+            padding: 6px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .password-toggle button:hover {
+            color: #374151;
+        }
+        .password-toggle button i {
+            font-size: 16px;
         }
     </style>
 </head>
@@ -114,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                     <input type="text" id="name" name="name" required
-                           class="w-full px-4 py-2 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#C1272D] focus:border-transparent"
+                           class="w-full px-4 py-2 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#fc7703] focus:border-transparent"
                            value="<?php echo htmlspecialchars($name); ?>"
                            placeholder="John Doe">
                     <?php if (!empty($errors['name'])): ?>
@@ -125,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div>
                     <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
                     <input type="email" id="email" name="email" required
-                           class="w-full px-4 py-2 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#C1272D] focus:border-transparent"
+                           class="w-full px-4 py-2 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#fc7703] focus:border-transparent"
                            value="<?php echo htmlspecialchars($email); ?>"
                            placeholder="your@email.com">
                     <?php if (!empty($errors['email'])): ?>
@@ -136,26 +165,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div>
                     <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                     <input type="tel" id="phone" name="phone"
-                           class="w-full px-4 py-2 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#C1272D] focus:border-transparent"
+                           class="w-full px-4 py-2 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#fc7703] focus:border-transparent"
                            value="<?php echo htmlspecialchars($phone); ?>"
                            placeholder="+1 (555) 123-4567">
                 </div>
 
-                <div>
+                <div class="password-toggle">
                     <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                    <input type="password" id="password" name="password" required
-                           class="w-full px-4 py-2 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#C1272D] focus:border-transparent"
-                           placeholder="At least 8 characters">
+                    <div class="relative">
+                        <input type="password" id="password" name="password" required
+                               class="w-full px-4 py-2 pr-12 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#fc7703] focus:border-transparent"
+                               placeholder="At least 8 characters">
+                        <button type="button" onclick="togglePassword('password', 'passwordToggle')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 z-10">
+                            <i class="fas fa-eye text-sm" id="passwordToggle"></i>
+                        </button>
+                    </div>
                     <?php if (!empty($errors['password'])): ?>
-{{ ... }}
+                        <p class="mt-1 text-sm text-red-600"><?php echo htmlspecialchars($errors['password']); ?></p>
                     <?php endif; ?>
                 </div>
 
-                <div>
+                <div class="password-toggle">
                     <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
-                    <input type="password" id="confirm_password" name="confirm_password" required
-                           class="w-full px-4 py-2 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#C1272D] focus:border-transparent"
-                           placeholder="Confirm your password">
+                    <div class="relative">
+                        <input type="password" id="confirm_password" name="confirm_password" required
+                               class="w-full px-4 py-2 pr-12 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#fc7703] focus:border-transparent"
+                               placeholder="Confirm your password">
+                        <button type="button" onclick="togglePassword('confirm_password', 'confirmPasswordToggle')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 z-10">
+                            <i class="fas fa-eye text-sm" id="confirmPasswordToggle"></i>
+                        </button>
+                    </div>
                     <?php if (!empty($errors['confirm_password'])): ?>
                         <p class="mt-1 text-sm text-red-600"><?php echo htmlspecialchars($errors['confirm_password']); ?></p>
                     <?php endif; ?>
@@ -163,16 +202,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="flex items-center">
                     <input id="terms" name="terms" type="checkbox" required
-                           class="h-4 w-4 text-[#C1272D] focus:ring-[#C1272D] border-gray-300 rounded">
+                           class="h-4 w-4 text-[#fc7703] focus:ring-[#fc7703] border-gray-300 rounded">
                     <label for="terms" class="ml-2 block text-sm text-gray-700">
-                        I agree to the <a href="/terms" class="text-[#C1272D] hover:underline">Terms of Service</a> and 
-                        <a href="/privacy" class="text-[#C1272D] hover:underline">Privacy Policy</a> *
+                        I agree to the <a href="/terms" class="text-[#fc7703] hover:underline">Terms of Service</a> and 
+                        <a href="/privacy" class="text-[#fc7703] hover:underline">Privacy Policy</a> *
                     </label>
                 </div>
 
                 <div>
                     <button type="submit" 
-                            class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#C1272D] hover:bg-[#A02025] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C1272D]">
+                            class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#fc7703] hover:bg-[#e66b02] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#fc7703]">
                         Create Account
                     </button>
                 </div>
@@ -181,12 +220,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="mt-6 text-center text-sm">
                 <p class="text-gray-600">
                     Already have an account? 
-                    <a href="login.php" class="font-medium text-[#C1272D] hover:text-[#A02025]">
+                    <a href="login.php" class="font-medium text-[#fc7703] hover:text-[#e66b02]">
                         Sign in
                     </a>
                 </p>
             </div>
         </div>
     </div>
+
+    <script>
+        function togglePassword(inputId, iconId) {
+            const passwordInput = document.getElementById(inputId);
+            const toggleIcon = document.getElementById(iconId);
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        }
+    </script>
 </body>
 </html>

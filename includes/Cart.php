@@ -56,53 +56,70 @@ class Cart {
     }
 
     private function createNewCart() {
-        $query = "INSERT INTO carts (user_id, session_id, items, total) 
-                  VALUES (:user_id, :session_id, '[]', 0.00)";
-        
+        $query = "INSERT INTO carts (user_id, session_id) VALUES (:user_id, :session_id)";
+
         $params = [
             ':session_id' => $this->session_id,
             ':user_id' => $this->is_logged_in ? $this->user_id : null
         ];
-        
+
         $stmt = $this->db->prepare($query);
         $stmt->execute($params);
         $this->cart_id = $this->db->lastInsertId();
     }
 
     public function addItem($menu_item_id, $quantity = 1, $price = 0) {
-        // Get current cart items
-        $items = $this->getItems();
-        
         // Check if item already exists in cart
-        $item_key = false;
-        foreach ($items as $key => $item) {
-            if ($item['menu_item_id'] == $menu_item_id) {
-                $item_key = $key;
-                break;
-            }
-        }
-        
-        if ($item_key !== false) {
+        $stmt = $this->db->prepare("
+            SELECT cart_item_id, quantity FROM cart_items
+            WHERE cart_id = :cart_id AND menu_item_id = :menu_item_id
+        ");
+        $stmt->execute([
+            ':cart_id' => $this->cart_id,
+            ':menu_item_id' => $menu_item_id
+        ]);
+        $existing_item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existing_item) {
             // Update quantity if item exists
-            $items[$item_key]['quantity'] += (int)$quantity;
+            $new_quantity = $existing_item['quantity'] + $quantity;
+            $stmt = $this->db->prepare("
+                UPDATE cart_items
+                SET quantity = :quantity, updated_at = NOW()
+                WHERE cart_item_id = :cart_item_id
+            ");
+            $stmt->execute([
+                ':quantity' => $new_quantity,
+                ':cart_item_id' => $existing_item['cart_item_id']
+            ]);
         } else {
             // Add new item
-            $items[] = [
-                'menu_item_id' => (int)$menu_item_id,
-                'quantity' => (int)$quantity,
-                'price' => (float)$price
-            ];
+            $stmt = $this->db->prepare("
+                INSERT INTO cart_items (cart_id, menu_item_id, quantity, price)
+                VALUES (:cart_id, :menu_item_id, :quantity, :price)
+            ");
+            $stmt->execute([
+                ':cart_id' => $this->cart_id,
+                ':menu_item_id' => $menu_item_id,
+                ':quantity' => $quantity,
+                ':price' => $price
+            ]);
         }
-        
-        $this->updateCartItems($items);
+
+        $this->updateCartTotal();
     }
 
     public function removeItem($menu_item_id) {
-        $items = $this->getItems();
-        $items = array_filter($items, function($item) use ($menu_item_id) {
-            return $item['menu_item_id'] != $menu_item_id;
-        });
-        $this->updateCartItems(array_values($items));
+        $stmt = $this->db->prepare("
+            DELETE FROM cart_items
+            WHERE cart_id = :cart_id AND menu_item_id = :menu_item_id
+        ");
+        $stmt->execute([
+            ':cart_id' => $this->cart_id,
+            ':menu_item_id' => $menu_item_id
+        ]);
+
+        $this->updateCartTotal();
     }
 
     public function updateQuantity($menu_item_id, $quantity) {
@@ -111,48 +128,58 @@ class Cart {
             return;
         }
 
-        $items = $this->getItems();
-        foreach ($items as &$item) {
-            if ($item['menu_item_id'] == $menu_item_id) {
-                $item['quantity'] = $quantity;
-                break;
-            }
-        }
-        $this->updateCartItems($items);
+        $stmt = $this->db->prepare("
+            UPDATE cart_items
+            SET quantity = :quantity, updated_at = NOW()
+            WHERE cart_id = :cart_id AND menu_item_id = :menu_item_id
+        ");
+        $stmt->execute([
+            ':quantity' => $quantity,
+            ':cart_id' => $this->cart_id,
+            ':menu_item_id' => $menu_item_id
+        ]);
+
+        $this->updateCartTotal();
     }
 
     public function getItems() {
-        $stmt = $this->db->prepare("SELECT items FROM carts WHERE cart_id = :cart_id");
+        $stmt = $this->db->prepare("
+            SELECT ci.menu_item_id, ci.quantity, ci.price
+            FROM cart_items ci
+            WHERE ci.cart_id = :cart_id
+        ");
         $stmt->execute([':cart_id' => $this->cart_id]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Return empty array if no result or items is null/empty
-        if (empty($result) || empty($result['items'])) {
-            return [];
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Convert to the expected format for compatibility
+        $formatted_items = [];
+        foreach ($items as $item) {
+            $formatted_items[$item['menu_item_id']] = [
+                'menu_item_id' => $item['menu_item_id'],
+                'quantity' => $item['quantity'],
+                'price' => $item['price']
+            ];
         }
-        
-        // Decode the JSON string
-        $items = json_decode($result['items'], true);
-        
-        // Return empty array if JSON decode fails
-        return is_array($items) ? $items : [];
+
+        return $formatted_items;
     }
 
     public function getTotal() {
-        $items = $this->getItems();
-        $total = 0;
-        foreach ($items as $item) {
-            $total += $item['price'] * $item['quantity'];
-        }
-        return $total;
+        $stmt = $this->db->prepare("
+            SELECT COALESCE(SUM(price * quantity), 0) as total
+            FROM cart_items
+            WHERE cart_id = :cart_id
+        ");
+        $stmt->execute([':cart_id' => $this->cart_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return (float)$result['total'];
     }
 
     public function clear() {
-        $this->updateCartItems([]);
-    }
-
-    public function getCartId() {
-        return $this->cart_id;
+        $stmt = $this->db->prepare("DELETE FROM cart_items WHERE cart_id = :cart_id");
+        $stmt->execute([':cart_id' => $this->cart_id]);
+        $this->updateCartTotal();
     }
 
     /**
@@ -160,36 +187,30 @@ class Cart {
      * @return int Total number of items
      */
     public function getTotalItems() {
-        $items = $this->getItems();
-        $total = 0;
-        foreach ($items as $item) {
-            // Ensure quantity is treated as an integer and is a valid number
-            $quantity = (int)$item['quantity'];
-            if ($quantity > 0) {
-                $total += $quantity;
-            }
-        }
-        return $total;
+        $stmt = $this->db->prepare("
+            SELECT COALESCE(SUM(quantity), 0) as total
+            FROM cart_items
+            WHERE cart_id = :cart_id
+        ");
+        $stmt->execute([':cart_id' => $this->cart_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return (int)$result['total'];
+    }
+
+    private function updateCartTotal() {
+        $total = $this->getTotal();
+        $stmt = $this->db->prepare("
+            UPDATE carts
+            SET updated_at = NOW()
+            WHERE cart_id = :cart_id
+        ");
+        $stmt->execute([':cart_id' => $this->cart_id]);
     }
 
     private function updateCartItems($items) {
-        // Calculate total
-        $total = 0;
-        foreach ($items as $item) {
-            $total += $item['price'] * $item['quantity'];
-        }
-
-        $stmt = $this->db->prepare("
-            UPDATE carts 
-            SET items = :items, total = :total, updated_at = NOW() 
-            WHERE cart_id = :cart_id
-        ");
-        
-        $stmt->execute([
-            ':items' => json_encode($items),
-            ':total' => $total,
-            ':cart_id' => $this->cart_id
-        ]);
+        // This method is no longer needed with the new schema
+        // Keeping it for backward compatibility
     }
 
     private function updateCartUserId($user_id) {

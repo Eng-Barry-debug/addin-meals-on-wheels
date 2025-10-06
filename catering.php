@@ -102,13 +102,48 @@ $page_title = "Catering Services - Addins Meals on Wheels";
                         <i class="fas fa-birthday-cake text-secondary text-4xl"></i>
                     </div>
 
-                    <!-- Central Image Container -->
-                    <div class="relative bg-white/10 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-white/20">
-                        <div class="aspect-video bg-gradient-to-br from-white/20 to-white/5 rounded-2xl flex items-center justify-center">
-                            <div class="text-center text-white/80">
-                                <i class="fas fa-camera text-6xl mb-4 opacity-60"></i>
-                                <p class="text-lg font-medium">Elegant Catering Display</p>
-                                <p class="text-sm opacity-75">Professional setup for your special event</p>
+                    <!-- Central Image Container with Slideshow -->
+                    <div class="relative bg-white/10 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-white/20 overflow-hidden">
+                        <!-- Slideshow Container -->
+                        <div class="aspect-video bg-gradient-to-br from-white/20 to-white/5 rounded-2xl relative overflow-hidden">
+                            <!-- Slideshow Images -->
+                            <div class="slideshow-container relative w-full h-full">
+                                <div class="slide opacity-0 transition-opacity duration-500 absolute inset-0">
+                                    <img src="assets/img/catering.jpeg" alt="Elegant Catering Display" class="w-full h-full object-cover rounded-2xl">
+                                </div>
+                                <div class="slide opacity-0 transition-opacity duration-500 absolute inset-0">
+                                    <img src="assets/img/catering2.png" alt="Professional Event Setup" class="w-full h-full object-cover rounded-2xl">
+                                </div>
+                                <div class="slide opacity-0 transition-opacity duration-500 absolute inset-0">
+                                    <img src="assets/img/Addinkitchen.png" alt="Beautiful Table Setting" class="w-full h-full object-cover rounded-2xl">
+                                </div>
+                                <div class="slide opacity-100 transition-opacity duration-500 absolute inset-0">
+                                    <img src="assets/img/freshfoods.png" alt="Gourmet Food Presentation" class="w-full h-full object-cover rounded-2xl">
+                                </div>
+                            </div>
+
+                            <!-- Slideshow Navigation Dots -->
+                            <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                                <button class="slide-dot active w-3 h-3 rounded-full bg-white/60 hover:bg-white transition-all duration-300" onclick="currentSlide(1)"></button>
+                                <button class="slide-dot w-3 h-3 rounded-full bg-white/60 hover:bg-white transition-all duration-300" onclick="currentSlide(2)"></button>
+                                <button class="slide-dot w-3 h-3 rounded-full bg-white/60 hover:bg-white transition-all duration-300" onclick="currentSlide(3)"></button>
+                                <button class="slide-dot w-3 h-3 rounded-full bg-white/60 hover:bg-white transition-all duration-300" onclick="currentSlide(4)"></button>
+                            </div>
+
+                            <!-- Slideshow Navigation Arrows -->
+                            <button class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-3 rounded-full transition-all duration-300" onclick="changeSlide(-1)">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-3 rounded-full transition-all duration-300" onclick="changeSlide(1)">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+
+                        <!-- Overlay Text -->
+                        <div class="absolute inset-0 flex items-end justify-center pb-8">
+                            <div class="text-center text-white drop-shadow-lg">
+                                <h3 class="text-2xl md:text-3xl font-bold mb-2">Elegant Catering Display</h3>
+                                <p class="text-lg opacity-90">Professional setup for your special event</p>
                             </div>
                         </div>
                     </div>
@@ -661,21 +696,123 @@ form.addEventListener('submit', function(e) {
             isValid = false;
         }
     }
-    
-    if (!isValid) {
-        e.preventDefault();
-        alert('Please fill in all required fields correctly.');
+    // Remove error class when user starts typing
+    requiredFields.forEach(field => {
+        field.addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.classList.remove('border-red-500');
+            }
+        });
+    });
+
+// Slideshow functionality
+let slideIndex = 1;
+let slideInterval;
+
+// Initialize slideshow when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSlideshow();
+});
+
+// Fallback initialization
+window.addEventListener('load', function() {
+    if (!document.querySelector('.slide.opacity-100')) {
+        initializeSlideshow();
     }
 });
 
-// Remove error class when user starts typing
-requiredFields.forEach(field => {
-    field.addEventListener('input', function() {
-        if (this.value.trim()) {
-            this.classList.remove('border-red-500');
+function initializeSlideshow() {
+    const slides = document.querySelectorAll('.slide');
+    const dots = document.querySelectorAll('.slide-dot');
+    const slideshowContainer = document.querySelector('.slideshow-container');
+
+    if (slides.length === 0) {
+        console.error('Slideshow elements not found');
+        return;
+    }
+
+    // Set initial state
+    showSlide(1);
+    startSlideshow();
+
+    // Add event listeners
+    if (slideshowContainer) {
+        slideshowContainer.addEventListener('mouseenter', stopSlideshow);
+        slideshowContainer.addEventListener('mouseleave', startSlideshow);
+    }
+
+    // Add click listeners to dots and arrows
+    setupControls();
+}
+
+function setupControls() {
+    // Dots
+    document.querySelectorAll('.slide-dot').forEach((dot, index) => {
+        dot.addEventListener('click', () => currentSlide(index + 1));
+    });
+
+    // Arrows
+    if (slideshowContainer) {
+        const prevBtn = slideshowContainer.querySelector('.absolute.left-4');
+        const nextBtn = slideshowContainer.querySelector('.absolute.right-4');
+
+        if (prevBtn) prevBtn.addEventListener('click', () => changeSlide(-1));
+        if (nextBtn) nextBtn.addEventListener('click', () => changeSlide(1));
+    }
+}
+
+function showSlide(n) {
+    const slides = document.querySelectorAll('.slide');
+    const dots = document.querySelectorAll('.slide-dot');
+
+    if (n > slides.length) slideIndex = 1;
+    if (n < 1) slideIndex = slides.length;
+
+    // Update slides
+    slides.forEach((slide, index) => {
+        if (index === slideIndex - 1) {
+            slide.classList.remove('opacity-0');
+            slide.classList.add('opacity-100');
+        } else {
+            slide.classList.remove('opacity-100');
+            slide.classList.add('opacity-0');
         }
     });
-});
+
+    // Update dots
+    dots.forEach((dot, index) => {
+        if (index === slideIndex - 1) {
+            dot.classList.add('active', 'bg-white');
+            dot.classList.remove('bg-white/60');
+        } else {
+            dot.classList.remove('active', 'bg-white');
+            dot.classList.add('bg-white/60');
+        }
+    });
+}
+
+function changeSlide(n) {
+    showSlide(slideIndex + n);
+}
+
+function currentSlide(n) {
+    showSlide(n);
+}
+
+function startSlideshow() {
+    if (slideInterval) clearInterval(slideInterval);
+    slideInterval = setInterval(() => {
+        slideIndex++;
+        showSlide(slideIndex);
+    }, 5000);
+}
+
+function stopSlideshow() {
+    if (slideInterval) {
+        clearInterval(slideInterval);
+        slideInterval = null;
+    }
+}
 </script>
 
 <?php include 'includes/footer.php'; ?>

@@ -1,6 +1,8 @@
 <?php
-// Start session
-session_start();
+// Start session only if not already active
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Database configuration
 define('DB_HOST', 'localhost');

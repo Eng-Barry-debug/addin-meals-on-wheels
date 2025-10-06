@@ -40,7 +40,7 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#C1272D',
+                        primary: '#fc7703',
                         secondary: '#FF8C00',
                         dark: '#1A1A1A',
                         light: '#F5E6D3',
@@ -162,16 +162,51 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
     // Function to set active navigation
     function setActiveNavigation() {
         const currentPath = window.location.pathname;
-        const navLinks = document.querySelectorAll('nav a[href]');
+        const currentFile = window.location.pathname.split('/').pop() || 'index.php';
 
+        // Handle desktop navigation
+        const navLinks = document.querySelectorAll('nav a[href]');
         navLinks.forEach(link => {
             const href = link.getAttribute('href');
-            if (href && (currentPath === href || (href !== '/' && currentPath.startsWith(href)))) {
-                link.classList.add('border-b-2', 'border-secondary', 'text-secondary');
-                link.classList.remove('hover:bg-primary', 'hover:text-white');
-            } else if (href && href !== '/cart.php') {
-                link.classList.remove('border-b-2', 'border-secondary', 'text-secondary');
-                link.classList.add('hover:bg-primary', 'hover:text-white');
+            if (href) {
+                // Handle different path formats
+                const isActive = (
+                    currentPath === href ||
+                    currentPath.endsWith(href) ||
+                    (href === '/index.php' && (currentPath === '/' || currentFile === 'index.php')) ||
+                    (href !== '/' && currentPath.includes(href.replace(/^\//, '')))
+                );
+
+                if (isActive) {
+                    // Use better contrast colors for active state
+                    link.classList.add('bg-white', 'text-primary', 'font-semibold', 'shadow-md');
+                    link.classList.remove('hover:bg-primary', 'hover:text-white', 'text-white');
+                } else {
+                    link.classList.remove('bg-white', 'text-primary', 'font-semibold', 'shadow-md');
+                    link.classList.add('hover:bg-primary', 'hover:text-white', 'text-white');
+                }
+            }
+        });
+
+        // Handle mobile navigation (different container)
+        const mobileNavLinks = document.querySelectorAll('[x-show="mobileMenuOpen"] a[href]');
+        mobileNavLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            if (href) {
+                const isActive = (
+                    currentPath === href ||
+                    currentPath.endsWith(href) ||
+                    (href === '/index.php' && (currentPath === '/' || currentFile === 'index.php')) ||
+                    (href !== '/' && currentPath.includes(href.replace(/^\//, '')))
+                );
+
+                if (isActive) {
+                    link.classList.add('bg-white', 'text-primary', 'font-semibold');
+                    link.classList.remove('hover:bg-primary', 'hover:text-white', 'text-white');
+                } else {
+                    link.classList.remove('bg-white', 'text-primary', 'font-semibold');
+                    link.classList.add('hover:bg-primary', 'hover:text-white', 'text-white');
+                }
             }
         });
     }
@@ -212,20 +247,20 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
 
                 <!-- Desktop Navigation -->
                 <div class="hidden md:flex items-center space-x-1">
-                    <a href="/index.php" class="px-4 py-2 rounded-md hover:bg-secondary hover:text-dark transition-colors duration-200 font-medium <?php echo (basename($_SERVER['PHP_SELF']) == 'index.php' || $_SERVER['REQUEST_URI'] == '/' || $_SERVER['PHP_SELF'] == '/index.php') ? 'bg-secondary text-dark' : ''; ?>">Home</a>
-                    <a href="/menu.php" class="px-4 py-2 rounded-md hover:bg-secondary hover:text-dark transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'menu.php' ? 'bg-secondary text-dark' : ''; ?>">Menu</a>
-                    <a href="/catering.php" class="px-4 py-2 rounded-md hover:bg-secondary hover:text-dark transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'catering.php' ? 'bg-secondary text-dark' : ''; ?>">Catering</a>
-                    <a href="/blog.php" class="px-4 py-2 rounded-md hover:bg-secondary hover:text-dark transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'blog.php' ? 'bg-secondary text-dark' : ''; ?>">Blog</a>
-                    <a href="/about.php" class="px-4 py-2 rounded-md hover:bg-secondary hover:text-dark transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'about.php' ? 'bg-secondary text-dark' : ''; ?>">About Us</a>
-                    <a href="/contact.php" class="px-4 py-2 rounded-md hover:bg-secondary hover:text-dark transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'contact.php' ? 'bg-secondary text-dark' : ''; ?>">Contact</a>
-                    <a href="/ambassador.php" class="px-4 py-2 rounded-md hover:bg-secondary hover:text-dark transition-colors duration-200 font-medium ml-2 <?php echo basename($_SERVER['PHP_SELF']) == 'ambassador.php' ? 'bg-secondary text-dark' : ''; ?>">Ambassador</a>
-                    <a href="/cart.php" class="relative p-2 rounded-full hover:bg-secondary hover:text-dark transition-colors duration-200 ml-2 <?php echo basename($_SERVER['PHP_SELF']) == 'cart.php' ? 'bg-secondary text-dark' : ''; ?>">
+                    <a href="/index.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium <?php echo (basename($_SERVER['PHP_SELF']) == 'index.php' || $_SERVER['REQUEST_URI'] == '/' || $_SERVER['PHP_SELF'] == '/index.php') ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">Home</a>
+                    <a href="/menu.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'menu.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">Menu</a>
+                    <a href="/catering.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'catering.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">Catering</a>
+                    <a href="/blog.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'blog.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">Blog</a>
+                    <a href="/about.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'about.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">About Us</a>
+                    <a href="/contact.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'contact.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">Contact</a>
+                    <a href="/ambassador.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium ml-2 <?php echo basename($_SERVER['PHP_SELF']) == 'ambassador.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">Ambassador</a>
+                    <a href="/cart.php" class="relative p-2 rounded-full hover:bg-primary hover:text-white transition-colors duration-200 ml-2 <?php echo basename($_SERVER['PHP_SELF']) == 'cart.php' ? 'bg-white text-primary shadow-md' : 'text-white'; ?>">
                         <i class="fas fa-shopping-cart text-xl"></i>
                         <span class="cart-count-desktop absolute -top-1 -right-1 bg-accent text-secondary text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">0</span>
                     </a>
                     <?php if (isset($_SESSION['user_id'])): ?>
                     <!-- Notifications Bell -->
-                    <a href="/chat.php" class="relative p-2 rounded-full hover:bg-secondary hover:text-dark transition-colors duration-200 ml-2 <?php echo basename($_SERVER['PHP_SELF']) == 'chat.php' ? 'bg-secondary text-dark' : ''; ?>" title="Notifications">
+                    <a href="/chat.php" class="relative p-2 rounded-full hover:bg-primary hover:text-white transition-colors duration-200 ml-2 <?php echo basename($_SERVER['PHP_SELF']) == 'chat.php' ? 'bg-white text-primary shadow-md' : 'text-white'; ?>" title="Notifications">
                         <i class="fas fa-bell text-xl"></i>
                         <span class="notification-count-desktop absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden" id="notificationBadge">0</span>
                     </a>
@@ -253,17 +288,16 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
                             x-transition:leave-end="opacity-0 scale-95"
                             @click.away="open = false"
                             x-cloak
-                            x-cloak
-                            class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+                            class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-gray-300 ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
                             role="menu"
                             aria-orientation="vertical"
                             tabindex="-1"
                         >
-                            <a href="/account/customerdashboard.php" class="block px-4 py-2 text-gray-800 hover:bg-gray-100"><i class="fas fa-user-circle mr-2"></i>My Account</a>
-                            <a href="/account/orders.php" class="block px-4 py-2 text-gray-800 hover:bg-gray-100"><i class="fas fa-shopping-bag mr-2"></i>My Orders</a>
-                            <a href="/chat.php" class="block px-4 py-2 text-gray-800 hover:bg-gray-100"><i class="fas fa-comments mr-2"></i>Chat Support</a>
+                            <a href="/account/customerdashboard.php" class="block px-4 py-2 text-gray-800 hover:bg-primary hover:text-white transition-colors duration-200"><i class="fas fa-user-circle mr-2"></i>My Account</a>
+                            <a href="/account/orders.php" class="block px-4 py-2 text-gray-800 hover:bg-primary hover:text-white transition-colors duration-200"><i class="fas fa-shopping-bag mr-2"></i>My Orders</a>
+                            <a href="/chat.php" class="block px-4 py-2 text-gray-800 hover:bg-primary hover:text-white transition-colors duration-200"><i class="fas fa-comments mr-2"></i>Chat Support</a>
                             <div class="border-t border-gray-200 my-1"></div>
-                            <a href="/auth/logout.php" class="block px-4 py-2 text-red-600 hover:bg-gray-100"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a>
+                            <a href="/auth/logout.php" class="block px-4 py-2 text-red-600 hover:bg-red-600 hover:text-white transition-colors duration-200"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a>
                         </div>
                     </div>
                     <?php else: ?>
@@ -297,36 +331,36 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
                 x-transition:leave-end="opacity-0 transform -translate-y-4 scale-95"
                 @click.away="mobileMenuOpen = false"
                 x-cloak
-                class="md:hidden absolute top-full left-0 right-0 bg-dark/95 backdrop-blur-md shadow-2xl border-t border-white/20"
+                class="md:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md shadow-2xl border-t border-gray-200"
                 style="z-index: 9999;"
                 x-effect="console.log('Mobile menu visibility:', mobileMenuOpen)"
             >
                 <div class="container mx-auto px-4 py-6 space-y-2">
-                    <a href="/index.php" class="block py-4 px-4 rounded-xl hover:bg-secondary hover:text-dark transition-all duration-200 font-medium text-lg">
+                    <a href="/index.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
                         <i class="fas fa-home mr-3"></i>Home
                     </a>
-                    <a href="/menu.php" class="block py-4 px-4 rounded-xl hover:bg-secondary hover:text-dark transition-all duration-200 font-medium text-lg">
+                    <a href="/menu.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
                         <i class="fas fa-utensils mr-3"></i>Menu
                     </a>
-                    <a href="/catering.php" class="block py-4 px-4 rounded-xl hover:bg-secondary hover:text-dark transition-all duration-200 font-medium text-lg">
+                    <a href="/catering.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
                         <i class="fas fa-concierge-bell mr-3"></i>Catering
                     </a>
-                    <a href="/blog.php" class="block py-4 px-4 rounded-xl hover:bg-secondary hover:text-dark transition-all duration-200 font-medium text-lg">
+                    <a href="/blog.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
                         <i class="fas fa-blog mr-3"></i>Blog
                     </a>
-                    <a href="/about.php" class="block py-4 px-4 rounded-xl hover:bg-secondary hover:text-dark transition-all duration-200 font-medium text-lg">
+                    <a href="/about.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
                         <i class="fas fa-info-circle mr-3"></i>About Us
                     </a>
-                    <a href="/contact.php" class="block py-4 px-4 rounded-xl hover:bg-secondary hover:text-dark transition-all duration-200 font-medium text-lg">
+                    <a href="/contact.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
                         <i class="fas fa-phone mr-3"></i>Contact
                     </a>
-                    <a href="/ambassador.php" class="block py-4 px-4 rounded-xl hover:bg-secondary hover:text-dark transition-all duration-200 font-medium text-lg">
+                    <a href="/ambassador.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
                         <i class="fas fa-crown mr-3"></i>Become an Ambassador
                     </a>
 
                     <!-- Cart Link for Mobile -->
-                    <div class="border-t border-white/30 my-3"></div>
-                    <a href="/cart.php" class="flex items-center py-4 px-4 rounded-xl hover:bg-secondary hover:text-dark transition-all duration-200 text-lg">
+                    <div class="border-t border-gray-200 my-3"></div>
+                    <a href="/cart.php" class="flex items-center py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 text-lg <?php echo basename($_SERVER['PHP_SELF']) == 'cart.php' ? 'bg-primary text-white font-semibold' : 'text-gray-800'; ?>">
                         <i class="fas fa-shopping-cart mr-3"></i>
                         <span>Cart</span>
                         <span class="cart-count-mobile ml-auto bg-accent text-secondary text-sm font-bold rounded-full h-6 w-6 flex items-center justify-center">0</span>
@@ -334,7 +368,7 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
 
                     <?php if (isset($_SESSION['user_id'])): ?>
                     <!-- Notifications for Mobile -->
-                    <a href="/chat.php" class="flex items-center py-4 px-4 rounded-xl hover:bg-secondary hover:text-dark transition-all duration-200 text-lg">
+                    <a href="/chat.php" class="flex items-center py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 text-lg <?php echo basename($_SERVER['PHP_SELF']) == 'chat.php' ? 'bg-primary text-white font-semibold' : 'text-gray-800'; ?>">
                         <i class="fas fa-bell mr-3"></i>
                         <span>Notifications</span>
                         <span class="notification-count-mobile ml-auto bg-red-500 text-white text-sm font-bold rounded-full h-6 w-6 flex items-center justify-center hidden" id="notificationBadgeMobile">0</span>
@@ -343,24 +377,24 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
 
                     <?php if (isset($_SESSION['user_id'])): ?>
                     <!-- User Menu for Mobile -->
-                    <div class="border-t border-white/30 my-3"></div>
+                    <div class="border-t border-gray-200 my-3"></div>
                     <div class="space-y-2">
-                        <a href="/account/customerdashboard.php" class="block py-3 px-4 text-white hover:bg-secondary hover:text-dark rounded-xl transition-all duration-200 text-lg">
+                        <a href="/account/customerdashboard.php" class="block py-3 px-4 text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-200 text-lg">
                             <i class="fas fa-user-circle mr-3"></i>My Account
                         </a>
-                        <a href="/account/orders.php" class="block py-3 px-4 text-white hover:bg-secondary hover:text-dark rounded-xl transition-all duration-200 text-lg">
+                        <a href="/account/orders.php" class="block py-3 px-4 text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-200 text-lg">
                             <i class="fas fa-shopping-bag mr-3"></i>My Orders
                         </a>
-                        <a href="/chat.php" class="block py-3 px-4 text-white hover:bg-secondary hover:text-dark rounded-xl transition-all duration-200 text-lg">
+                        <a href="/chat.php" class="block py-3 px-4 text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-200 text-lg">
                             <i class="fas fa-comments mr-3"></i>Chat Support
                         </a>
-                        <a href="/auth/logout.php" class="block py-3 px-4 text-red-400 hover:bg-red-600 hover:text-white rounded-xl transition-all duration-200 text-lg">
+                        <a href="/auth/logout.php" class="block py-3 px-4 text-red-600 hover:bg-gray-100 rounded-xl transition-all duration-200 text-lg">
                             <i class="fas fa-sign-out-alt mr-3"></i>Logout
                         </a>
                     </div>
                     <?php else: ?>
-                    <div class="border-t border-white/30 my-3"></div>
-                    <a href="/auth/login.php" class="block py-4 px-4 bg-secondary text-dark text-center rounded-xl hover:bg-opacity-90 transition-all duration-200 font-medium text-lg">
+                    <div class="border-t border-gray-200 my-3"></div>
+                    <a href="/auth/login.php" class="block py-4 px-4 bg-primary text-white text-center rounded-xl hover:bg-opacity-90 transition-all duration-200 font-medium text-lg">
                         <i class="fas fa-sign-in-alt mr-3"></i>Login
                     </a>
                     <?php endif; ?>

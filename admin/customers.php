@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim($_POST['email']);
         $role = $_POST['role'];
         $status = $_POST['status'];
-        
+
         try {
             $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, role = ?, status = ? WHERE id = ?");
             $stmt->execute([$name, $email, $role, $status, $id]);
@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (isset($_POST['delete_user'])) {
         // Delete user
         $id = (int)$_POST['user_id'];
-        
+
         try {
             // Prevent deleting own account
             if ($id == $_SESSION['user_id']) {
@@ -87,6 +87,32 @@ $page_title = 'Manage Customers';
 // Include header
 require_once 'includes/header.php';
 ?>
+
+<!-- Global functions for customer management -->
+<script>
+function editUser(user) {
+    document.getElementById('userId').value = user.id;
+    document.getElementById('name').value = user.name;
+    document.getElementById('email').value = user.email;
+    document.getElementById('role').value = user.role;
+    document.getElementById('status').value = user.status;
+
+    // Show modal
+    document.getElementById('editUserModal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('editUserModal').classList.add('hidden');
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('editUserModal');
+    if (event.target === modal) {
+        closeModal();
+    }
+}
+</script>
 
 <!-- Dashboard Header -->
 <div class="bg-gradient-to-br from-primary via-primary-dark to-secondary text-white">
@@ -331,61 +357,73 @@ require_once 'includes/header.php';
 </div>
 
 <!-- Edit User Modal -->
-<div id="editUserModal" class="hidden fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal()"></div>
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div class="inline-block align-bottom bg-white rounded-lg px-6 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="sm:flex sm:items-start">
-                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id="modal-title">
-                        <i class="fas fa-user-edit mr-2"></i>Edit Customer
-                    </h3>
-                    <form id="userForm" action="" method="POST" class="space-y-4">
-                        <input type="hidden" name="user_id" id="userId">
-                        <div>
-                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                            <input type="text" name="name" id="name" required
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
-                        </div>
-                        <div>
-                            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                            <input type="email" name="email" id="email" required
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                                <select id="role" name="role"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
-                                    <option value="user">Customer</option>
-                                    <option value="admin">Administrator</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                                <select id="status" name="status"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                    <option value="suspended">Suspended</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                            <button type="button" onclick="closeModal()"
-                                    class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200">
-                                Cancel
-                            </button>
-                            <button type="submit" name="update_user"
-                                    class="px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-primary-dark transition-colors duration-200 flex items-center">
-                                <i class="fas fa-save mr-2"></i>
-                                Update Customer
-                            </button>
-                        </div>
-                    </form>
-                </div>
+<div id="editUserModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-primary to-secondary p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">
+                    <i class="fas fa-user-edit mr-2"></i>Edit Customer
+                </h3>
+                <button onclick="closeModal()" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6">
+            <form id="userForm" action="" method="POST" class="space-y-6">
+                <input type="hidden" name="user_id" id="userId">
+                <input type="hidden" name="update_user" value="1">
+
+                <div>
+                    <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Full Name <span class="text-red-500">*</span></label>
+                    <input type="text" name="name" id="name" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors"
+                           placeholder="Enter full name">
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Email Address <span class="text-red-500">*</span></label>
+                    <input type="email" name="email" id="email" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors"
+                           placeholder="Enter email address">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="role" class="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+                        <select id="role" name="role"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
+                            <option value="user">Customer</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="status" class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                        <select id="status" name="status"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="suspended">Suspended</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="flex gap-3 pt-4">
+                    <button type="submit"
+                            class="flex-1 bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center justify-center">
+                        <i class="fas fa-save mr-2"></i>
+                        Update Customer
+                    </button>
+                    <button type="button" onclick="closeModal()"
+                            class="px-6 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200">
+                        Cancel
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -538,72 +576,9 @@ function clearFilters() {
     const url = new URL(window.location);
     url.searchParams.delete('search');
     url.searchParams.delete('role');
-    window.history.pushState({}, '', url);
-}
-
-function editUser(user) {
-    document.getElementById('userId').value = user.id;
-    document.getElementById('name').value = user.name;
-    document.getElementById('email').value = user.email;
-    document.getElementById('role').value = user.role;
-    document.getElementById('status').value = user.status;
-
-    // Show modal
-    document.getElementById('editUserModal').classList.remove('hidden');
-}
-
-function closeModal() {
-    document.getElementById('editUserModal').classList.add('hidden');
-}
-
-// Close modal when clicking outside
-window.onclick = function(event) {
-    const modal = document.getElementById('editUserModal');
-    if (event.target === modal) {
-        closeModal();
-    }
+    window.history.replaceState({}, '', url);
 }
 </script>
-
-<style>
-/* Filter tabs styling */
-.filter-tab {
-    @apply px-4 py-2 rounded-full bg-gray-100 text-gray-700 font-medium transition-colors duration-200;
-}
-
-.filter-tab:hover {
-    @apply bg-primary text-white;
-}
-
-.filter-tab.active {
-    @apply bg-primary text-white;
-}
-
-/* Table enhancements */
-tbody tr {
-    transition: background-color 0.2s ease;
-}
-
-tbody tr:hover {
-    background-color: #f9fafb;
-}
-
-/* Avatar styling */
-.avatar-badge {
-    background: linear-gradient(135deg, #C1272D 0%, #B01E24 100%);
-}
-
-/* Status badge improvements */
-.status-badge {
-    @apply px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full;
-}
-
-/* Button enhancements */
-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-</style>
 
 <?php
 // Include footer

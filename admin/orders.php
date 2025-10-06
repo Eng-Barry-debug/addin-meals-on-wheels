@@ -120,61 +120,6 @@ unset($status); // Break reference
 include 'includes/header.php';
 ?>
 
-<!-- Status Filter Tabs -->
-<div class="mb-6 border-b border-gray-200">
-    <nav class="-mb-px flex space-x-8" aria-label="Order status">
-        <a href="?status=" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm <?= !$status ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' ?>">
-            All Orders
-            <span class="bg-gray-100 text-gray-900 ml-2 py-0.5 px-2 rounded-full text-xs font-medium"><?= $total_records ?></span>
-        </a>
-        <?php foreach ($statuses as $key => $status_info): 
-            if ($key === '') continue; // Skip the 'all' status since we handle it separately
-            $count = $status_info['count'] ?? 0;
-        ?>
-            <a href="?status=<?= $key ?>" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm <?= $status === $key ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' ?>">
-                <?= $status_info['name'] ?>
-                <span class="bg-gray-100 text-gray-900 ml-2 py-0.5 px-2 rounded-full text-xs font-medium"><?= $count ?></span>
-            </a>
-        <?php endforeach; ?>
-    </nav>
-</div>
-
-<!-- Search and Filter Form -->
-<div class="bg-white shadow-lg rounded-xl p-6 mb-8">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-            <label for="search" class="block text-sm font-semibold text-gray-700 mb-2">Search Orders</label>
-            <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <i class="fas fa-search text-gray-400"></i>
-                </div>
-                <input type="text" name="search" id="search" value="<?= htmlspecialchars($search) ?>"
-                       class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
-                       placeholder="Order #, Customer, Email...">
-            </div>
-        </div>
-        <div>
-            <label for="date_from" class="block text-sm font-semibold text-gray-700 mb-2">From Date</label>
-            <input type="date" name="date_from" id="date_from" value="<?= htmlspecialchars($date_from) ?>"
-                   class="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm">
-        </div>
-        <div>
-            <label for="date_to" class="block text-sm font-semibold text-gray-700 mb-2">To Date</label>
-            <input type="date" name="date_to" id="date_to" value="<?= htmlspecialchars($date_to) ?>"
-                   class="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm">
-        </div>
-        <div class="flex items-end space-x-3">
-            <button type="submit" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center justify-center">
-                <i class="fas fa-filter mr-2"></i> Apply Filters
-            </button>
-            <?php if (!empty($status) || !empty($date_from) || !empty($date_to) || !empty($search)): ?>
-                <a href="orders.php" class="px-4 py-3 border-2 border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors duration-200 flex items-center justify-center">
-                    <i class="fas fa-times"></i>
-                </a>
-            <?php endif; ?>
-        </div>
-    </div>
-</div>
 
 <!-- Dashboard Header -->
 <div class="bg-gradient-to-br from-red-600 via-red-700 to-red-800 text-white">
@@ -403,7 +348,7 @@ include 'includes/header.php';
                                     <?php echo ucfirst($order['status']); ?>
                                 </span>
                                 <span class="text-lg font-bold text-red-600">
-                                    KES <?= number_format($order['total_amount'], 2) ?>
+                                    KES <?= number_format($order['total_amount'] ?? 0, 2) ?>
                                 </span>
                             </div>
                         </div>
@@ -513,7 +458,7 @@ include 'includes/header.php';
                         </div>
                         <div>
                             <p class="text-sm text-gray-600">Total</p>
-                            <p class="text-xl font-bold text-red-600">KES <?php echo number_format($order['total_amount'], 2); ?></p>
+                            <p class="text-xl font-bold text-red-600">KES <?php echo number_format($order['total_amount'] ?? 0, 2); ?></p>
                         </div>
                     </div>
                 </div>
@@ -572,45 +517,6 @@ include 'includes/header.php';
 </div>
 <?php endif; ?>
 
-<!-- Summary Stats -->
-<?php if (count($orders) > 0): ?>
-<div class="mt-8 grid grid-cols-2 md:grid-cols-4 gap-6">
-    <div class="bg-white rounded-lg shadow-md p-6 text-center border-l-4 border-blue-500">
-        <div class="text-2xl font-bold text-blue-600 mb-2"><?php echo $total_records; ?></div>
-        <div class="text-gray-600">Total Orders</div>
-    </div>
-    <div class="bg-white rounded-lg shadow-md p-6 text-center border-l-4 border-green-500">
-        <div class="text-2xl font-bold text-green-600 mb-2">
-            <?php
-            $delivered_count = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE status = 'delivered'");
-            $delivered_count->execute();
-            echo $delivered_count->fetchColumn();
-            ?>
-        </div>
-        <div class="text-gray-600">Delivered</div>
-    </div>
-    <div class="bg-white rounded-lg shadow-md p-6 text-center border-l-4 border-yellow-500">
-        <div class="text-2xl font-bold text-yellow-600 mb-2">
-            <?php
-            $pending_count = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE status = 'pending'");
-            $pending_count->execute();
-            echo $pending_count->fetchColumn();
-            ?>
-        </div>
-        <div class="text-gray-600">Pending</div>
-    </div>
-    <div class="bg-white rounded-lg shadow-md p-6 text-center border-l-4 border-purple-500">
-        <div class="text-2xl font-bold text-purple-600 mb-2">
-            KES <?php
-            $total_revenue = $pdo->prepare("SELECT SUM(total) FROM orders WHERE status = 'delivered'");
-            $total_revenue->execute();
-            echo number_format($total_revenue->fetchColumn() ?: 0, 2);
-            ?>
-        </div>
-        <div class="text-gray-600">Revenue</div>
-    </div>
-</div>
-<?php endif; ?>
 
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">

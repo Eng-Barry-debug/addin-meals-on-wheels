@@ -19,7 +19,9 @@ $success = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['add_category'])) {
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'add') {
         // Add new category
         $name = trim($_POST['name']);
         $description = trim($_POST['description']);
@@ -35,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Error adding category: ' . $e->getMessage();
             }
         }
-    } elseif (isset($_POST['update_category'])) {
+    } elseif ($action === 'update') {
         // Update existing category
         $id = (int)$_POST['category_id'];
         $name = trim($_POST['name']);
@@ -53,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } elseif (isset($_POST['delete_category'])) {
-        // Delete category
+        // Delete category (existing logic)
         $id = (int)$_POST['category_id'];
 
         try {
@@ -289,6 +291,7 @@ require_once 'includes/header.php';
         <div class="p-6">
             <form id="categoryForm" action="" method="POST">
                 <input type="hidden" name="category_id" id="categoryId">
+                <input type="hidden" name="action" id="formAction" value="add">
 
                 <div class="mb-6">
                     <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">
@@ -310,7 +313,7 @@ require_once 'includes/header.php';
 
                 <!-- Modal Footer -->
                 <div class="flex gap-3 pt-4">
-                    <button type="submit" name="add_category" id="submitBtn"
+                    <button type="submit" id="submitBtn"
                             class="flex-1 bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center justify-center">
                         <i class="fas fa-save mr-2"></i>
                         Add Category
@@ -330,7 +333,7 @@ function showAddCategoryModal() {
     document.getElementById('modalTitle').textContent = 'Add New Category';
     document.getElementById('categoryForm').reset();
     document.getElementById('categoryId').value = '';
-    document.getElementById('submitBtn').name = 'add_category';
+    document.getElementById('formAction').value = 'add';
     document.getElementById('submitBtn').innerHTML = '<i class="fas fa-plus mr-2"></i>Add Category';
     document.getElementById('categoryModal').classList.remove('hidden');
 }
@@ -340,9 +343,7 @@ function editCategory(category) {
     document.getElementById('categoryId').value = category.id;
     document.getElementById('name').value = category.name;
     document.getElementById('description').value = category.description || '';
-
-    // Update form action
-    document.getElementById('submitBtn').name = 'update_category';
+    document.getElementById('formAction').value = 'update';
     document.getElementById('submitBtn').innerHTML = '<i class="fas fa-save mr-2"></i>Update Category';
 
     document.getElementById('categoryModal').classList.remove('hidden');
@@ -380,7 +381,8 @@ document.getElementById('categoryForm').addEventListener('submit', function(e) {
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
     submitBtn.disabled = true;
 
-    // Re-enable after 3 seconds as fallback
+    // Note: Form will submit naturally after this handler completes
+    // The setTimeout is just a fallback in case something goes wrong
     setTimeout(() => {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
