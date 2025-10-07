@@ -1,96 +1,165 @@
 <?php
-// Set page title and include header
+// orders.php - Admin Order Management
+// This file provides a comprehensive interface for viewing, filtering, and managing customer orders.
+
+// 1. Session Start
+// IMPORTANT: session_start() must be called before any HTML output.
+// It's often handled in a central config.php or header.php, but included here for completeness.
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+// 2. Page Configuration
 $page_title = 'Manage Orders';
 $page_description = 'View and manage customer orders';
 
-// Include database connection and functions
-// Ensure these paths are correct relative to orders.php in admin/
-// If orders.php is in admin/, then config.php is in ../includes/
-// If includes/functions.php is in admin/includes/, then it's 'includes/functions.php'.
-// If ActivityLogger.php is in ../includes/, then it's 'dirname(__DIR__) . /includes/ActivityLogger.php'.
-require_once dirname(__DIR__) . '/includes/config.php'; // Correct path to project_root/includes/config.php
-require_once 'includes/functions.php'; // Assuming custom admin functions exist here, relative to admin/
-require_once dirname(__DIR__) . '/includes/ActivityLogger.php'; // Correct path to project_root/includes/ActivityLogger.php
+// 3. Include Core Dependencies
+// Adjust paths as necessary based on your project structure.
+require_once dirname(__DIR__) . '/includes/config.php'; // Contains database connection ($pdo)
+require_once 'includes/functions.php'; // For any custom admin-specific PHP functions (optional)
+require_once dirname(__DIR__) . '/includes/ActivityLogger.php'; // Custom activity logging class
+
+// Initialize ActivityLogger with the PDO object
 $activityLogger = new ActivityLogger($pdo);
 
-// Initialize message variables
+// --- 4. API Endpoint for Fetching Single Order Data ---
+// This block handles AJAX/fetch() requests from JavaScript to get specific order details.
+// It MUST be placed directly after includes and before any HTML output, as it exits script execution.
+if (isset($_GET['fetch_order_data']) && is_numeric($_GET['fetch_order_data'])) {
+    $order_id_to_fetch = (int)$_GET['fetch_order_data'];
+    try {
+        // Fetch order and associated customer details
+        $stmt = $pdo->prepare("SELECT o.*, u.name as customer_name, u.email as customer_email FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.id = ?");
+        $stmt->execute([$order_id_to_fetch]);
+        $order_data = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($order_data) {
+            // Convert monetary values to float to ensure correct JSON and JS handling
+            $order_data['subtotal'] = (float)$order_data['subtotal'];
+            $order_data['delivery_fee'] = (float)$order_data['delivery_fee'];
+            $order_data['total_amount'] = (float)$order_data['total_amount'];
+
+            header('Content-Type: application/json');
+            echo json_encode($order_data);
+        } else {
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Order not found']);
+        }
+    } catch (PDOException $e) {
+        // Log and return database error details
+        error_log("DB Error fetching specific order (ID: {$order_id_to_fetch}): " . $e->getMessage());
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Database error', 'details' => $e->getMessage()]);
+    }
+    exit(); // Crucial: Stop further script execution for API responses
+}
+// --- END API Endpoint ---
+
+// 5. Initialize Feedback Messages
 $success_message = '';
 $error_message = '';
 
-// Handle form submissions
+// 6. Handle POST Requests for CRUD Operations
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // A. Delete Order Operation
     if (isset($_POST['_method']) && $_POST['_method'] === 'DELETE') {
         $order_id = (int)$_POST['id'];
         try {
-            // Fetch order details for logging
+            // Retrieve order info before deletion for logging
             $orderStmt = $pdo->prepare("SELECT order_number, user_id FROM orders WHERE id = ?");
             $orderStmt->execute([$order_id]);
             $order_info = $orderStmt->fetch(PDO::FETCH_ASSOC);
 
             if ($order_info) {
-                // To delete an order, you might need to delete its related order_items first
-                // if order_items.order_id has an ON DELETE RESTRICT foreign key constraint.
-                // Or ensure ON DELETE CASCADE is set up in your database schema.
-                // Assuming ON DELETE CASCADE is set on order_items.order_id.
-                $deleteOrderStmt = $pdo->prepare("DELETE FROM orders WHERE id = ?");
-                if ($deleteOrderStmt->execute([$order_id])) {
-                    $success_message = 'Order ' . htmlspecialchars($order_info['order_number']) . ' deleted successfully';
-                    $activityLogger->logActivity("Order '{$order_info['order_number']}' (ID: {$order_id}) deleted.", $_SESSION['user_id'], 'order_delete');
+                // Assuming 'order_items' foreign key has ON DELETE CASCADE.
+                // If not, explicitly delete from 'order_items' first:
+                // $pdo->prepare("DELETE FROM order_items WHERE order_id = ?")->execute([$order_id]);
+
+                $deleteStmt = $pdo->prepare("DELETE FROM orders WHERE id = ?");
+                if ($deleteStmt->execute([$order_id])) {
+                    $success_message = 'Order ' . htmlspecialchars($order_info['order_number']) . ' deleted successfully.';
+                    $activityLogger->logActivity("Order '{$order_info['order_number']}' (ID: {$order_id}) deleted.", $_SESSION['user_id'] ?? null, 'order_delete');
                 } else {
-                    $error_message = 'Failed to delete order. Please check database constraints.';
+                    $error_message = 'Failed to delete order. Database operation failed.';
+                    error_log("Failed to delete order ID {$order_id}. PDO execute returned false.");
                 }
             } else {
                 $error_message = 'Order not found for deletion.';
             }
         } catch (PDOException $e) {
-            $error_message = 'Database error deleting order: ' . $e->getMessage();
-            error_log("Error deleting order (ID: {$order_id}): {$e->getMessage()}");
+            $error_message = 'Database error during order deletion: ' . $e->getMessage();
+            error_log("Error deleting order ID {$order_id}: " . $e->getMessage());
         }
-    } elseif (isset($_POST['update_order'])) {
-        $order_id = (int)$_POST['order_id'];
-        $status = $_POST['status'];
-        $payment_status = $_POST['payment_status'];
-        $delivery_address = trim($_POST['delivery_address']);
-        $delivery_instructions = trim($_POST['delivery_instructions']);
-        $subtotal = (float)$_POST['subtotal'];
-        $delivery_fee = (float)$_POST['delivery_fee'];
-        $total_amount = (float)$_POST['total_amount']; // Should be calculated or validated
+    }
+    // B. Update Order Operation
+    elseif (isset($_POST['update_order'])) {
+        // Sanitize and validate inputs
+        $order_id = (int)($_POST['order_id'] ?? 0);
+        $status = trim($_POST['status'] ?? '');
+        $payment_status = trim($_POST['payment_status'] ?? '');
+        $delivery_address = trim($_POST['delivery_address'] ?? '');
+        $delivery_instructions = trim($_POST['delivery_instructions'] ?? '');
+        $subtotal = (float)($_POST['subtotal'] ?? 0.0);
+        $delivery_fee = (float)($_POST['delivery_fee'] ?? 0.0);
+        // Recalculate total_amount server-side for accuracy and security
+        // $total_amount = (float)($_POST['total_amount'] ?? 0.0); // Not used directly for update query
 
-        try {
-            $stmt = $pdo->prepare("UPDATE orders SET status = ?, payment_status = ?, delivery_address = ?, delivery_instructions = ?, subtotal = ?, delivery_fee = ?, total_amount = ? WHERE id = ?");
-            $stmt->execute([$status, $payment_status, $delivery_address, $delivery_instructions, $subtotal, $delivery_fee, $total_amount, $order_id]);
-            $success_message = "Order #{$order_id} updated successfully.";
-            $activityLogger->logActivity("Order #{$order_id} details updated.", $_SESSION['user_id'], 'order_update');
-        } catch (PDOException $e) {
-            $error_message = "Error updating order #{$order_id}: " . $e->getMessage();
-            error_log("Error updating order #{$order_id}: {$e->getMessage()}");
+        // Basic validation
+        if ($order_id <= 0 || empty($status) || empty($payment_status) || empty($delivery_address)) {
+            $error_message = 'Invalid input for order update. Please fill all required fields.';
+        } else {
+            $calculated_total_amount = $subtotal + $delivery_fee; // Recalculate here
+
+            try {
+                $stmt = $pdo->prepare("UPDATE orders SET status = ?, payment_status = ?, delivery_address = ?, delivery_instructions = ?, subtotal = ?, delivery_fee = ?, total_amount = ?, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([
+                    $status, $payment_status, $delivery_address, $delivery_instructions,
+                    $subtotal, $delivery_fee, $calculated_total_amount, $order_id
+                ]);
+                $success_message = "Order #{$order_id} updated successfully.";
+                $activityLogger->logActivity("Order #{$order_id} details updated (status: {$status}).", $_SESSION['user_id'] ?? null, 'order_update');
+            } catch (PDOException $e) {
+                $error_message = 'Database error updating order: ' . $e->getMessage();
+                error_log("Error updating order ID {$order_id}: " . $e->getMessage());
+            }
         }
-    } elseif (isset($_POST['add_order'])) {
-        // This is a simplified "Add Order" handler. A real one might need more complex item selection logic.
-        $user_id = (int)$_POST['user_id'];
-        $order_number = "ORD-" . strtoupper(uniqid()); // Generate unique order number
-        $status = $_POST['status'];
-        $payment_method = $_POST['payment_method'];
-        $payment_status = $_POST['payment_status'];
-        $delivery_address = trim($_POST['delivery_address']);
-        $delivery_instructions = trim($_POST['delivery_instructions']);
-        $subtotal = (float)$_POST['subtotal'];
-        $delivery_fee = (float)$_POST['delivery_fee'];
-        $total_amount = $subtotal + $delivery_fee; // Calculate total
+    }
+    // C. Add New Order Operation
+    elseif (isset($_POST['add_order'])) {
+        // Sanitize and validate inputs
+        $user_id = (int)($_POST['user_id'] ?? 0);
+        $status = trim($_POST['status'] ?? '');
+        $payment_method = trim($_POST['payment_method'] ?? '');
+        $payment_status = trim($_POST['payment_status'] ?? '');
+        $delivery_address = trim($_POST['delivery_address'] ?? '');
+        $delivery_instructions = trim($_POST['delivery_instructions'] ?? '');
+        $subtotal = (float)($_POST['subtotal'] ?? 0.0);
+        $delivery_fee = (float)($_POST['delivery_fee'] ?? 0.0);
+        $total_amount = $subtotal + $delivery_fee; // Calculate server-side
 
-        try {
-            $stmt = $pdo->prepare("INSERT INTO orders (user_id, order_number, status, payment_method, payment_status, delivery_address, delivery_instructions, subtotal, delivery_fee, total_amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-            $stmt->execute([$user_id, $order_number, $status, $payment_method, $payment_status, $delivery_address, $delivery_instructions, $subtotal, $delivery_fee, $total_amount]);
-            $new_order_id = $pdo->lastInsertId();
-            $success_message = "New Order #{$order_number} created successfully.";
-            $activityLogger->logActivity("New Order #{$order_number} created.", $_SESSION['user_id'], 'order_add');
-        } catch (PDOException $e) {
-            $error_message = "Error creating order: " . $e->getMessage();
-            error_log("Error creating order: {$e->getMessage()}");
+        $order_number = "ORD-" . strtoupper(uniqid()); // Generate a unique order number
+
+        // Basic validation
+        if ($user_id <= 0 || empty($status) || empty($payment_method) || empty($payment_status) || empty($delivery_address)) {
+            $error_message = 'Invalid input for new order. Please fill all required fields and select a customer.';
+        } else {
+            try {
+                $stmt = $pdo->prepare("INSERT INTO orders (user_id, order_number, status, payment_method, payment_status, delivery_address, delivery_instructions, subtotal, delivery_fee, total_amount, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+                $stmt->execute([
+                    $user_id, $order_number, $status, $payment_method, $payment_status,
+                    $delivery_address, $delivery_instructions, $subtotal, $delivery_fee, $total_amount
+                ]);
+                $new_order_id = $pdo->lastInsertId();
+                $success_message = "New Order #{$order_number} (ID: {$new_order_id}) created successfully.";
+                $activityLogger->logActivity("New Order #{$order_number} (ID:{$new_order_id}) created.", $_SESSION['user_id'] ?? null, 'order_add');
+            } catch (PDOException $e) {
+                $error_message = 'Database error creating new order: ' . $e->getMessage();
+                error_log("Error creating new order: " . $e->getMessage());
+            }
         }
     }
 
-    // Store messages in session for redirection (Post/Redirect/Get pattern)
+    // Redirect to prevent form re-submission on refresh (PRG pattern)
     if ($success_message) {
         $_SESSION['message'] = ['type' => 'success', 'text' => $success_message];
     } elseif ($error_message) {
@@ -100,10 +169,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit();
 }
 
-// Check if there's a message from a previous redirect
+// 7. Process One-Time Session Messages
+// This displays success/error messages from previous redirects.
 if (isset($_SESSION['message'])) {
     $message = $_SESSION['message'];
-    unset($_SESSION['message']);
+    unset($_SESSION['message']); // Clear message after display
     if ($message['type'] === 'success') {
         $success_message = $message['text'];
     } else {
@@ -111,39 +181,40 @@ if (isset($_SESSION['message'])) {
     }
 }
 
+// --- 8. Data Retrieval for Page Display (GET requests) ---
 
-// Get filter parameters
-$status_filter = isset($_GET['status']) ? trim($_GET['status']) : ''; // Renamed to avoid clash with local variable
-$date_from = isset($_GET['date_from']) ? trim($_GET['date_from']) : '';
-$date_to = isset($_GET['date_to']) ? trim($_GET['date_to']) : '';
-$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+// Get filter parameters from URL
+$status_filter = trim($_GET['status'] ?? '');
+$date_from = trim($_GET['date_from'] ?? '');
+$date_to = trim($_GET['date_to'] ?? '');
+$search = trim($_GET['search'] ?? '');
+$page = (int)($_GET['page'] ?? 1); // Current page for pagination
 
-// Build base query
+// Prepare dynamic WHERE clauses and parameters
 $where_conditions = [];
 $params = [];
-$base_query = "FROM orders o
-          LEFT JOIN users u ON o.user_id = u.id"; // Adjusted as per your previous query
+$base_query_joins = "FROM orders o LEFT JOIN users u ON o.user_id = u.id";
 
-if ($status_filter) {
+if (!empty($status_filter) && $status_filter !== 'all') {
     $where_conditions[] = "o.status = :status_filter";
     $params[':status_filter'] = $status_filter;
 }
 
-if ($date_from) {
+if (!empty($date_from)) {
     $where_conditions[] = "DATE(o.created_at) >= :date_from";
     $params[':date_from'] = $date_from;
 }
 
-if ($date_to) {
-    // Add 1 day to date_to so it includes the entire selected day
+if (!empty($date_to)) {
     $where_conditions[] = "DATE(o.created_at) <= :date_to";
     $params[':date_to'] = $date_to;
 }
 
-if ($search) {
-    $where_conditions[] = "(o.order_number LIKE :search OR u.name LIKE :search_user)";
-    $params[':search'] = "%{$search}%";
-    $params[':search_user'] = "%{$search}%";
+if (!empty($search)) {
+    $where_conditions[] = "(o.order_number LIKE :search_num OR u.name LIKE :search_name OR u.email LIKE :search_email)";
+    $params[':search_num'] = "%{$search}%";
+    $params[':search_name'] = "%{$search}%";
+    $params[':search_email'] = "%{$search}%";
 }
 
 $final_where_clause = '';
@@ -151,29 +222,28 @@ if (!empty($where_conditions)) {
     $final_where_clause = " WHERE " . implode(" AND ", $where_conditions);
 }
 
-// Get total count for pagination (before applying GROUP BY and LIMIT)
-$count_query = "SELECT COUNT(DISTINCT o.id) as total $base_query $final_where_clause";
+// 9. Total Record Count for Pagination
+$count_query = "SELECT COUNT(o.id) AS total $base_query_joins $final_where_clause";
 $count_stmt = $pdo->prepare($count_query);
 foreach ($params as $key => $value) {
     $count_stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
 }
 $count_stmt->execute();
-$total_records = $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
+$total_records = $count_stmt->fetchColumn(); // Use fetchColumn for single value
 
-// Pagination
-$per_page = 10;
-$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+// 10. Pagination Calculations
+$per_page = 10; // Number of orders per page
+$page = max(1, $page); // Ensure page is at least 1
 $total_pages = ceil($total_records / $per_page);
 $offset = ($page - 1) * $per_page;
 
-// Build query for main data retrieval
-$query_data = "SELECT o.*, u.name as customer_name, u.email as customer_email,
-                 u.phone as customer_phone
-          $base_query
-          $final_where_clause
-          GROUP BY o.id
-          ORDER BY o.created_at DESC
-          LIMIT :limit OFFSET :offset";
+// 11. Main Order Data Retrieval for Current Page
+$query_data = "
+    SELECT o.*, u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone
+    $base_query_joins
+    $final_where_clause
+    ORDER BY o.created_at DESC
+    LIMIT :limit OFFSET :offset";
 
 $stmt_data = $pdo->prepare($query_data);
 foreach ($params as $key => $value) {
@@ -184,62 +254,91 @@ $stmt_data->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt_data->execute();
 $orders = $stmt_data->fetchAll(PDO::FETCH_ASSOC);
 
-// For order cards, we need item details. For simplicity, let's fetch them per order
-// This is not ideal for performance in a large dataset but works for the current display logic.
-// A more efficient approach would be to join order_items or fetch separately and map.
-foreach ($orders as &$order) {
-    $items_stmt = $pdo->prepare("SELECT item_name, total FROM order_items WHERE order_id = ?");
+// 12. Enrich Orders with Associated Items Summary
+// This fetches items for each order displayed on the current page.
+foreach ($orders as &$order) { // Use reference to modify array elements directly
+    $items_stmt = $pdo->prepare("SELECT item_name, quantity, price, total FROM order_items WHERE order_id = ?");
     $items_stmt->execute([$order['id']]);
     $order_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $order['item_count'] = count($order_items);
     $item_names_arr = array_column($order_items, 'item_name');
     $order['item_names_summary'] = implode(', ', $item_names_arr);
-    $order['items_total_amount'] = array_sum(array_column($order_items, 'total')); // Sum of individual item totals
-
 }
-unset($order); // Break the reference after loop
+unset($order); // Unset the reference after the loop is complete (corrected: from unsetId to unset)
 
-// Get order status counts for filters
+// 13. Calculate Status Counts for Filter Tabs (respecting other active filters)
 $status_counts = [];
-$status_options = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
-foreach ($status_options as $s) {
-    $temp_query = "SELECT COUNT(o.id) $base_query WHERE o.status = :status";
-    $temp_stmt = $pdo->prepare($temp_query);
-    $temp_stmt->execute([':status' => $s]);
-    $status_counts[$s] = $temp_stmt->fetchColumn();
+$all_status_options = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+// Define status colors for filters
+$status_colors = [
+    'pending' => 'bg-yellow-100 text-yellow-600',
+    'processing' => 'bg-blue-100 text-blue-600',
+    'shipped' => 'bg-indigo-100 text-indigo-600',
+    'delivered' => 'bg-green-100 text-green-600',
+    'cancelled' => 'bg-red-100 text-red-600'
+];
+
+foreach ($all_status_options as $status_key) {
+    $temp_conditions = $where_conditions; // Start with current filters (date, search)
+    $temp_params = $params;
+
+    // Remove any status_filter from the main parameters for this specific count
+    $key_to_remove = null;
+    foreach($temp_conditions as $k => $condition_str) {
+        if (strpos($condition_str, 'o.status = :status_filter') !== false) {
+            $key_to_remove = $k;
+            break;
+        }
+    }
+    if ($key_to_remove !== false && $key_to_remove !== null) { // Check for non-false as well
+        unset($temp_conditions[$key_to_remove]);
+        unset($temp_params[':status_filter']);
+    }
+
+    $temp_conditions_for_count = array_values($temp_conditions); // Re-index after potential unset
+    $temp_conditions_for_count[] = "o.status = :current_status"; // Add current status for this specific count
+
+    $temp_final_where = !empty($temp_conditions_for_count) ? " WHERE " . implode(" AND ", $temp_conditions_for_count) : "";
+
+    $count_this_status_query = "SELECT COUNT(o.id) $base_query_joins $temp_final_where";
+    $count_this_status_stmt = $pdo->prepare($count_this_status_query);
+
+    // Bind parameters for this count query
+    foreach ($temp_params as $param_key => $param_value) {
+        $count_this_status_stmt->bindValue($param_key, $param_value, is_int($param_value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+    }
+    $count_this_status_stmt->bindValue(':current_status', $status_key); // Bind the specific status for this loop iteration
+
+    $count_this_status_stmt->execute();
+    $status_counts[$status_key] = $count_this_status_stmt->fetchColumn() ?: 0; // Ensure it's 0 if no results
 }
 
-
-// Fetch a list of users to select from in the "Add Order" modal
+// 14. Fetch Customer List for "Add Order" Modal (if needed)
 $customer_list = [];
 try {
     $stmt_customers = $pdo->query("SELECT id, name, email FROM users WHERE role = 'customer' ORDER BY name ASC");
     $customer_list = $stmt_customers->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    error_log("Error fetching customer list: " . $e->getMessage());
+    error_log("Error fetching customer list for add order modal: " . $e->getMessage());
 }
 
-// Include the admin dashboard header. This includes the HTML <body> tag and top section.
-include 'includes/admin_header.php'; // Make sure this path is correct for your admin header.
+// 15. Include Header (Start HTML Output)
+include 'includes/header.php';
 ?>
-```
 
----
+<!-- ============================================== HTML BEGINS HERER ============================================== -->
 
-**Part 2: Main HTML Content (Dashboard Header, Statistics, Alerts, Filter/Search, Order Cards, Pagination)**
-
-```html
-<!-- Dashboard Header -->
+<!-- Dashboard Header Section -->
 <div class="bg-gradient-to-br from-red-600 via-red-700 to-red-800 text-white mt-0">
     <div class="container mx-auto px-6 py-8">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div>
-                <h1 class="text-3xl md:text-4xl font-bold mb-2">Order Management</h1>
-                <p class="text-lg opacity-90">View and manage customer orders</p>
+                <h1 class="text-3xl md:text-4xl font-bold mb-2"><?= htmlspecialchars($page_title) ?></h1>
+                <p class="text-lg opacity-90"><?= htmlspecialchars($page_description) ?></p>
             </div>
             <div class="mt-4 lg:mt-0">
-                <button onclick="addOrder()"
+                <button type="button" onclick="addOrder()"
                    class="group relative bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center shadow-lg hover:shadow-xl transform hover:-translate-y-1 border border-green-400/20">
                     <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                     <i class="fas fa-plus mr-2 relative z-10"></i>
@@ -250,10 +349,11 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
     </div>
 </div>
 
-<!-- Statistics Cards -->
+<!-- Statistics Cards Section -->
 <div class="bg-gray-50 py-8">
     <div class="container mx-auto px-6">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <!-- Total Orders Card -->
             <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-red-500">
                 <div class="flex items-center">
                     <div class="p-3 bg-red-100 rounded-lg">
@@ -261,11 +361,12 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                     </div>
                     <div class="ml-4">
                         <h3 class="text-2xl font-bold text-gray-900"><?php echo number_format($total_records); ?></h3>
-                        <p class="text-gray-600">Total Orders</p>
+                        <p class="text-gray-600">Total Orders (Filtered)</p>
                     </div>
                 </div>
             </div>
 
+            <!-- Delivered Orders Card -->
             <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
                 <div class="flex items-center">
                     <div class="p-3 bg-green-100 rounded-lg">
@@ -275,11 +376,12 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                         <h3 class="text-2xl font-bold text-gray-900">
                             <?php echo number_format($status_counts['delivered'] ?? 0); ?>
                         </h3>
-                        <p class="text-gray-600">Delivered</p>
+                        <p class="text-gray-600">Delivered (Filtered)</p>
                     </div>
                 </div>
             </div>
 
+            <!-- Pending Orders Card -->
             <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500">
                 <div class="flex items-center">
                     <div class="p-3 bg-yellow-100 rounded-lg">
@@ -289,11 +391,12 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                         <h3 class="text-2xl font-bold text-gray-900">
                             <?php echo number_format($status_counts['pending'] ?? 0); ?>
                         </h3>
-                        <p class="text-gray-600">Pending</p>
+                        <p class="text-gray-600">Pending (Filtered)</p>
                     </div>
                 </div>
             </div>
 
+            <!-- Total Revenue Card -->
             <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
                 <div class="flex items-center">
                     <div class="p-3 bg-purple-100 rounded-lg">
@@ -303,16 +406,39 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                         <h3 class="text-2xl font-bold text-gray-900">
                             KES <?php
                             try {
-                                $total_revenue_stmt = $pdo->prepare("SELECT SUM(total_amount) FROM orders WHERE status = 'delivered'");
+                                $revenue_conditions = $where_conditions;
+                                $revenue_params = $params;
+
+                                // Remove any previous general status filter from the main query's conditions/params
+                                $key_to_remove = null;
+                                foreach($revenue_conditions as $k => $condition_str) {
+                                    if (strpos($condition_str, 'o.status = :status_filter') !== false) {
+                                        $key_to_remove = $k;
+                                        break;
+                                    }
+                                }
+                                if ($key_to_remove !== false && $key_to_remove !== null) {
+                                    unset($revenue_conditions[$key_to_remove]);
+                                    unset($revenue_params[':status_filter']);
+                                }
+
+                                $revenue_conditions_final = array_values($revenue_conditions);
+                                $revenue_conditions_final[] = "o.status = 'delivered'"; // Only count delivered for revenue
+                                $revenue_final_where = !empty($revenue_conditions_final) ? " WHERE " . implode(" AND ", $revenue_conditions_final) : "";
+
+                                $total_revenue_stmt = $pdo->prepare("SELECT SUM(o.total_amount) $base_query_joins $revenue_final_where");
+                                foreach ($revenue_params as $key => $value) {
+                                    $total_revenue_stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+                                }
                                 $total_revenue_stmt->execute();
-                                echo number_format($total_revenue_stmt->fetchColumn() ?: 0, 0);
+                                echo number_format($total_revenue_stmt->fetchColumn() ?: 0, 0); // Display as integer, or with decimals if needed
                             } catch (PDOException $e) {
-                                echo "0";
-                                error_log("Error calculating revenue: " . $e->getMessage());
+                                echo "0"; // Display 0 on error
+                                error_log("Error calculating main revenue stat: " . $e->getMessage());
                             }
                             ?>
                         </h3>
-                        <p class="text-gray-600">Revenue</p>
+                        <p class="text-gray-600">Revenue (Filtered Delivered)</p>
                     </div>
                 </div>
             </div>
@@ -320,9 +446,9 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
     </div>
 </div>
 
-<!-- Main Content -->
+<!-- Main Content Area -->
 <div class="container mx-auto px-6 py-8">
-    <!-- Alerts -->
+    <!-- Feedback Alerts -->
     <?php if ($error_message): ?>
         <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-400 text-red-700 rounded-lg flex items-center">
             <i class="fas fa-exclamation-circle mr-3"></i>
@@ -330,7 +456,7 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                 <p class="font-semibold">Error</p>
                 <p><?php echo htmlspecialchars($error_message); ?></p>
             </div>
-            <button onclick="this.parentElement.remove()" class="ml-auto text-gray-400 hover:text-gray-600">
+            <button type="button" onclick="this.parentElement.remove()" class="ml-auto text-gray-400 hover:text-gray-600">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -343,21 +469,21 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                 <p class="font-semibold">Success</p>
                 <p><?php echo htmlspecialchars($success_message); ?></p>
             </div>
-            <button onclick="this.parentElement.remove()" class="ml-auto text-gray-400 hover:text-gray-600">
+            <button type="button" onclick="this.parentElement.remove()" class="ml-auto text-gray-400 hover:text-gray-600">
                 <i class="fas fa-times"></i>
             </button>
         </div>
     <?php endif; ?>
 
-    <!-- Enhanced Filter & Search Section -->
+    <!-- Filter & Search Section -->
     <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- Search Input -->
             <div class="lg:col-span-2">
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Search Orders</label>
+                <label for="searchInput" class="block text-sm font-semibold text-gray-700 mb-2">Search Orders</label>
                 <div class="relative">
                     <input type="text" id="searchInput" value="<?php echo htmlspecialchars($search); ?>"
-                           placeholder="Search by order number, customer name, email..."
+                           placeholder="Order #, Customer Name, Email..."
                            class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors">
                     <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                 </div>
@@ -365,55 +491,43 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
 
             <!-- Date From Filter -->
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">From Date</label>
+                <label for="dateFromFilter" class="block text-sm font-semibold text-gray-700 mb-2">From Date</label>
                 <input type="date" id="dateFromFilter" value="<?php echo htmlspecialchars($date_from); ?>"
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors">
             </div>
 
             <!-- Date To Filter -->
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">To Date</label>
+                <label for="dateToFilter" class="block text-sm font-semibold text-gray-700 mb-2">To Date</label>
                 <input type="date" id="dateToFilter" value="<?php echo htmlspecialchars($date_to); ?>"
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors">
             </div>
         </div>
 
-        <!-- Quick Filter Tabs -->
+        <!-- Quick Filter Tabs for Status -->
         <div class="mt-6 pt-6 border-t border-gray-200">
             <div class="flex flex-wrap gap-2">
-                <button class="filter-tab <?php echo empty($status_filter) ? 'active' : ''; ?>" data-filter="all">
+                <button type="button" class="filter-tab <?php echo (empty($status_filter) || $status_filter === 'all') ? 'active' : ''; ?>" data-filter="all">
                     All Orders <span class="ml-1 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs"><?php echo number_format($total_records); ?></span>
                 </button>
-                <?php
-                $order_statuses = [
-                    'pending' => ['name' => 'Pending', 'color_class' => 'bg-yellow-100 text-yellow-600'],
-                    'processing' => ['name' => 'Processing', 'color_class' => 'bg-blue-100 text-blue-600'],
-                    'shipped' => ['name' => 'Shipped', 'color_class' => 'bg-indigo-100 text-indigo-600'],
-                    'delivered' => ['name' => 'Delivered', 'color_class' => 'bg-green-100 text-green-600'],
-                    'cancelled' => ['name' => 'Cancelled', 'color_class' => 'bg-red-100 text-red-600']
-                ];
-                foreach ($order_statuses as $status_key => $details):
-                ?>
-                    <button class="filter-tab <?php echo ($status_filter === $status_key) ? 'active' : ''; ?>" data-filter="<?php echo $status_key; ?>">
-                        <?php echo $details['name']; ?> <span class="ml-1 <?php echo $details['color_class']; ?> px-2 py-1 rounded-full text-xs"><?php echo number_format($status_counts[$status_key] ?? 0); ?></span>
+                <?php foreach ($all_status_options as $key): ?>
+                    <button type="button" class="filter-tab <?php echo ($status_filter === $key) ? 'active' : ''; ?>" data-filter="<?php echo $key; ?>">
+                        <?php echo ucfirst($key); ?> <span class="ml-1 <?php echo htmlspecialchars($status_colors[$key] ?? 'bg-gray-100 text-gray-600'); ?> px-2 py-1 rounded-full text-xs"><?php echo number_format($status_counts[$key] ?? 0); ?></span>
                     </button>
                 <?php endforeach; ?>
-                <?php if ($search || $date_from || $date_to || $status_filter): ?>
-                    <button onclick="clearFilterInputs()" class="ml-4 text-red-600 hover:text-red-700 font-medium">
+                <?php if (!empty($search) || !empty($date_from) || !empty($date_to) || (!empty($status_filter) && $status_filter !== 'all')): ?>
+                    <button type="button" onclick="clearFilterInputs()" class="ml-4 text-red-600 hover:text-red-700 font-medium">
                         <i class="fas fa-times mr-1"></i>Clear Filters
                     </button>
                 <?php endif; ?>
             </div>
         </div>
     </div>
+
+    <!-- Order Cards Display -->
     <?php if (count($orders) > 0): ?>
         <?php foreach ($orders as $order): ?>
-        <div class="bg-white rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 overflow-hidden mb-6 order-card"
-             data-order-number="<?= htmlspecialchars($order['order_number']) ?>"
-             data-customer-name="<?= htmlspecialchars(strtolower($order['customer_name'] ?? '')) ?>"
-             data-customer-email="<?= htmlspecialchars(strtolower($order['customer_email'] ?? '')) ?>"
-             data-order-date="<?= date('Y-m-d', strtotime($order['created_at'])) ?>"
-             data-order-status="<?= $order['status'] ?>">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 overflow-hidden mb-6 order-card">
 
             <!-- Card Header with Quick Actions -->
             <div class="bg-gradient-to-r from-red-50 to-red-100 px-6 py-4 border-b border-red-200">
@@ -431,25 +545,17 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                                 <?= date('M j, Y \a\t g:i A', strtotime($order['created_at'])) ?>
                             </p>
                             <div class="flex items-center space-x-2 mt-2">
-                                <span class="px-3 py-1 rounded-full text-sm font-semibold <?php
-                                    echo match($order['status']) {
-                                        'pending' => 'bg-yellow-200 text-yellow-800',
-                                        'processing' => 'bg-blue-200 text-blue-800',
-                                        'shipped' => 'bg-indigo-200 text-indigo-800',
-                                        'delivered' => 'bg-green-200 text-green-800',
-                                        'cancelled' => 'bg-red-200 text-red-800',
-                                        default => 'bg-gray-200 text-gray-800'
-                                    };
-                                ?>">
-                                    <i class="fas fa-<?php
-                                        echo match($order['status']) {
-                                            'pending' => 'clock',
-                                            'processing' => 'cog',
-                                            'shipped' => 'shipping-fast',
-                                            'delivered' => 'truck',
-                                            'cancelled' => 'times-circle'
-                                        };
-                                    ?> mr-1 text-xs"></i>
+                                <?php
+                                $status_icons_map = [ // Define a map for status icons
+                                    'pending' => 'clock',
+                                    'processing' => 'cog',
+                                    'shipped' => 'shipping-fast',
+                                    'delivered' => 'truck',
+                                    'cancelled' => 'times-circle'
+                                ];
+                                ?>
+                                <span class="px-3 py-1 rounded-full text-sm font-semibold <?= $status_colors[$order['status']] ?? 'bg-gray-200 text-gray-800'; ?>">
+                                    <i class="fas fa-<?= $status_icons_map[$order['status']] ?? 'info-circle'; ?> mr-1 text-xs"></i>
                                     <?php echo ucfirst($order['status']); ?>
                                 </span>
                                 <span class="text-lg font-bold text-red-600">
@@ -459,7 +565,7 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                         </div>
                     </div>
 
-                    <!-- Quick CRUD Actions -->
+                    <!-- Quick CRUD Action Buttons -->
                     <div class="mt-4 lg:mt-0 flex flex-wrap gap-2">
                         <a href="order_view.php?id=<?= $order['id'] ?>"
                            class="group relative bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-blue-400/20">
@@ -469,7 +575,7 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                         </a>
 
                         <?php if (in_array($order['status'], ['pending', 'processing'])): ?>
-                            <button onclick="updateOrderStatus(<?php echo $order['id']; ?>, 'processing')"
+                            <button type="button" onclick="updateOrderStatus(<?php echo $order['id']; ?>, 'processing')"
                                class="group relative bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-teal-400/20">
                                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                                 <i class="fas fa-play-circle relative z-10"></i>
@@ -478,7 +584,7 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                         <?php endif; ?>
 
                         <?php if (in_array($order['status'], ['processing'])): ?>
-                            <button onclick="updateOrderStatus(<?php echo $order['id']; ?>, 'shipped')"
+                            <button type="button" onclick="updateOrderStatus(<?php echo $order['id']; ?>, 'shipped')"
                                class="group relative bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-indigo-400/20">
                                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                                 <i class="fas fa-shipping-fast relative z-10"></i>
@@ -487,7 +593,7 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                         <?php endif; ?>
 
                         <?php if (in_array($order['status'], ['shipped'])): ?>
-                            <button onclick="updateOrderStatus(<?php echo $order['id']; ?>, 'delivered')"
+                            <button type="button" onclick="updateOrderStatus(<?php echo $order['id']; ?>, 'delivered')"
                                class="group relative bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-green-400/20">
                                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                                 <i class="fas fa-check relative z-10"></i>
@@ -495,14 +601,14 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                             </button>
                         <?php endif; ?>
 
-                        <button onclick="editOrder(<?php echo htmlspecialchars(json_encode($order)); ?>, '<?php echo htmlspecialchars($order['customer_name'] ?? ''); ?>', '<?php echo htmlspecialchars($order['customer_email'] ?? ''); ?>')"
+                        <button type="button" onclick="editOrder(<?php echo htmlspecialchars(json_encode($order)); ?>, '<?php echo htmlspecialchars($order['customer_name'] ?? ''); ?>', '<?php echo htmlspecialchars($order['customer_email'] ?? ''); ?>')"
                            class="group relative bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-purple-400/20">
                             <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                             <i class="fas fa-edit relative z-10"></i>
                             <span class="relative z-10 font-medium">Edit</span>
                         </button>
 
-                        <button onclick="confirmDelete(<?= $order['id'] ?>, '<?= htmlspecialchars($order['order_number']) ?>')"
+                        <button type="button" onclick="confirmDelete(<?= $order['id'] ?>, '<?= htmlspecialchars($order['order_number']) ?>')"
                                 class="group relative bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-red-400/20">
                             <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                             <i class="fas fa-trash relative z-10"></i>
@@ -541,7 +647,7 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                         <div class="space-y-2">
                             <p class="text-gray-700"><span class="font-medium">Items:</span> <?php echo $order['item_count']; ?> items</p>
                             <p class="text-gray-700"><span class="font-medium">Summary:</span> <?php echo htmlspecialchars(substr($order['item_names_summary'] ?: 'No items', 0, 50) . (strlen($order['item_names_summary'] ?: '') > 50 ? '...' : '')); ?></p>
-                            <p class="text-gray-700"><span class="font-medium">Payment:</span> <?php echo ucfirst(str_replace('_', ' ', $order['payment_method'])); ?> (<?php echo ucfirst($order['payment_status']); ?>)</p>
+                            <p class="text-gray-700"><span class="font-medium">Payment:</span> <?php echo ucfirst(str_replace('_', ' ', $order['payment_method'] ?? 'N/A')); ?> (<?php echo isset($order['payment_status']) ? ucfirst($order['payment_status']) : 'Unknown'; ?>)</p>
                         </div>
                     </div>
 
@@ -554,9 +660,9 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                             <h4 class="font-semibold text-gray-900">Delivery Info</h4>
                         </div>
                         <div class="space-y-2">
-                            <p class="text-gray-700"><span class="font-medium">Address:</span> <?php echo htmlspecialchars(substr($order['delivery_address'], 0, 60) . (strlen($order['delivery_address']) > 60 ? '...' : '')); ?></p>
+                            <p class="text-gray-700 text-wrap"><span class="font-medium">Address:</span> <?php echo htmlspecialchars($order['delivery_address']); ?></p>
                             <?php if (!empty($order['delivery_instructions'])): ?>
-                            <p class="text-gray-700"><span class="font-medium">Instructions:</span> <?php echo htmlspecialchars(substr($order['delivery_instructions'], 0, 60) . (strlen($order['delivery_instructions']) > 60 ? '...' : '')); ?></p>
+                            <p class="text-gray-700 text-wrap"><span class="font-medium">Instructions:</span> <?php echo htmlspecialchars($order['delivery_instructions']); ?></p>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -571,8 +677,8 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                         </div>
                         <div>
                             <p class="text-sm text-gray-600">Delivery Fee</p>
-                            <p class="text-lg font-semibold <?php echo $order['delivery_fee'] === 0 ? 'text-green-600' : 'text-gray-900'; ?>">
-                                <?php echo $order['delivery_fee'] === 0 ? 'Free' : 'KES ' . number_format($order['delivery_fee'], 2); ?>
+                            <p class="text-lg font-semibold <?php echo ($order['delivery_fee'] ?? 0.0) === 0.0 ? 'text-green-600' : 'text-gray-900'; ?>">
+                                <?php echo ($order['delivery_fee'] ?? 0.0) === 0.0 ? 'Free' : 'KES ' . number_format($order['delivery_fee'], 2); ?>
                             </p>
                         </div>
                         <div>
@@ -585,20 +691,20 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
         </div>
         <?php endforeach; ?>
     <?php else: ?>
-        <!-- No Orders State -->
+        <!-- No Orders State Display -->
         <div class="bg-white rounded-xl shadow-lg p-12 text-center">
             <div class="max-w-md mx-auto">
                 <i class="fas fa-shopping-cart text-6xl text-gray-300 mb-6"></i>
                 <h2 class="text-2xl font-bold text-gray-700 mb-4">No Orders Found</h2>
                 <p class="text-gray-600 mb-8">
-                    <?php if (!empty($search) || !empty($status_filter) || !empty($date_from) || !empty($date_to)): ?>
+                    <?php if (!empty($search) || !empty($date_from) || !empty($date_to) || (!empty($status_filter) && $status_filter !== 'all')): ?>
                         No orders match your current filters. Try adjusting your search criteria.
                     <?php else: ?>
                         No orders have been placed yet. Orders will appear here once customers start ordering.
                     <?php endif; ?>
                 </p>
-                <?php if (!empty($search) || !empty($status_filter) || !empty($date_from) || !empty($date_to)): ?>
-                    <button onclick="clearFilterInputs()" class="inline-flex items-center justify-center px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors">
+                <?php if (!empty($search) || !empty($date_from) || !empty($date_to) || (!empty($status_filter) && $status_filter !== 'all')): ?>
+                    <button type="button" onclick="clearFilterInputs()" class="inline-flex items-center justify-center px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors">
                         <i class="fas fa-times mr-2"></i>
                         Clear Filters
                     </button>
@@ -608,26 +714,38 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
     <?php endif; ?>
 </div>
 
-<!-- Pagination -->
+<!-- Pagination Section -->
 <?php if ($total_pages > 1): ?>
 <div class="mt-8 flex justify-center">
     <nav class="flex items-center space-x-2">
+        <?php
+            // Helper function for building pagination URLs
+            function generatePaginationUrl($page_num, $current_status_filter, $current_date_from, $current_date_to, $current_search) {
+                $url_params = [];
+                if ($page_num > 1) $url_params['page'] = $page_num;
+                if (!empty($current_status_filter) && $current_status_filter !== 'all') $url_params['status'] = urlencode($current_status_filter);
+                if (!empty($current_date_from)) $url_params['date_from'] = urlencode($current_date_from);
+                if (!empty($current_date_to)) $url_params['date_to'] = urlencode($current_date_to);
+                if (!empty($current_search)) $url_params['search'] = urlencode($current_search);
+                return '?' . http_build_query($url_params);
+            }
+        ?>
         <?php if ($page > 1): ?>
-        <a href="?page=<?php echo $page - 1; ?><?php echo $status_filter ? '&status=' . urlencode($status_filter) : ''; ?><?php echo $date_from ? '&date_from=' . urlencode($date_from) : ''; ?><?php echo $date_to ? '&date_to=' . urlencode($date_to) : ''; ?><?php echo $search ? '&search=' . urlencode($search) : ''; ?>"
+        <a href="<?php echo generatePaginationUrl($page - 1, $status_filter, $date_from, $date_to, $search); ?>"
            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium">
             <i class="fas fa-chevron-left mr-1"></i> Previous
         </a>
         <?php endif; ?>
 
         <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-        <a href="?page=<?php echo $i; ?><?php echo $status_filter ? '&status=' . urlencode($status_filter) : ''; ?><?php echo $date_from ? '&date_from=' . urlencode($date_from) : ''; ?><?php echo $date_to ? '&date_to=' . urlencode($date_to) : ''; ?><?php echo $search ? '&search=' . urlencode($search) : ''; ?>"
+        <a href="<?php echo generatePaginationUrl($i, $status_filter, $date_from, $date_to, $search); ?>"
            class="px-4 py-2 border rounded-lg transition-colors font-medium <?php echo $i === $page ? 'bg-red-600 text-white border-red-600' : 'border-gray-300 hover:bg-gray-50'; ?>">
             <?php echo $i; ?>
         </a>
         <?php endfor; ?>
 
         <?php if ($page < $total_pages): ?>
-        <a href="?page=<?php echo $page + 1; ?><?php echo $status_filter ? '&status=' . urlencode($status_filter) : ''; ?><?php echo $date_from ? '&date_from=' . urlencode($date_from) : ''; ?><?php echo $date_to ? '&date_to=' . urlencode($date_to) : ''; ?><?php echo $search ? '&search=' . urlencode($search) : ''; ?>"
+        <a href="<?php echo generatePaginationUrl($page + 1, $status_filter, $date_from, $date_to, $search); ?>"
            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium">
             Next <i class="fas fa-chevron-right ml-1"></i>
         </a>
@@ -635,23 +753,19 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
     </nav>
 </div>
 <?php endif; ?>
-```
 
----
+<!-- ============================================== MODALS ============================================== -->
 
-**Part 3: Modals, JavaScript, CSS, and Footer Include**
-
-```html
-<!-- Delete Confirmation Modal (Redesigned) -->
-<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
         <!-- Modal Header -->
-        <div class="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white rounded-t-2xl">
+        <div class="bg-gradient-to-r from-orange-500 to-orange-600 p-6 text-white rounded-t-2xl">
             <div class="flex items-center justify-between">
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
                 </h3>
-                <button onclick="closeModal('deleteModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="closeModal('deleteModal')" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -684,17 +798,16 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
     </div>
 </div>
 
-
 <!-- Edit Order Modal -->
-<div id="editOrderModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+<div id="editOrderModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
         <!-- Modal Header -->
         <div class="bg-gradient-to-r from-purple-600 to-purple-700 p-6 text-white rounded-t-2xl">
             <div class="flex items-center justify-between">
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-pencil-alt mr-2"></i>Edit Order <span id="editOrderNumber" class="font-mono text-purple-100 italic"></span>
                 </h3>
-                <button onclick="closeModal('editOrderModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="closeModal('editOrderModal')" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -724,8 +837,8 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                         <select id="edit_payment_status" name="payment_status" required
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-colors">
                             <option value="pending">Pending</option>
-                            <option value="paid">Paid</option>
-                            <option value="refunded">Refunded</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="failed">Failed</option>
                         </select>
                     </div>
                 </div>
@@ -786,15 +899,15 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
 </div>
 
 <!-- Add Order Modal -->
-<div id="addOrderModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+<div id="addOrderModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
         <!-- Modal Header -->
         <div class="bg-gradient-to-r from-green-600 to-green-700 p-6 text-white rounded-t-2xl">
             <div class="flex items-center justify-between">
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-cart-plus mr-2"></i>Add New Order
                 </h3>
-                <button onclick="closeModal('addOrderModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="closeModal('addOrderModal')" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -845,8 +958,8 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
                         <select id="add_payment_status" name="payment_status" required
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-colors">
                             <option value="pending">Pending</option>
-                            <option value="paid">Paid</option>
-                            <option value="refunded">Refunded</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="failed">Failed</option>
                         </select>
                     </div>
                 </div>
@@ -907,174 +1020,193 @@ include 'includes/admin_header.php'; // Make sure this path is correct for your 
     </div>
 </div>
 
+<!-- ============================================== JAVASCRIPT ============================================== -->
 <script>
-// Filter tab styling (CSS for filter-tab.active is defined in previous answers' <style> block implicitly)
-// CSS for this should be added to your main stylesheet or a custom <style> block for customers.php
-const filterTabs = document.querySelectorAll('.filter-tab');
-filterTabs.forEach(tab => {
-    if (tab.dataset.filter === '<?php echo $status_filter ?: 'all'; ?>') {
-        tab.classList.add('active');
-    } else {
-        tab.classList.remove('active');
+// IMPORTANT: SweetAlert2 is already loaded in includes/header.php
+// No need to uncomment or add it here as it's included globally
+
+
+// Enhanced Global utility to close modals with better error handling and animation support
+function closeModal(modalId) {
+    if (!modalId || typeof modalId !== 'string') {
+        console.warn('closeModal: Invalid modal ID provided');
+        return;
     }
-    tab.addEventListener('click', function() {
-        // Update URL and reload for full filter application
-        let url = new URL(window.location);
-        const filter = this.dataset.filter;
-        if (filter === 'all') {
-            url.searchParams.delete('status');
-        } else {
-            url.searchParams.set('status', filter);
+
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+        console.warn(`closeModal: Modal with ID "${modalId}" not found`);
+        return;
+    }
+
+    // Add fade-out animation class if available
+    if (typeof animate !== 'undefined') {
+        modal.classList.add('animate__fadeOut');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            modal.classList.remove('animate__fadeOut');
+        }, 300);
+    } else {
+        // Fallback for immediate hide
+        modal.classList.add('hidden');
+    }
+}
+
+// Close modal when clicking outside (on the black overlay)
+window.addEventListener('click', function(event) {
+    const modalIds = ['deleteModal', 'editOrderModal', 'addOrderModal'];
+    modalIds.forEach(id => {
+        const modal = document.getElementById(id);
+        if (modal && !modal.classList.contains('hidden') && event.target === modal) {
+            closeModal(id);
         }
-        window.location.href = url.toString();
     });
 });
 
-// Calculate total amount for Add/Edit order modals
+// Calculate total amount in modals based on subtotal and delivery fee
 function calculateTotal(prefix) {
     const subtotalInput = document.getElementById(prefix + '_subtotal');
     const deliveryFeeInput = document.getElementById(prefix + '_delivery_fee');
     const totalAmountInput = document.getElementById(prefix + '_total_amount');
 
-    const subtotal = parseFloat(subtotalInput.value) || 0;
-    const deliveryFee = parseFloat(deliveryFeeInput.value) || 0;
-    totalAmountInput.value = (subtotal + deliveryFee).toFixed(2);
+    const subtotal = parseFloat(subtotalInput?.value || '0');
+    const deliveryFee = parseFloat(deliveryFeeInput?.value || '0');
+
+    if (totalAmountInput) {
+        totalAmountInput.value = (subtotal + deliveryFee).toFixed(2);
+    }
 }
 
-// Event listeners for calculating total in modals
+// Function to handle filter tab clicks
+const filterTabs = document.querySelectorAll('.filter-tab[data-filter]');
+filterTabs.forEach(tab => {
+    tab.addEventListener('click', function() {
+        const filterValue = this.dataset.filter;
+        let url = new URL(window.location.origin + window.location.pathname);
+
+        // Preserve existing search and date filters
+        const currentSearch = document.getElementById('searchInput')?.value;
+        const currentFromDate = document.getElementById('dateFromFilter')?.value;
+        const currentToDate = document.getElementById('dateToFilter')?.value;
+
+        if (currentSearch) url.searchParams.set('search', currentSearch);
+        if (currentFromDate) url.searchParams.set('date_from', currentFromDate);
+        if (currentToDate) url.searchParams.set('date_to', currentToDate);
+
+        // Apply the new status filter or remove it if 'all' is selected
+        if (filterValue && filterValue !== 'all') {
+            url.searchParams.set('status', filterValue);
+        } else {
+            url.searchParams.delete('status');
+        }
+
+        url.searchParams.delete('page'); // Always reset to page 1 when filtering
+        window.location.href = url.toString();
+    });
+});
+
+
 document.addEventListener('DOMContentLoaded', function() {
-    // For Edit Order Modal
-    const editSubtotal = document.getElementById('edit_subtotal');
-    const editDeliveryFee = document.getElementById('edit_delivery_fee');
-    if (editSubtotal) {
-        editSubtotal.addEventListener('input', () => calculateTotal('edit'));
-        editSubtotal.addEventListener('change', () => calculateTotal('edit')); // Also on change to ensure calculation if value is pasted
-    }
-    if (editDeliveryFee) {
-        editDeliveryFee.addEventListener('input', () => calculateTotal('edit'));
-        editDeliveryFee.addEventListener('change', () => calculateTotal('edit'));
-    }
+    // Event listeners for total amount calculation in modals
+    document.getElementById('edit_subtotal')?.addEventListener('input', () => calculateTotal('edit'));
+    document.getElementById('edit_delivery_fee')?.addEventListener('input', () => calculateTotal('edit'));
+    document.getElementById('add_subtotal')?.addEventListener('input', () => calculateTotal('add'));
+    document.getElementById('add_delivery_fee')?.addEventListener('input', () => calculateTotal('add'));
 
-
-    // For Add Order Modal
-    const addSubtotal = document.getElementById('add_subtotal');
-    const addDeliveryFee = document.getElementById('add_delivery_fee');
-    if (addSubtotal) {
-        addSubtotal.addEventListener('input', () => calculateTotal('add'));
-        addSubtotal.addEventListener('change', () => calculateTotal('add'));
-    }
-    if (addDeliveryFee) {
-        addDeliveryFee.addEventListener('input', () => calculateTotal('add'));
-        addDeliveryFee.addEventListener('change', () => calculateTotal('add'));
-    }
-
-
-    // Client-side quick filter (if desired, currently not server-side filterable via JS)
+    // Event listeners for filter inputs (search, dates) with debouncing for search
     const searchInput = document.getElementById('searchInput');
     const dateFromFilter = document.getElementById('dateFromFilter');
     const dateToFilter = document.getElementById('dateToFilter');
 
-    function applyFiltersToUrl() {
-        let url = new URL(window.location.origin + window.location.pathname); // Base URL without current query params
-        if (searchInput.value) url.searchParams.set('search', searchInput.value);
-        if (dateFromFilter.value) url.searchParams.set('date_from', dateFromFilter.value);
-        if (dateToFilter.value) url.searchParams.set('date_to', dateToFilter.value);
-        const activeStatusFilter = document.querySelector('.filter-tab.active')?.dataset.filter;
-        if (activeStatusFilter && activeStatusFilter !== 'all') {
-            url.searchParams.set('status', activeStatusFilter);
-        }
-        window.location.href = url.toString(); // Redirect to apply server-side filters
-    }
-
-    // Debounce to improve performance for search input
     let searchTimeout;
-    if (searchInput) {
-        searchInput.addEventListener('input', () => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(applyFiltersToUrl, 500); // Wait 500ms after last input
-        });
-    }
-    if (dateFromFilter) dateFromFilter.addEventListener('change', applyFiltersToUrl);
-    if (dateToFilter) dateToFilter.addEventListener('change', applyFiltersToUrl);
+    const applyFilters = () => {
+        let url = new URL(window.location.origin + window.location.pathname);
+        if (searchInput?.value) url.searchParams.set('search', searchInput.value);
+        if (dateFromFilter?.value) url.searchParams.set('date_from', dateFromFilter.value);
+        if (dateToFilter?.value) url.searchParams.set('date_to', dateToFilter.value);
+
+        // Preserve current active status filter from tabs
+        const activeStatusTab = document.querySelector('.filter-tab.active');
+        if (activeStatusTab && activeStatusTab.dataset.filter && activeStatusTab.dataset.filter !== 'all') {
+            url.searchParams.set('status', activeStatusTab.dataset.filter);
+        }
+
+        url.searchParams.delete('page'); // Reset page to 1
+        window.location.href = url.toString();
+    };
+
+    searchInput?.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(applyFilters, 500); // Debounce search for 500ms
+    });
+    dateFromFilter?.addEventListener('change', applyFilters);
+    dateToFilter?.addEventListener('change', applyFilters);
 });
 
-
-// Global functions for modals
-function closeModal(modalId) {
-    document.getElementById(modalId).classList.add('hidden');
+// Function to reset all filter inputs and reload the page
+function clearFilterInputs() {
+    window.location.href = 'orders.php'; // Simply reload to clear all GET parameters
 }
 
-// Close modal when clicking outside
-window.onclick = function(event) {
-    // List all modal element IDs
-    const modalIds = ['deleteModal', 'editOrderModal', 'addOrderModal'];
-    modalIds.forEach(id => {
-        const modal = document.getElementById(id);
-        if (modal && event.target === modal) { // Check if modal exists and click is on the modal backdrop
-            closeModal(id);
-        }
-    });
-}
-
-// Delete Confirmation Modal Logic
+// Populates and displays the delete confirmation modal
 function confirmDelete(orderId, orderNumber) {
     document.getElementById('deleteOrderNumber').textContent = orderNumber;
     document.getElementById('deleteOrderId').value = orderId;
     document.getElementById('deleteModal').classList.remove('hidden');
 }
 
-// Edit Order Modal Logic
-function editOrder(orderData, customerName, customerEmail) { // Added customerEmail parameter
+// Populates and displays the edit order modal
+function editOrder(orderData, customerName, customerEmail) {
     document.getElementById('edit_order_id').value = orderData.id;
     document.getElementById('editOrderNumber').textContent = `#${orderData.order_number}`;
     document.getElementById('editCustomerName').textContent = customerName;
-    document.getElementById('editCustomerEmail').textContent = customerEmail || 'N/A'; // Use passed email
+    document.getElementById('editCustomerEmail').textContent = customerEmail || 'N/A';
 
     document.getElementById('edit_status').value = orderData.status;
-    document.getElementById('edit_payment_status').value = orderData.payment_status;
+    document.getElementById('edit_payment_status').value = orderData.payment_status || 'pending'; // Fallback for payment status
     document.getElementById('edit_delivery_address').value = orderData.delivery_address;
     document.getElementById('edit_delivery_instructions').value = orderData.delivery_instructions;
+
     document.getElementById('edit_subtotal').value = parseFloat(orderData.subtotal).toFixed(2);
     document.getElementById('edit_delivery_fee').value = parseFloat(orderData.delivery_fee).toFixed(2);
-    // Ensure total is calculated after subtotal and delivery fee are set
-    calculateTotal('edit');
-
-    document.getElementById('editOrderModal').classList.remove('hidden');
+    calculateTotal('edit'); // Compute total based on populated subtotal/delivery_fee
+    document.getElementById('editOrderModal').classList.remove('hidden'); // Show modal
+    // Optional: Add animation class
+    // document.getElementById('editOrderModal').classList.add('animate__zoomIn');
 }
 
-// Add Order Modal Logic
+// Resets and displays the add new order modal
 function addOrder() {
-    // Reset form fields
-    document.getElementById('addOrderForm').reset();
-    // Default values
+    document.getElementById('addOrderForm').reset(); // Clear all fields
+    // Set default values for convenience
+    document.getElementById('add_user_id').value = ''; // Ensure "Select a customer" is chosen
     document.getElementById('add_status').value = 'pending';
-    document.getElementById('add_payment_method').value = 'M-Pesa'; // Default to a common method
+    document.getElementById('add_payment_method').value = 'M-Pesa'; // Example default
     document.getElementById('add_payment_status').value = 'pending';
     document.getElementById('add_subtotal').value = '0.00';
     document.getElementById('add_delivery_fee').value = '0.00';
-    document.getElementById('add_total_amount').value = '0.00';
-    // Ensure customer select is at default (first option is usually "Select a customer")
-    document.getElementById('add_user_id').value = '';
-
-    document.getElementById('addOrderModal').classList.remove('hidden');
+    calculateTotal('add'); // Initialize total to 0.00
+    document.getElementById('addOrderModal').classList.remove('hidden'); // Show modal
+    // Optional: Add animation class
+    // document.getElementById('addOrderModal').classList.add('animate__zoomIn');
 }
 
-// Function to update order status (e.g., Ship, Deliver buttons directly)
-// This submits a form to change status without a full edit modal
+// Function to update order status directly (e.g., from Process, Ship, Deliver buttons)
 function updateOrderStatus(orderId, newStatus) {
-    // Fetch full order data for ALL fields needed by PHP's update_order
+    // First, fetch the *full* current order data from the backend
     fetch(`orders.php?fetch_order_data=${orderId}`)
         .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
+            if (!response.ok) { // Handle HTTP errors
+                // Attempt to parse JSON error message if provided
+                return response.json().then(errorData => Promise.reject(new Error(errorData.error || response.statusText)));
             }
-            return response.json();
+            return response.json(); // Parse the JSON response
         })
         .then(orderData => {
-            if (orderData && orderData.id) {
+            if (orderData && orderData.id) { // Check if valid order data was returned
                 Swal.fire({
                     title: `Change order status to ${newStatus}?`,
-                    text: `Are you sure you want to mark order #${orderData.order_number} as ${newStatus}?`,
+                    text: `Are you sure you want to mark order #${orderData.order_number} as ${newStatus}? This will update its status.`,
                     icon: 'question',
                     showCancelButton: true,
                     confirmButtonColor: '#3085d6',
@@ -1082,113 +1214,49 @@ function updateOrderStatus(orderId, newStatus) {
                     confirmButtonText: 'Yes, update it!'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        // Create a temporary form to submit the status update
+                        // Create a temporary hidden form to submit the update
                         const form = document.createElement('form');
                         form.method = 'POST';
-                        form.action = 'orders.php'; // Submit to the current page
+                        form.action = 'orders.php'; // Submit to this same page
 
-                        // Populate all required fields for `update_order` handler
-                        const orderIdInput = document.createElement('input');
-                        orderIdInput.type = 'hidden';
-                        orderIdInput.name = 'order_id';
-                        orderIdInput.value = orderData.id;
-                        form.appendChild(orderIdInput);
+                        // Populate ALL fields that the PHP update handler expects.
+                        // It's crucial to send current values for fields not explicitly modified.
+                        const fields_to_send = [
+                            { name: 'order_id', value: orderData.id },
+                            { name: 'status', value: newStatus }, // The NEW status
+                            { name: 'payment_status', value: orderData.payment_status || 'pending' }, // Keep existing/default
+                            { name: 'delivery_address', value: orderData.delivery_address }, // Keep existing
+                            { name: 'delivery_instructions', value: orderData.delivery_instructions }, // Keep existing
+                            { name: 'subtotal', value: orderData.subtotal }, // Keep existing
+                            { name: 'delivery_fee', value: orderData.delivery_fee }, // Keep existing
+                            { name: 'total_amount', value: orderData.total_amount }, // Keep existing
+                            { name: 'update_order', value: '1' } // Trigger the update handler in PHP
+                        ];
 
-                        const statusInput = document.createElement('input');
-                        statusInput.type = 'hidden';
-                        statusInput.name = 'status';
-                        statusInput.value = newStatus; // The new status
-                        form.appendChild(statusInput);
+                        fields_to_send.forEach(field => {
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = field.name;
+                            input.value = field.value;
+                            form.appendChild(input);
+                        });
 
-                        const paymentStatusInput = document.createElement('input');
-                        paymentStatusInput.type = 'hidden';
-                        paymentStatusInput.name = 'payment_status';
-                        paymentStatusInput.value = orderData.payment_status; // Keep original payment status
-                        form.appendChild(paymentStatusInput);
-
-                        const deliveryAddressInput = document.createElement('input');
-                        deliveryAddressInput.type = 'hidden';
-                        deliveryAddressInput.name = 'delivery_address';
-                        deliveryAddressInput.value = orderData.delivery_address; // Keep original address
-                        form.appendChild(deliveryAddressInput);
-
-                        const deliveryInstructionsInput = document.createElement('input');
-                        deliveryInstructionsInput.type = 'hidden';
-                        deliveryInstructionsInput.name = 'delivery_instructions';
-                        deliveryInstructionsInput.value = orderData.delivery_instructions; // Keep original instructions
-                        form.appendChild(deliveryInstructionsInput);
-
-                        const subtotalInput = document.createElement('input');
-                        subtotalInput.type = 'hidden';
-                        subtotalInput.name = 'subtotal';
-                        subtotalInput.value = orderData.subtotal; // Keep original subtotal
-                        form.appendChild(subtotalInput);
-
-                        const deliveryFeeInput = document.createElement('input');
-                        deliveryFeeInput.type = 'hidden';
-                        deliveryFeeInput.name = 'delivery_fee';
-                        deliveryFeeInput.value = orderData.delivery_fee; // Keep original delivery fee
-                        form.appendChild(deliveryFeeInput);
-
-                        const totalAmountInput = document.createElement('input');
-                        totalAmountInput.type = 'hidden';
-                        totalAmountInput.name = 'total_amount';
-                        totalAmountInput.value = orderData.total_amount; // Keep original total amount
-                        form.appendChild(totalAmountInput);
-
-                        const updateTriggerInput = document.createElement('input');
-                        updateTriggerInput.type = 'hidden';
-                        updateTriggerInput.name = 'update_order';
-                        updateTriggerInput.value = '1';
-                        form.appendChild(updateTriggerInput);
-
-                        document.body.appendChild(form); // Append to the document
-                        form.submit(); // Submit the form
+                        document.body.appendChild(form); // Temporarily add form to DOM
+                        form.submit(); // Programmatically submit the form
                     }
                 });
             } else {
-                Swal.fire('Error', 'Could not fetch order data for update.', 'error');
+                Swal.fire('Error', 'Could not fetch order data for status update. Order not found or invalid response.', 'error');
             }
         })
         .catch(error => {
-            console.error('Error fetching order data:', error);
-            Swal.fire('Error', 'Failed to fetch order details for status update.', 'error');
+            console.error('Error in updateOrderStatus fetch:', error);
+            Swal.fire('Error', `Failed to fetch order details for status update. Please try again. (${error.message})`, 'error');
         });
 }
-
-// Function to clear filter inputs and reload the page
-function clearFilterInputs() {
-    window.location.href = 'orders.php'; // Simply reload to clear all filters
-}
-
-// Additional PHP for fetching single order data for AJAX (needed by updateOrderStatus)
-<?php
-// This block should be placed at the very top of the PHP file, before any HTML output,
-// but AFTER database connection and session start.
-// This is an API endpoint for fetching a single order's details.
-if (isset($_GET['fetch_order_data']) && is_numeric($_GET['fetch_order_data'])) {
-    $order_id_to_fetch = (int)$_GET['fetch_order_data'];
-    try {
-        $stmt = $pdo->prepare("SELECT o.*, u.name as customer_name, u.email as customer_email FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.id = ?");
-        $stmt->execute([$order_id_to_fetch]);
-        $order_data = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($order_data) {
-            header('Content-Type: application/json');
-            echo json_encode($order_data);
-        } else {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Order not found']);
-        }
-    } catch (PDOException $e) {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
-    }
-    exit(); // IMPORTANT: Exit after sending JSON response
-}
-?>
 </script>
 
+<!-- ============================================== CSS STYLES ============================================== -->
 <style>
 /* Filter tab styling */
 .filter-tab {
@@ -1204,8 +1272,6 @@ if (isset($_GET['fetch_order_data']) && is_numeric($_GET['fetch_order_data'])) {
 }
 
 /* Base button styling for the new gradient buttons */
-/* These classes are already applied directly in HTML.
-   This style block ensures the transitions are smooth. */
 .group.relative.bg-gradient-to-r {
     @apply transition-transform duration-300 ease-in-out;
 }
@@ -1223,5 +1289,7 @@ if (isset($_GET['fetch_order_data']) && is_numeric($_GET['fetch_order_data'])) {
 }
 </style>
 
-<?php include 'includes/admin_footer.php'; // Adjust this path as needed ?>
-```
+<?php
+// 17. Include Admin Footer
+include 'includes/footer.php';
+?>

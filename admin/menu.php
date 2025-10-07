@@ -1,175 +1,441 @@
 <?php
-// Set page title and include header
+// menu.php - Admin Menu Management
+// This file provides a comprehensive interface for viewing, filtering, and managing menu items.
+// All CRUD operations (Add, Edit, Delete, Toggle Status/Featured) are handled via AJAX/modals.
+
+// 1. Session Start
+// IMPORTANT: session_start() must be called before any HTML output.
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+// 2. Page Configuration
 $page_title = 'Menu Management';
 $page_description = 'Manage your restaurant\'s menu items';
 
-// Include database connection and functions
-require_once '../includes/config.php';
-require_once 'includes/functions.php';
+// 3. Include Core Dependencies
+require_once dirname(__DIR__) . '/includes/config.php'; // Contains database connection ($pdo)
+require_once 'includes/functions.php'; // For getRecordById, deleteRecord (assuming these exist here)
+require_once dirname(__DIR__) . '/includes/ActivityLogger.php'; // Custom activity logging class
 
-// Handle delete action
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_method']) && $_POST['_method'] === 'DELETE') {
-    // First, delete the associated image if it exists
-    $item = getRecordById('menu_items', $_POST['id'], 'image');
-    if ($item && !empty($item['image'])) {
-        $imagePath = '../uploads/menu/' . $item['image'];
-        if (file_exists($imagePath)) {
-            unlink($imagePath);
-        }
-    }
+// Initialize ActivityLogger
+$activityLogger = new ActivityLogger($pdo);
 
-    if (deleteRecord('menu_items', $_POST['id'])) {
-        $_SESSION['message'] = ['type' => 'success', 'text' => 'Menu item deleted successfully'];
-    } else {
-        $_SESSION['message'] = ['type' => 'error', 'text' => 'Failed to delete menu item'];
-    }
-    header('Location: menu.php');
-    exit();
-}
+// Initialize message variables to be passed to JavaScript for SweetAlert2 display
+$message_type = '';
+$message_text = '';
 
-// Handle status toggle
-if (isset($_GET['toggle_status']) && isset($_GET['id'])) {
-    $id = (int)$_GET['id'];
-    $item = getRecordById('menu_items', $id, 'status');
-    if ($item) {
-        $newStatus = $item['status'] === 'active' ? 'inactive' : 'active';
-        $stmt = $pdo->prepare("UPDATE menu_items SET status = :status WHERE id = :id");
-        if ($stmt->execute([':status' => $newStatus, ':id' => $id])) {
-            $_SESSION['message'] = ['type' => 'success', 'text' => 'Menu item status updated'];
+// --- 4. API Endpoint for Fetching Single Menu Item Data (CRUCIAL: Must be before any HTML output) ---
+// This block handles AJAX/fetch() requests from JavaScript to get specific menu item details for editing.
+// It MUST execute and terminate script execution (`exit()`) before any HTML is sent.
+if (isset($_GET['fetch_item_data']) && is_numeric($_GET['fetch_item_data'])) {
+    $item_id_to_fetch = (int)$_GET['fetch_item_data'];
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM menu_items WHERE id = ?");
+        $stmt->execute([$item_id_to_fetch]);
+        $item_data = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($item_data) {
+            // Ensure numeric values are properly cast for client-side JavaScript handling
+            $item_data['price'] = (float)$item_data['price'];
+            // Convert is_featured to boolean for JS
+            $item_data['is_featured'] = (bool)$item_data['is_featured'];
+
+            header('Content-Type: application/json');
+            echo json_encode($item_data);
         } else {
-            $_SESSION['message'] = ['type' => 'error', 'text' => 'Failed to update status'];
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Menu item not found']);
+        }
+    } catch (PDOException $e) {
+        // Log and return database error details
+        error_log("DB Error fetching specific menu item (ID: {$item_id_to_fetch}): " . $e->getMessage());
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Database error', 'details' => $e->getMessage()]);
+    }
+    exit(); // Crucial: Stop further script execution for API responses
+}
+// --- END API Endpoint ---
+
+
+// 5. Handle POST Requests for CRUD Operations
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    // A. Delete Menu Item Operation
+    if (isset($_POST['_method']) && $_POST['_method'] === 'DELETE') {
+        $id = (int)$_POST['id'];
+        $item_name_for_log = 'Unknown Item'; // Default for logging if item not found
+
+        // Retrieve menu item details (for image deletion and logging)
+        $item_details = getRecordById('menu_items', $id, 'image,name'); // Assume getRecordById fetches specific columns
+        if ($item_details) {
+            $item_name_for_log = $item_details['name'];
+            // Delete associated image file if it exists
+            if (!empty($item_details['image'])) {
+                $imagePath = '../uploads/menu/' . $item_details['image'];
+                if (file_exists($imagePath) && is_writable($imagePath)) { // Added is_writable check
+                    unlink($imagePath);
+                } else {
+                    error_log("Failed to delete image: {$imagePath} (file not found or not writable)");
+                }
+            }
+        }
+
+        // Perform database deletion
+        if (deleteRecord('menu_items', $id)) { // Assume deleteRecord function exists in includes/functions.php
+            $_SESSION['message'] = ['type' => 'success', 'text' => "'{$item_name_for_log}' (ID: {$id}) deleted successfully."];
+            $activityLogger->logActivity("Menu item '{$item_name_for_log}' (ID: {$id}) deleted.", $_SESSION['user_id'] ?? null, 'menu_delete');
+        } else {
+            $_SESSION['message'] = ['type' => 'error', 'text' => "Failed to delete menu item '{$item_name_for_log}' (ID: {$id})."];
+            error_log("Failed to delete menu item with ID: {$id}");
         }
     }
-    header('Location: menu.php');
+
+    // B. Toggle Status or Featured Status Operation
+    elseif (isset($_POST['action']) && ($_POST['action'] === 'toggle_status' || $_POST['action'] === 'toggle_featured')) {
+        $id = (int)$_POST['id'];
+        $column_to_update = ($_POST['action'] === 'toggle_status') ? 'status' : 'is_featured';
+        $item_name_for_log = 'Unknown Item';
+
+        // Fetch current value and name for accurate toggling and logging
+        $current_item_state_stmt = $pdo->prepare("SELECT {$column_to_update}, name FROM menu_items WHERE id = ?");
+        $current_item_state_stmt->execute([$id]);
+        $current_item_data = $current_item_state_stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($current_item_data) {
+            $item_name_for_log = $current_item_data['name'];
+            $new_column_value = '';
+            $log_entry = '';
+
+            if ($column_to_update === 'status') {
+                $new_column_value = ($current_item_data[$column_to_update] === 'active') ? 'inactive' : 'active';
+                $log_entry = "Menu item '{$item_name_for_log}' (ID: {$id}) status changed to '{$new_column_value}'.";
+            } else { // 'is_featured'
+                $new_column_value = ($current_item_data[$column_to_update] == 1) ? 0 : 1; // Toggle 1/0
+                $log_entry = "Menu item '{$item_name_for_log}' (ID: {$id}) featured status changed to " . ($new_column_value ? 'true' : 'false') . ".";
+            }
+
+            $update_stmt = $pdo->prepare("UPDATE menu_items SET {$column_to_update} = :new_value, updated_at = NOW() WHERE id = :id");
+            if ($update_stmt->execute([':new_value' => $new_column_value, ':id' => $id])) {
+                $_SESSION['message'] = ['type' => 'success', 'text' => "Menu item '{$item_name_for_log}' updated successfully."];
+                $activityLogger->logActivity($log_entry, $_SESSION['user_id'] ?? null, 'menu_update');
+            } else {
+                $_SESSION['message'] = ['type' => 'error', 'text' => "Failed to update {$column_to_update} for '{$item_name_for_log}' (ID: {$id})."];
+                error_log("Failed to update menu item {$column_to_update} for ID: {$id}");
+            }
+        } else {
+            $_SESSION['message'] = ['type' => 'error', 'text' => "Menu item with ID {$id} not found."];
+        }
+    }
+
+    // C. Add New Menu Item Operation
+    elseif (isset($_POST['add_menu_item'])) {
+        $name = trim($_POST['name'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $price = (float)($_POST['price'] ?? 0);
+        $category_id = (int)($_POST['category_id'] ?? 0);
+        $status = trim($_POST['status'] ?? 'inactive');
+        $is_featured = isset($_POST['is_featured']) ? 1 : 0;
+        $image_name = null;
+
+        $errors = [];
+        if (empty($name)) $errors[] = "Item name is required.";
+        if ($price <= 0) $errors[] = "Price must be greater than zero.";
+        if ($category_id <= 0) $errors[] = "Category is required.";
+
+        if (empty($errors)) {
+            // Handle image upload
+            if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = '../uploads/menu/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+                $fileExtension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+                $image_name = uniqid('menu_') . '.' . $fileExtension;
+                $targetPath = $uploadDir . $image_name;
+
+                if (!move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
+                    $errors[] = "Failed to upload image.";
+                    $image_name = null; // Reset image name if upload fails
+                }
+            } else if ($_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE) {
+                $errors[] = "Error uploading image: " . $_FILES['image']['error'];
+            }
+        }
+
+        if (empty($errors)) {
+            try {
+                $stmt = $pdo->prepare("INSERT INTO menu_items (name, description, price, category_id, status, is_featured, image, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+                $stmt->execute([$name, $description, $price, $category_id, $status, $is_featured, $image_name]);
+                $new_item_id = $pdo->lastInsertId();
+                $_SESSION['message'] = ['type' => 'success', 'text' => "New menu item '{$name}' added successfully."];
+                $activityLogger->logActivity("New menu item '{$name}' (ID: {$new_item_id}) added.", $_SESSION['user_id'] ?? null, 'menu_add');
+            } catch (PDOException $e) {
+                $errors[] = "Database error: " . $e->getMessage();
+                error_log("Error adding menu item: " . $e->getMessage());
+            }
+        }
+
+        if (!empty($errors)) {
+            $_SESSION['message'] = ['type' => 'error', 'text' => "Failed to add menu item: " . implode(" ", $errors)];
+        }
+    }
+
+    // D. Edit Menu Item Operation (using menu_edit_submit as trigger)
+    elseif (isset($_POST['edit_menu_item'])) {
+        $id = (int)$_POST['id'];
+        $name = trim($_POST['name'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $price = (float)($_POST['price'] ?? 0);
+        $category_id = (int)($_POST['category_id'] ?? 0);
+        $status = trim($_POST['status'] ?? 'inactive');
+        $is_featured = isset($_POST['is_featured']) ? 1 : 0;
+        $image_name = null; // Will be set if a new image is uploaded
+
+        $errors = [];
+        if ($id <= 0) $errors[] = "Invalid item ID for update.";
+        if (empty($name)) $errors[] = "Item name is required.";
+        if ($price <= 0) $errors[] = "Price must be greater than zero.";
+        if ($category_id <= 0) $errors[] = "Category is required.";
+
+        if (empty($errors)) {
+            // Fetch current image name to retain if no new image is uploaded
+            $current_item = getRecordById('menu_items', $id, 'image,name');
+            $original_image = $current_item['image'] ?? null;
+            $item_name_for_log = $current_item['name'] ?? 'Unknown Item';
+
+            // Handle new image upload
+            if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = '../uploads/menu/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+                $fileExtension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+                $image_name = uniqid('menu_') . '.' . $fileExtension;
+                $targetPath = $uploadDir . $image_name;
+
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
+                    // Delete old image if a new one is uploaded
+                    if (!empty($original_image) && file_exists($uploadDir . $original_image) && is_writable($uploadDir . $original_image)) {
+                        unlink($uploadDir . $original_image);
+                    }
+                } else {
+                    $errors[] = "Failed to upload new image.";
+                    $image_name = $original_image; // Revert to original if new upload fails
+                }
+            } else if ($_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE) {
+                $errors[] = "Error uploading image: " . $_FILES['image']['error'];
+                $image_name = $original_image; // Revert to original on error
+            } else {
+                $image_name = $original_image; // If no new file uploaded, retain old one
+            }
+        }
+
+        if (empty($errors)) {
+            try {
+                $stmt = $pdo->prepare("UPDATE menu_items SET name = ?, description = ?, price = ?, category_id = ?, status = ?, is_featured = ?, image = ?, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$name, $description, $price, $category_id, $status, $is_featured, $image_name, $id]);
+                $_SESSION['message'] = ['type' => 'success', 'text' => "Menu item '{$name}' (ID: {$id}) updated successfully."];
+                $activityLogger->logActivity("Menu item '{$item_name_for_log}' (ID: {$id}) updated.", $_SESSION['user_id'] ?? null, 'menu_update');
+            } catch (PDOException $e) {
+                $errors[] = "Database error: " . $e->getMessage();
+                error_log("Error updating menu item (ID: {$id}): " . $e->getMessage());
+            }
+        }
+
+        if (!empty($errors)) {
+            $_SESSION['message'] = ['type' => 'error', 'text' => "Failed to update menu item: " . implode(" ", $errors)];
+        }
+    }
+
+
+    header('Location: menu.php'); // Redirect to refresh and display message
     exit();
 }
 
-// Get filter parameters
-$category = $_GET['category'] ?? '';
-$status   = $_GET['status'] ?? '';
-$search   = $_GET['search'] ?? '';
 
-// Get categories for filter dropdown
+// 6. Process One-Time Session Messages for JavaScript (SweetAlert2) Display
+if (isset($_SESSION['message'])) {
+    $message_type = $_SESSION['message']['type'];
+    $message_text = $_SESSION['message']['text'];
+    unset($_SESSION['message']); // Clear message after retrieval
+}
+
+
+// --- 7. Data Retrieval for Page Display (GET requests) ---
+
+// Get filter parameters from URL
+$category_filter = $_GET['category'] ?? ''; // Renamed to avoid clash with category data
+$status_filter   = $_GET['status'] ?? '';
+$search_term     = $_GET['search'] ?? '';
+
+// Prepare dynamic WHERE clauses and parameters
+$params = [];
+$where_conditions = [];
+$base_query_joins = "FROM menu_items mi LEFT JOIN categories c ON mi.category_id = c.id";
+
+if (!empty($search_term)) {
+    $where_conditions[] = "(mi.name LIKE :search_term OR mi.description LIKE :search_term OR c.name LIKE :search_cat)";
+    $params[':search_term'] = '%' . $search_term . '%';
+    $params[':search_cat'] = '%' . $search_term . '%'; // Allow searching by category name
+}
+
+if (!empty($category_filter)) {
+    $where_conditions[] = "mi.category_id = :category_filter_id";
+    $params[':category_filter_id'] = $category_filter;
+}
+
+if (!empty($status_filter)) {
+    if ($status_filter === 'featured') { // Special case for 'featured' filter
+        $where_conditions[] = "mi.is_featured = 1 AND mi.status = 'active'";
+    } else {
+        $where_conditions[] = "mi.status = :status_filter_val"; // Use distinct param name
+        $params[':status_filter_val'] = $status_filter;
+    }
+}
+
+$final_where_clause = '';
+if (!empty($where_conditions)) {
+    $final_where_clause = " WHERE " . implode(" AND ", $where_conditions);
+}
+
+
+// 8. Total Record Count for Pagination (with current filters)
+$total_records_query = "SELECT COUNT(mi.id) AS total $base_query_joins $final_where_clause";
+$count_stmt = $pdo->prepare($total_records_query);
+foreach ($params as $key => $value) {
+    $count_stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+}
+$count_stmt->execute();
+$total_items = $count_stmt->fetchColumn();
+
+
+// 9. Pagination Setup
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1; // Ensure page is at least 1
+$per_page = 8; // Number of menu items per page
+$offset = ($page - 1) * $per_page;
+$total_pages = ceil($total_items / $per_page);
+
+
+// 10. Main Menu Items Data Retrieval for Current Page
+$query_menu_items = "
+    SELECT mi.*, c.name AS category_name
+    $base_query_joins
+    $final_where_clause
+    ORDER BY mi.created_at DESC
+    LIMIT :limit OFFSET :offset";
+
+$stmt_menu_items = $pdo->prepare($query_menu_items);
+foreach ($params as $key => $value) {
+    $stmt_menu_items->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+}
+$stmt_menu_items->bindValue(':limit', (int)$per_page, PDO::PARAM_INT);
+$stmt_menu_items->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+
+try {
+    $stmt_menu_items->execute();
+    $menu_items = $stmt_menu_items->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Database error fetching menu items for display: " . $e->getMessage());
+    $menu_items = []; // Fallback empty array on error
+    $error_message .= "An error occurred while fetching menu items. Please try again later.";
+}
+
+
+// 11. Get Categories for Filter Dropdown and Modals
+// This is fetched independently to ensure all categories are available for selection, regardless of filters.
 $categories = [];
 try {
-    $stmt = $pdo->query("SELECT * FROM categories WHERE is_active = 1 ORDER BY name");
-    $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $cat_stmt = $pdo->query("SELECT id, name FROM categories WHERE is_active = 1 ORDER BY name");
+    $categories = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    $categories = [];
+    error_log("Database error fetching categories: " . $e->getMessage());
+    // $categories remains empty, UI will show no categories in dropdowns.
 }
 
-// Build query with filters
-$params = [];
-$query = "
-    SELECT mi.*, c.name as category_name
-    FROM menu_items mi
-    LEFT JOIN categories c ON mi.category_id = c.id
-    WHERE 1=1
-";
+// 12. Get Menu Item Statistics (for dashboard cards and filter tabs)
+// Counts are based on the current filters applied to the main item list.
+function getMenuItemCounts($pdo, $category_filter_id, $search_term) {
+    $counts = [
+        'total' => 0,
+        'active' => 0,
+        'featured' => 0,
+        'inactive' => 0,
+    ];
 
-if (!empty($search)) {
-    $query .= " AND (mi.name LIKE :search OR mi.description LIKE :search OR c.name LIKE :search)";
-    $params[':search'] = '%' . $search . '%';
+    $base_sql_count = "SELECT COUNT(mi.id) FROM menu_items mi LEFT JOIN categories c ON mi.category_id = c.id";
+    $count_conditions = []; // Conditions specific to counting, based on current filters
+    $count_params = [];
+
+    if (!empty($category_filter_id)) {
+        $count_conditions[] = "mi.category_id = :category_filter_id";
+        $count_params[':category_filter_id'] = $category_filter_id;
+    }
+    if (!empty($search_term)) {
+        $count_conditions[] = "(mi.name LIKE :search_term OR mi.description LIKE :search_term OR c.name LIKE :search_cat)";
+        $count_params[':search_term'] = '%' . $search_term . '%';
+        $count_params[':search_cat'] = '%' . $search_term . '%';
+    }
+
+    $count_where_clause = '';
+    if (!empty($count_conditions)) {
+        $count_where_clause = " WHERE " . implode(" AND ", $count_conditions);
+    }
+
+    // --- Calculate All Counts based on current filters ---
+    // Total Items
+    $stmt_total = $pdo->prepare($base_sql_count . $count_where_clause);
+    $stmt_total->execute($count_params);
+    $counts['total'] = $stmt_total->fetchColumn();
+
+    // Active Items
+    $active_conditions = $count_conditions;
+    $active_conditions[] = "mi.status = 'active'";
+    $stmt_active = $pdo->prepare($base_sql_count . " WHERE " . implode(" AND ", $active_conditions));
+    $stmt_active->execute($count_params);
+    $counts['active'] = $stmt_active->fetchColumn();
+
+    // Featured Items (must also be active)
+    $featured_conditions = $count_conditions;
+    $featured_conditions[] = "mi.is_featured = 1";
+    $featured_conditions[] = "mi.status = 'active'"; // Featured implies active
+    $stmt_featured = $pdo->prepare($base_sql_count . " WHERE " . implode(" AND ", $featured_conditions));
+    $stmt_featured->execute($count_params);
+    $counts['featured'] = $stmt_featured->fetchColumn();
+
+    // Inactive Items
+    $inactive_conditions = $count_conditions;
+    $inactive_conditions[] = "mi.status = 'inactive'";
+    $stmt_inactive = $pdo->prepare($base_sql_count . " WHERE " . implode(" AND ", $inactive_conditions));
+    $stmt_inactive->execute($count_params);
+    $counts['inactive'] = $stmt_inactive->fetchColumn();
+
+    return $counts;
 }
 
-if (!empty($category)) {
-    $query .= " AND mi.category_id = :category";
-    $params[':category'] = $category;
-}
+$item_counts = getMenuItemCounts($pdo, $category_filter, $search_term);
 
-if (!empty($status)) {
-    if ($status === 'featured') {
-        $query .= " AND mi.is_featured = 1 AND mi.status = 'active'";
-    } else {
-        $query .= " AND mi.status = :status";
-        $params[':status'] = $status;
-    }
-}
 
-$query .= " ORDER BY mi.created_at DESC";
-
-// Pagination setup
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$per_page = 12;
-$offset = ($page - 1) * $per_page;
-
-// Get total records for pagination
-$total_records = 0;
-try {
-    $count_query = "SELECT COUNT(*) as total FROM menu_items mi LEFT JOIN categories c ON mi.category_id = c.id WHERE 1=1";
-    if (!empty($search)) {
-        $count_query .= " AND (mi.name LIKE :search OR mi.description LIKE :search OR c.name LIKE :search)";
-    }
-    if (!empty($category)) {
-        $count_query .= " AND mi.category_id = :category";
-    }
-    if (!empty($status)) {
-        if ($status === 'featured') {
-            $count_query .= " AND mi.is_featured = 1 AND mi.status = 'active'";
-        } else {
-            $count_query .= " AND mi.status = :status";
-        }
-    }
-
-    $count_stmt = $pdo->prepare($count_query);
-
-    // Bind search/filter parameters for count query
-    foreach ($params as $key => $value) {
-        $param_type = is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR;
-        $count_stmt->bindValue($key, $value, $param_type);
-    }
-
-    $count_stmt->execute();
-    $total_records = $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
-    $total_pages = ceil($total_records / $per_page);
-
-    // Add pagination to query
-    $query .= " LIMIT :limit OFFSET :offset";
-
-    // Execute the main query
-    $stmt = $pdo->prepare($query);
-
-    // Bind search/filter parameters
-    foreach ($params as $key => $value) {
-        $param_type = is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR;
-        $stmt->bindValue($key, $value, $param_type);
-    }
-
-    // Bind pagination parameters
-    $stmt->bindValue(':limit', (int)$per_page, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
-} catch (PDOException $e) {
-    error_log("Database error: " . $e->getMessage());
-    die("An error occurred while fetching menu items. Please try again later.");
-}
-
-$stmt->execute();
-$menu_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Get statistics
-$totalItems = $total_records;
-$activeItems = getCount($pdo, 'menu_items', "status = 'active'");
-$featuredItems = getCount($pdo, 'menu_items', "is_featured = 1 AND status = 'active'");
-$inactiveItems = getCount($pdo, 'menu_items', "status = 'inactive'");
-
-// Include header
+// 13. Include Header (starts HTML output)
 include 'includes/header.php';
 ?>
+
+<!-- ============================================== HTML BEGINS HERER ============================================== -->
 
 <!-- Dashboard Header -->
 <div class="bg-gradient-to-br from-primary via-primary-dark to-secondary text-white">
     <div class="container mx-auto px-6 py-8">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div>
-                <h1 class="text-3xl md:text-4xl font-bold mb-2">Menu Management</h1>
-                <p class="text-lg opacity-90">Manage your restaurant's menu items, pricing, and availability</p>
+                <h1 class="text-3xl md:text-4xl font-bold mb-2"><?= htmlspecialchars($page_title) ?></h1>
+                <p class="text-lg opacity-90"><?= htmlspecialchars($page_description) ?></p>
             </div>
             <div class="mt-4 lg:mt-0">
-                <a href="menu_add.php"
+                <button type="button" onclick="openAddItemModal()"
                    class="bg-accent hover:bg-accent-dark text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center shadow-lg hover:shadow-xl transform hover:-translate-y-1">
                     <i class="fas fa-plus mr-2"></i>
                     Add New Menu Item
-                </a>
+                </button>
             </div>
         </div>
     </div>
@@ -185,8 +451,8 @@ include 'includes/header.php';
                         <i class="fas fa-utensils text-2xl text-primary"></i>
                     </div>
                     <div class="ml-4">
-                        <h3 class="text-2xl font-bold text-gray-900"><?php echo $totalItems; ?></h3>
-                        <p class="text-gray-600">Total Items</p>
+                        <h3 class="text-2xl font-bold text-gray-900"><?php echo $item_counts['total'] ?? 0; ?></h3>
+                        <p class="text-gray-600">Total Items (Filtered)</p>
                     </div>
                 </div>
             </div>
@@ -197,8 +463,8 @@ include 'includes/header.php';
                         <i class="fas fa-check-circle text-2xl text-green-600"></i>
                     </div>
                     <div class="ml-4">
-                        <h3 class="text-2xl font-bold text-gray-900"><?php echo $activeItems; ?></h3>
-                        <p class="text-gray-600">Active Items</p>
+                        <h3 class="text-2xl font-bold text-gray-900"><?php echo $item_counts['active'] ?? 0; ?></h3>
+                        <p class="text-gray-600">Active Items (Filtered)</p>
                     </div>
                 </div>
             </div>
@@ -209,8 +475,8 @@ include 'includes/header.php';
                         <i class="fas fa-star text-2xl text-yellow-600"></i>
                     </div>
                     <div class="ml-4">
-                        <h3 class="text-2xl font-bold text-gray-900"><?php echo $featuredItems; ?></h3>
-                        <p class="text-gray-600">Featured Items</p>
+                        <h3 class="text-2xl font-bold text-gray-900"><?php echo $item_counts['featured'] ?? 0; ?></h3>
+                        <p class="text-gray-600">Featured Items (Filtered)</p>
                     </div>
                 </div>
             </div>
@@ -221,8 +487,8 @@ include 'includes/header.php';
                         <i class="fas fa-eye-slash text-2xl text-gray-600"></i>
                     </div>
                     <div class="ml-4">
-                        <h3 class="text-2xl font-bold text-gray-900"><?php echo $inactiveItems; ?></h3>
-                        <p class="text-gray-600">Inactive Items</p>
+                        <h3 class="text-2xl font-bold text-gray-900"><?php echo $item_counts['inactive'] ?? 0; ?></h3>
+                        <p class="text-gray-600">Inactive Items (Filtered)</p>
                     </div>
                 </div>
             </div>
@@ -232,30 +498,14 @@ include 'includes/header.php';
 
 <!-- Main Content -->
 <div class="container mx-auto px-6 py-8">
-    <!-- Alerts -->
-    <?php if (isset($_SESSION['message'])): ?>
-        <?php $message = $_SESSION['message']; ?>
-        <div class="mb-6 p-4 bg-<?php echo $message['type'] === 'success' ? 'green' : 'red'; ?>-50 border-l-4 border-<?php echo $message['type'] === 'success' ? 'green' : 'red'; ?>-400 text-<?php echo $message['type'] === 'success' ? 'green' : 'red'; ?>-700 rounded-lg flex items-center">
-            <i class="fas fa-<?php echo $message['type'] === 'success' ? 'check' : 'exclamation'; ?>-circle mr-3"></i>
-            <div>
-                <p class="font-semibold"><?php echo ucfirst($message['type']); ?></p>
-                <p><?php echo htmlspecialchars($message['text']); ?></p>
-            </div>
-            <button onclick="this.parentElement.remove()" class="ml-auto text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <?php unset($_SESSION['message']); ?>
-    <?php endif; ?>
-
     <!-- Enhanced Filter & Search Section -->
     <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <!-- Search Input -->
             <div class="lg:col-span-2">
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Search Menu Items</label>
+                <label class="block text-sm font-semibold text-gray-700 mb-2" for="searchInput">Search Menu Items</label>
                 <div class="relative">
-                    <input type="text" id="searchInput" value="<?php echo htmlspecialchars($search); ?>"
+                    <input type="text" id="searchInput" value="<?php echo htmlspecialchars($search_term); ?>"
                            placeholder="Search by name, description, or category..."
                            class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
                     <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
@@ -264,11 +514,11 @@ include 'includes/header.php';
 
             <!-- Category Filter -->
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                <label class="block text-sm font-semibold text-gray-700 mb-2" for="categoryFilter">Category</label>
                 <select id="categoryFilter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
                     <option value="">All Categories</option>
                     <?php foreach ($categories as $cat): ?>
-                        <option value="<?php echo $cat['id']; ?>" <?php echo $category == $cat['id'] ? 'selected' : ''; ?>>
+                        <option value="<?php echo $cat['id']; ?>" <?php echo $category_filter == $cat['id'] ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($cat['name']); ?>
                         </option>
                     <?php endforeach; ?>
@@ -277,12 +527,12 @@ include 'includes/header.php';
 
             <!-- Status Filter -->
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                <label class="block text-sm font-semibold text-gray-700 mb-2" for="statusFilter">Status</label>
                 <select id="statusFilter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
                     <option value="">All Status</option>
-                    <option value="active" <?php echo $status === 'active' ? 'selected' : ''; ?>>Active</option>
-                    <option value="inactive" <?php echo $status === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
-                    <option value="featured" <?php echo $status === 'featured' ? 'selected' : ''; ?>>Featured</option>
+                    <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
+                    <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+                    <option value="featured" <?php echo $status_filter === 'featured' ? 'selected' : ''; ?>>Featured</option>
                 </select>
             </div>
         </div>
@@ -290,20 +540,20 @@ include 'includes/header.php';
         <!-- Quick Filter Tabs -->
         <div class="mt-6 pt-6 border-t border-gray-200">
             <div class="flex flex-wrap gap-2">
-                <button class="filter-tab <?php echo empty($status) ? 'active' : ''; ?>" data-filter="all">
-                    All Items <span class="ml-1 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs"><?php echo $totalItems; ?></span>
+                <button type="button" class="filter-tab <?php echo empty($status_filter) ? 'active' : ''; ?>" data-filter="all">
+                    All Items <span class="ml-1 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs"><?php echo $item_counts['total'] ?? 0; ?></span>
                 </button>
-                <button class="filter-tab <?php echo $status === 'active' ? 'active' : ''; ?>" data-filter="active">
-                    Active <span class="ml-1 bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs"><?php echo $activeItems; ?></span>
+                <button type="button" class="filter-tab <?php echo $status_filter === 'active' ? 'active' : ''; ?>" data-filter="active">
+                    Active <span class="ml-1 bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs"><?php echo $item_counts['active'] ?? 0; ?></span>
                 </button>
-                <button class="filter-tab <?php echo $status === 'featured' ? 'active' : ''; ?>" data-filter="featured">
-                    Featured <span class="ml-1 bg-yellow-100 text-yellow-600 px-2 py-1 rounded-full text-xs"><?php echo $featuredItems; ?></span>
+                <button type="button" class="filter-tab <?php echo $status_filter === 'featured' ? 'active' : ''; ?>" data-filter="featured">
+                    Featured <span class="ml-1 bg-yellow-100 text-yellow-600 px-2 py-1 rounded-full text-xs"><?php echo $item_counts['featured'] ?? 0; ?></span>
                 </button>
-                <button class="filter-tab <?php echo $status === 'inactive' ? 'active' : ''; ?>" data-filter="inactive">
-                    Inactive <span class="ml-1 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs"><?php echo $inactiveItems; ?></span>
+                <button type="button" class="filter-tab <?php echo $status_filter === 'inactive' ? 'active' : ''; ?>" data-filter="inactive">
+                    Inactive <span class="ml-1 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs"><?php echo $item_counts['inactive'] ?? 0; ?></span>
                 </button>
-                <?php if ($category || $status || $search): ?>
-                    <button onclick="clearFilters()" class="ml-4 text-primary hover:text-primary-dark font-medium">
+                <?php if ($category_filter || $status_filter || $search_term): ?>
+                    <button type="button" onclick="clearFilters()" class="ml-4 text-primary hover:text-primary-dark font-medium">
                         <i class="fas fa-times mr-1"></i>Clear Filters
                     </button>
                 <?php endif; ?>
@@ -311,18 +561,19 @@ include 'includes/header.php';
         </div>
     </div>
 
+
     <!-- Menu Items Grid -->
     <?php if (count($menu_items) > 0): ?>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="menuItemsGrid">
             <?php foreach ($menu_items as $item):
                 $isFeatured = $item['is_featured'] ?? false;
-                $status = $item['status'] ?? 'active';
-                $isActive = $status === 'active';
+                $item_status = $item['status'] ?? 'active'; // Renamed from $status
+                $isActive = $item_status === 'active';
             ?>
                 <div class="menu-item-card bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 group"
                      data-item-id="<?php echo $item['id']; ?>"
                      data-category="<?php echo $item['category_id']; ?>"
-                     data-status="<?php echo $status; ?>"
+                     data-status="<?php echo $item_status; ?>"
                      data-featured="<?php echo $isFeatured ? '1' : '0'; ?>"
                      data-name="<?php echo strtolower($item['name']); ?>">
 
@@ -342,7 +593,7 @@ include 'includes/header.php';
                         <div class="absolute top-3 left-3 flex flex-col gap-2">
                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <?php echo $isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'; ?>">
                                 <span class="w-2 h-2 rounded-full mr-1.5 <?php echo $isActive ? 'bg-green-500' : 'bg-gray-500'; ?>"></span>
-                                <?php echo ucfirst($status); ?>
+                                <?php echo ucfirst($item_status); // Used item_status ?>
                             </span>
                             <?php if ($isFeatured): ?>
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
@@ -387,12 +638,12 @@ include 'includes/header.php';
                         <div class="action-buttons flex flex-col space-y-3">
                             <!-- Top Row - Primary Actions -->
                             <div class="primary-actions-top grid grid-cols-2 gap-2">
-                                <a href="menu_edit.php?id=<?php echo $item['id']; ?>"
+                                <button type="button" onclick="openEditItemModal(<?php echo $item['id']; ?>)"
                                    class="bg-primary hover:bg-primary-dark text-white px-3 py-2.5 rounded-lg font-medium transition-all duration-200 text-center shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
                                     <i class="fas fa-edit mr-2"></i>
                                     Edit
-                                </a>
-                                <button onclick="toggleStatus(<?php echo $item['id']; ?>, '<?php echo $isActive ? 'inactive' : 'active'; ?>')"
+                                </button>
+                                <button type="button" onclick="toggleItemProperty(<?php echo $item['id']; ?>, 'toggle_status')"
                                         class="px-3 py-2.5 rounded-lg font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 <?php echo $isActive ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border border-yellow-200' : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200'; ?>">
                                     <i class="fas fa-<?php echo $isActive ? 'eye-slash' : 'eye'; ?> mr-2"></i>
                                     <?php echo $isActive ? 'Deactivate' : 'Activate'; ?>
@@ -401,12 +652,12 @@ include 'includes/header.php';
 
                             <!-- Bottom Row - Secondary Actions -->
                             <div class="primary-actions-bottom grid grid-cols-2 gap-2">
-                                <button onclick="deleteItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['name']); ?>')"
+                                <button type="button" onclick="confirmDeleteItem(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['name']); ?>')"
                                         class="px-3 py-2.5 rounded-lg font-medium transition-all duration-200 bg-red-100 text-red-700 hover:bg-red-200 border border-red-200 shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
                                     <i class="fas fa-trash mr-2"></i>
                                     Delete
                                 </button>
-                                <button onclick="toggleFeatured(<?php echo $item['id']; ?>, <?php echo $isFeatured ? 'false' : 'true'; ?>)"
+                                <button type="button" onclick="toggleItemProperty(<?php echo $item['id']; ?>, 'toggle_featured')"
                                         class="inline-flex items-center justify-center px-3 py-2.5 rounded-lg font-medium transition-all duration-200 text-sm shadow-sm hover:shadow-md transform hover:-translate-y-0.5 <?php echo $isFeatured ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border border-yellow-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'; ?>">
                                     <i class="fas fa-star mr-2"></i>
                                     <?php echo $isFeatured ? 'Featured' : 'Feature'; ?>
@@ -423,14 +674,25 @@ include 'includes/header.php';
             <div class="mt-8">
                 <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 rounded-lg shadow-sm">
                     <div class="flex-1 flex justify-between sm:hidden">
+                        <?php
+                            // Helper function to build pagination URL
+                            function getMenuItemPaginationUrl($page_num, $cat_filter, $stat_filter, $srch_term) {
+                                $url_parts = [];
+                                if ($page_num > 1) $url_parts['page'] = $page_num;
+                                if (!empty($cat_filter)) $url_parts['category'] = urlencode($cat_filter);
+                                if (!empty($stat_filter)) $url_parts['status'] = urlencode($stat_filter);
+                                if (!empty($srch_term)) $url_parts['search'] = urlencode($srch_term);
+                                return '?' . http_build_query($url_parts);
+                            }
+                        ?>
                         <?php if ($page > 1): ?>
-                            <a href="?page=<?php echo $page - 1; ?><?php echo $category ? '&category=' . urlencode($category) : ''; ?><?php echo $status ? '&status=' . urlencode($status) : ''; ?>"
+                            <a href="<?php echo getMenuItemPaginationUrl($page - 1, $category_filter, $status_filter, $search_term); ?>"
                                class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                                 Previous
                             </a>
                         <?php endif; ?>
                         <?php if ($page < $total_pages): ?>
-                            <a href="?page=<?php echo $page + 1; ?><?php echo $category ? '&category=' . urlencode($category) : ''; ?><?php echo $status ? '&status=' . urlencode($status) : ''; ?>"
+                            <a href="<?php echo getMenuItemPaginationUrl($page + 1, $category_filter, $status_filter, $search_term); ?>"
                                class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                                 Next
                             </a>
@@ -439,15 +701,15 @@ include 'includes/header.php';
                     <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                         <div>
                             <p class="text-sm text-gray-700">
-                                Showing <span class="font-medium"><?php echo $offset + 1; ?></span> to
-                                <span class="font-medium"><?php echo min($offset + $per_page, $total_records); ?></span> of
-                                <span class="font-medium"><?php echo $total_records; ?></span> results
+                                Showing <span class="font-medium"><?php echo ($offset + 1); ?></span> to
+                                <span class="font-medium"><?php echo min($offset + $per_page, $total_items); ?></span> of
+                                <span class="font-medium"><?php echo $total_items; ?></span> results
                             </p>
                         </div>
                         <div>
                             <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                                 <?php if ($page > 1): ?>
-                                    <a href="?page=<?php echo $page - 1; ?><?php echo $category ? '&category=' . urlencode($category) : ''; ?><?php echo $status ? '&status=' . urlencode($status) : ''; ?>"
+                                    <a href="<?php echo getMenuItemPaginationUrl($page - 1, $category_filter, $status_filter, $search_term); ?>"
                                        class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                                         <span class="sr-only">Previous</span>
                                         <i class="fas fa-chevron-left h-5 w-5"></i>
@@ -456,7 +718,7 @@ include 'includes/header.php';
 
                                 <?php for ($i = 1; $i <= $total_pages; $i++): ?>
                                     <?php if ($i == 1 || $i == $total_pages || ($i >= $page - 2 && $i <= $page + 2)): ?>
-                                        <a href="?page=<?php echo $i; ?><?php echo $category ? '&category=' . urlencode($category) : ''; ?><?php echo $status ? '&status=' . urlencode($status) : ''; ?>"
+                                        <a href="<?php echo getMenuItemPaginationUrl($i, $category_filter, $status_filter, $search_term); ?>"
                                            class="relative inline-flex items-center px-4 py-2 border text-sm font-medium <?php echo $i == $page ? 'z-10 bg-primary border-primary text-white' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'; ?>">
                                             <?php echo $i; ?>
                                         </a>
@@ -468,7 +730,7 @@ include 'includes/header.php';
                                 <?php endfor; ?>
 
                                 <?php if ($page < $total_pages): ?>
-                                    <a href="?page=<?php echo $page + 1; ?><?php echo $category ? '&category=' . urlencode($category) : ''; ?><?php echo $status ? '&status=' . urlencode($status) : ''; ?>"
+                                    <a href="<?php echo getMenuItemPaginationUrl($page + 1, $category_filter, $status_filter, $search_term); ?>"
                                        class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                                         <span class="sr-only">Next</span>
                                         <i class="fas fa-chevron-right h-5 w-5"></i>
@@ -487,27 +749,27 @@ include 'includes/header.php';
             <div class="max-w-md mx-auto">
                 <i class="fas fa-utensils text-6xl text-gray-300 mb-4"></i>
                 <h3 class="text-2xl font-semibold text-gray-700 mb-2">
-                    <?php if ($search || $category || $status): ?>
+                    <?php if ($search_term || $category_filter || $status_filter): ?>
                         No items match your filters
                     <?php else: ?>
                         No menu items found
                     <?php endif; ?>
                 </h3>
                 <p class="text-gray-500 mb-6">
-                    <?php if ($search || $category || $status): ?>
+                    <?php if ($search_term || $category_filter || $status_filter): ?>
                         Try adjusting your search or filter criteria.
                     <?php else: ?>
                         Get started by creating your first menu item.
                     <?php endif; ?>
                 </p>
                 <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                    <a href="menu_add.php"
+                    <button type="button" onclick="openAddItemModal()"
                        class="bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center justify-center">
                         <i class="fas fa-plus mr-2"></i>
                         Add Menu Item
-                    </a>
-                    <?php if ($search || $category || $status): ?>
-                        <button onclick="clearFilters()"
+                    </button>
+                    <?php if ($search_term || $category_filter || $status_filter): ?>
+                        <button type="button" onclick="clearFilters()"
                                 class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold transition-colors duration-200">
                             Clear Filters
                         </button>
@@ -518,320 +780,485 @@ include 'includes/header.php';
     <?php endif; ?>
 </div>
 
+<!-- ============================================== MODALS ============================================== -->
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
+                </h3>
+                <button type="button" onclick="closeModal('deleteModal')" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 text-gray-700">
+            <p class="text-lg font-medium mb-3">Are you sure you want to delete menu item "<span id="deleteItemName" class="font-bold text-red-600"></span>" (ID: <span id="deleteItemIdDisplay" class="font-bold text-red-600"></span>)?</p>
+            <p>This action cannot be undone. It will be permanently removed.</p>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <button type="button" onclick="closeModal('deleteModal')"
+                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <span class="relative z-10 font-medium">Cancel</span>
+            </button>
+            <form action="" method="POST" class="inline-block" id="deleteItemForm">
+                <input type="hidden" name="_method" value="DELETE">
+                <input type="hidden" name="id" id="deleteItemId">
+                <button type="submit"
+                        class="group relative bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                    <i class="fas fa-trash mr-2 relative z-10"></i>
+                    <span class="relative z-10 font-medium">Delete Item</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Menu Item Modal -->
+<div id="editItemModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-purple-600 to-purple-700 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">
+                    <i class="fas fa-pencil-alt mr-2"></i>Edit Menu Item <span id="editItemNameDisplay" class="font-mono text-purple-100 italic"></span>
+                </h3>
+                <button type="button" onclick="closeModal('editItemModal')" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6">
+            <form action="menu.php" method="POST" enctype="multipart/form-data" id="editItemForm" class="space-y-6">
+                <!-- Hidden input for item ID -->
+                <input type="hidden" name="id" id="edit_item_id">
+                <input type="hidden" name="edit_menu_item" value="1"> <!-- Marker for PHP POST handler -->
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Item Name -->
+                    <div>
+                        <label for="edit_name" class="block text-sm font-semibold text-gray-700 mb-2">Item Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="name" id="edit_name" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-colors">
+                    </div>
+                    <!-- Item Price -->
+                    <div>
+                        <label for="edit_price" class="block text-sm font-semibold text-gray-700 mb-2">Price (KES) <span class="text-red-500">*</span></label>
+                        <input type="number" step="0.01" min="0" name="price" id="edit_price" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-colors">
+                    </div>
+                </div>
+
+                <!-- Item Description -->
+                <div>
+                    <label for="edit_description" class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                    <textarea name="description" id="edit_description" rows="3"
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-colors"
+                              placeholder="Describe the menu item"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Category -->
+                    <div>
+                        <label for="edit_category_id" class="block text-sm font-semibold text-gray-700 mb-2">Category <span class="text-red-500">*</span></label>
+                        <select name="category_id" id="edit_category_id" required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-colors">
+                            <option value="">Select a category</option>
+                            <?php foreach ($categories as $cat): ?>
+                                <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <!-- Status -->
+                    <div>
+                        <label for="edit_status" class="block text-sm font-semibold text-gray-700 mb-2">Status <span class="text-red-500">*</span></label>
+                        <select name="status" id="edit_status" required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-colors">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Image Upload -->
+                <div>
+                    <label for="edit_image" class="block text-sm font-semibold text-gray-700 mb-2">Item Image</label>
+                    <input type="file" name="image" id="edit_image" accept="image/*"
+                           class="w-full text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
+                    <p class="text-xs text-gray-500 mt-1">Leave blank to keep current image. Max 2MB, JPG/PNG.</p>
+                    <div id="edit_current_image_preview" class="mt-2" style="display:none;">
+                        <span class="text-sm text-gray-600">Current Image:</span>
+                        <img id="edit_image_thumb" src="" alt="Current Image" class="block w-24 h-24 object-cover rounded-lg border border-gray-200 mt-1">
+                    </div>
+                </div>
+
+                <!-- Is Featured Toggle -->
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" name="is_featured" id="edit_is_featured" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                    <label for="edit_is_featured" class="text-sm font-medium text-gray-700">Mark as Featured</label>
+                </div>
+            </form>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <button type="button" onclick="closeModal('editItemModal')"
+                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <span class="relative z-10 font-medium">Cancel</span>
+            </button>
+             <button type="submit" form="editItemForm"
+                    class="group relative bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <i class="fas fa-save mr-2 relative z-10"></i>
+                <span class="relative z-10 font-medium">Save Changes</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add New Menu Item Modal -->
+<div id="addItemModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-green-600 to-green-700 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">
+                    <i class="fas fa-plus-circle mr-2"></i>Add New Menu Item
+                </h3>
+                <button type="button" onclick="closeModal('addItemModal')" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6">
+            <form action="menu.php" method="POST" enctype="multipart/form-data" id="addItemForm" class="space-y-6">
+                <input type="hidden" name="add_menu_item" value="1"> <!-- Marker for PHP POST handler -->
+
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Item Name -->
+                    <div>
+                        <label for="add_name" class="block text-sm font-semibold text-gray-700 mb-2">Item Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="name" id="add_name" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-colors">
+                    </div>
+                    <!-- Item Price -->
+                    <div>
+                        <label for="add_price" class="block text-sm font-semibold text-gray-700 mb-2">Price (KES) <span class="text-red-500">*</span></label>
+                        <input type="number" step="0.01" min="0" name="price" id="add_price" value="0.00" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-colors">
+                    </div>
+                </div>
+
+                <!-- Item Description -->
+                <div>
+                    <label for="add_description" class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                    <textarea name="description" id="add_description" rows="3"
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-colors"
+                              placeholder="Describe the menu item"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Category -->
+                    <div>
+                        <label for="add_category_id" class="block text-sm font-semibold text-gray-700 mb-2">Category <span class="text-red-500">*</span></label>
+                        <select name="category_id" id="add_category_id" required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-colors">
+                            <option value="">Select a category</option>
+                            <?php foreach ($categories as $cat): ?>
+                                <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <!-- Status -->
+                    <div>
+                        <label for="add_status" class="block text-sm font-semibold text-gray-700 mb-2">Status <span class="text-red-500">*</span></label>
+                        <select name="status" id="add_status" required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-colors">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Image Upload -->
+                <div>
+                    <label for="add_image" class="block text-sm font-semibold text-gray-700 mb-2">Item Image</label>
+                    <input type="file" name="image" id="add_image" accept="image/*"
+                           class="w-full text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+                    <p class="text-xs text-gray-500 mt-1">Max 2MB, JPG/PNG. Required for new items.</p>
+                </div>
+
+                <!-- Is Featured Toggle -->
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" name="is_featured" id="add_is_featured" class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                    <label for="add_is_featured" class="text-sm font-medium text-gray-700">Mark as Featured</label>
+                </div>
+            </form>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <button type="button" onclick="closeModal('addItemModal')"
+                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <span class="relative z-10 font-medium">Cancel</span>
+            </button>
+             <button type="submit" form="addItemForm"
+                    class="group relative bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <i class="fas fa-plus mr-2 relative z-10"></i>
+                <span class="relative z-10 font-medium">Add Item</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ============================================== JAVASCRIPT ============================================== -->
 <script>
-// Enhanced filtering functionality
+// IMPORTANT: Ensure SweetAlert2 is loaded. It is assumed to be included in your includes/header.php
+// or includes/admin_footer.php. If not, add this line in your header/footer:
+// <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+// Global utility to close modals by adding 'hidden' class
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+}
+
+// Close modal when clicking outside (on the black overlay)
+window.addEventListener('click', function(event) {
+    const modalIds = ['deleteModal', 'editItemModal', 'addItemModal']; // List of all modal IDs
+    modalIds.forEach(id => {
+        const modal = document.getElementById(id);
+        // Only close if the modal exists, is visible, and the click was directly on the backdrop
+        if (modal && !modal.classList.contains('hidden') && event.target === modal) {
+            closeModal(id);
+        }
+    });
+});
+
 document.addEventListener('DOMContentLoaded', function() {
+    // --- Message Display on Page Load (from PHP session for SweetAlert2) ---
+    const messageType = "<?php echo $message_type; ?>";
+    const messageText = "<?php echo htmlspecialchars($message_text, ENT_QUOTES); ?>";
+
+    if (messageType && messageText) {
+        Swal.fire({
+            icon: messageType === 'success' ? 'success' : 'error',
+            title: messageType === 'success' ? 'Success!' : 'Error!',
+            text: messageText,
+            showConfirmButton: false,
+            timer: 3000
+        });
+    }
+
+    // --- FILTERING LOGIC ---
+    // These listeners trigger a full page reload with new URL parameters (server-side filtering)
     const searchInput = document.getElementById('searchInput');
     const categoryFilter = document.getElementById('categoryFilter');
     const statusFilter = document.getElementById('statusFilter');
-    const filterTabs = document.querySelectorAll('.filter-tab');
+    const filterTabs = document.querySelectorAll('.filter-tab[data-filter]');
 
-    // Search functionality
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            filterItems();
+    const applyFiltersToUrl = () => {
+        let url = new URL(window.location.origin + window.location.pathname);
 
-            // Update URL without page reload
-            const url = new URL(window.location);
-            if (searchTerm) {
-                url.searchParams.set('search', searchTerm);
-            } else {
-                url.searchParams.delete('search');
-            }
-            window.history.pushState({}, '', url);
-        });
-    }
+        const searchInputVal = searchInput?.value;
+        const categoryFilterVal = categoryFilter?.value;
+        const statusFilterVal = statusFilter?.value;
 
-    // Category filter
-    if (categoryFilter) {
-        categoryFilter.addEventListener('change', function() {
-            filterItems();
+        if (searchInputVal) url.searchParams.set('search', searchInputVal);
+        if (categoryFilterVal) url.searchParams.set('category', categoryFilterVal);
 
-            // Update URL
-            const url = new URL(window.location);
-            if (this.value) {
-                url.searchParams.set('category', this.value);
-            } else {
-                url.searchParams.delete('category');
-            }
-            window.history.pushState({}, '', url);
-        });
-    }
+        if (statusFilterVal && statusFilterVal !== 'all') { // Avoid sending 'all' status
+            url.searchParams.set('status', statusFilterVal);
+        } else {
+            url.searchParams.delete('status'); // Remove if 'all' or empty
+        }
 
-    // Status filter
-    if (statusFilter) {
-        statusFilter.addEventListener('change', function() {
-            filterItems();
+        url.searchParams.delete('page'); // Reset page to 1 when filters change
+        window.location.href = url.toString();
+    };
 
-            // Update URL
-            const url = new URL(window.location);
-            if (this.value) {
-                url.searchParams.set('status', this.value);
-            } else {
-                url.searchParams.delete('status');
-            }
-            window.history.pushState({}, '', url);
-        });
-    }
+    let searchTimeout;
+    searchInput?.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(applyFiltersToUrl, 500); // Debounce search
+    });
+    categoryFilter?.addEventListener('change', applyFiltersToUrl);
+    statusFilter?.addEventListener('change', applyFiltersToUrl);
 
-    // Filter tabs
     filterTabs.forEach(tab => {
         tab.addEventListener('click', function() {
-            const filter = this.dataset.filter;
-
-            // Update active tab
-            filterTabs.forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-
-            // Update status filter
-            if (statusFilter) {
-                if (filter === 'all') {
-                    statusFilter.value = '';
-                } else {
-                    statusFilter.value = filter;
-                }
-            }
-
-            filterItems();
-
-            // Update URL
-            const url = new URL(window.location);
-            if (filter === 'all') {
-                url.searchParams.delete('status');
-            } else {
-                url.searchParams.set('status', filter);
-            }
-            window.history.pushState({}, '', url);
+            const newStatus = this.dataset.filter === 'all' ? '' : this.dataset.filter;
+            if (statusFilter) statusFilter.value = newStatus; // Update select element before applying
+            applyFiltersToUrl(); // Apply filters
         });
     });
 });
 
-function filterItems() {
-    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-    const categoryId = document.getElementById('categoryFilter')?.value || '';
-    const statusValue = document.getElementById('statusFilter')?.value || '';
-
-    const items = document.querySelectorAll('.menu-item-card');
-    let visibleCount = 0;
-
-    items.forEach(item => {
-        const name = item.dataset.name || '';
-        const itemCategory = item.dataset.category || '';
-        const itemStatus = item.dataset.status || '';
-        const isFeatured = item.dataset.featured === '1';
-
-        let shouldShow = true;
-
-        // Search filter
-        if (searchTerm && !name.includes(searchTerm)) {
-            shouldShow = false;
-        }
-
-        // Category filter
-        if (categoryId && itemCategory !== categoryId) {
-            shouldShow = false;
-        }
-
-        // Status filter
-        if (statusValue) {
-            if (statusValue === 'featured' && !isFeatured) {
-                shouldShow = false;
-            } else if (statusValue !== 'featured' && itemStatus !== statusValue) {
-                shouldShow = false;
-            }
-        }
-
-        if (shouldShow) {
-            item.style.display = 'block';
-            visibleCount++;
-        } else {
-            item.style.display = 'none';
-        }
-    });
-
-    // Show/hide empty state
-    const grid = document.getElementById('menuItemsGrid');
-    if (grid && visibleCount === 0) {
-        if (!document.querySelector('.empty-state')) {
-            const emptyState = document.createElement('div');
-            emptyState.className = 'empty-state col-span-full text-center py-16';
-            emptyState.innerHTML = `
-                <i class="fas fa-search text-6xl text-gray-300 mb-4"></i>
-                <h3 class="text-2xl font-semibold text-gray-700 mb-2">No items found</h3>
-                <p class="text-gray-500">Try adjusting your search or filter criteria.</p>
-            `;
-            grid.parentNode.insertBefore(emptyState, grid.nextSibling);
-        }
-    } else {
-        const emptyState = document.querySelector('.empty-state');
-        if (emptyState) {
-            emptyState.remove();
-        }
-    }
-}
-
+// Function to clear all filter inputs and reload the page
 function clearFilters() {
+    // Clear the values of the filter inputs
     document.getElementById('searchInput').value = '';
     document.getElementById('categoryFilter').value = '';
     document.getElementById('statusFilter').value = '';
-
-    // Reset active tab
-    document.querySelectorAll('.filter-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.filter === 'all');
-    });
-
-    filterItems();
-
-    // Update URL
-    const url = new URL(window.location);
-    url.searchParams.delete('search');
-    url.searchParams.delete('category');
-    url.searchParams.delete('status');
-    window.history.pushState({}, '', url);
+    // Reload page without any GET parameters to show all items
+    window.location.href = window.location.origin + window.location.pathname;
 }
 
-// Enhanced toggle functions
-function toggleStatus(id, newStatus) {
-    if (confirm('Are you sure you want to ' + (newStatus === 'active' ? 'activate' : 'deactivate') + ' this item?')) {
-        const button = document.querySelector(`button[onclick*="toggleStatus(${id}"]`);
-        if (button) {
-            const originalText = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Updating...';
-            button.disabled = true;
 
-            fetch('update_status.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: 'id=' + id + '&status=' + newStatus + '&type=menu_item'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error updating status: ' + (data.message || 'Unknown error'));
-                    button.innerHTML = originalText;
-                    button.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error updating status');
-                button.innerHTML = originalText;
-                button.disabled = false;
-            });
+// --- Delete Confirmation Modal Logic ---
+function confirmDeleteItem(id, name) {
+    document.getElementById('deleteItemId').value = id;
+    document.getElementById('deleteItemIdDisplay').textContent = id;
+    document.getElementById('deleteItemName').textContent = name;
+    document.getElementById('deleteModal').classList.remove('hidden');
+}
+
+// --- Open Edit Item Modal ---
+// Asynchronously fetches item data and populates the edit form
+async function openEditItemModal(itemId) {
+    try {
+        // Fetch item data using the API endpoint defined at the top of menu.php
+        const response = await fetch(`menu.php?fetch_item_data=${itemId}`);
+        if (!response.ok) {
+            // Attempt to parse JSON error message if provided by the PHP endpoint
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
-    }
-}
+        const itemData = await response.json();
 
-function toggleFeatured(id, isFeatured) {
-    const button = document.querySelector(`button[onclick*="toggleFeatured(${id}"]`);
-    if (button) {
-        const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Updating...';
-        button.disabled = true;
+        // Populate the form fields in the edit modal
+        document.getElementById('edit_item_id').value = itemData.id;
+        document.getElementById('editItemNameDisplay').textContent = itemData.name;
+        document.getElementById('edit_name').value = itemData.name;
+        document.getElementById('edit_price').value = parseFloat(itemData.price).toFixed(2);
+        document.getElementById('edit_description').value = itemData.description || '';
+        document.getElementById('edit_category_id').value = itemData.category_id;
+        document.getElementById('edit_status').value = itemData.status;
+        document.getElementById('edit_is_featured').checked = itemData.is_featured; // Boolean from API
 
-        fetch('update_status.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'id=' + id + '&is_featured=' + (isFeatured ? '1' : '0') + '&type=menu_item'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error updating featured status: ' + (data.message || 'Unknown error'));
-                button.innerHTML = originalText;
-                button.disabled = false;
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error updating featured status');
-            button.innerHTML = originalText;
-            button.disabled = false;
+        // Image preview logic
+        const currentImagePreview = document.getElementById('edit_current_image_preview');
+        const imageThumb = document.getElementById('edit_image_thumb');
+        if (itemData.image) {
+            imageThumb.src = `../uploads/menu/${itemData.image}`; // Adjust path if needed
+            currentImagePreview.style.display = 'block';
+        } else {
+            currentImagePreview.style.display = 'none';
+            imageThumb.src = ''; // Clear src if no image
+        }
+
+        // Show the edit modal
+        document.getElementById('editItemModal').classList.remove('hidden');
+    } catch (error) {
+        console.error('Error opening edit modal:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: `Could not load menu item details: ${error.message}. Please check console for more details.`,
         });
     }
 }
 
-function deleteItem(id, name) {
-    if (confirm(`Are you sure you want to delete "${name}"?\n\nThis action cannot be undone.`)) {
-        const button = document.querySelector(`button[onclick*="deleteItem(${id}"]`);
-        if (button) {
-            const originalText = button.innerHTML;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting...';
-            button.disabled = true;
+// --- Open Add Item Modal ---
+function openAddItemModal() {
+    // Reset the form to clear any previous data
+    document.getElementById('addItemForm').reset();
+    // Set default values for new item
+    document.getElementById('add_name').value = '';
+    document.getElementById('add_price').value = '0.00';
+    document.getElementById('add_description').value = '';
+    document.getElementById('add_category_id').value = ''; // Ensure no category pre-selected
+    document.getElementById('add_status').value = 'active';
+    document.getElementById('add_is_featured').checked = false; // Default to not featured
+    document.getElementById('add_image').value = ''; // Clear file input value
 
-            const formData = new FormData();
-            formData.append('_method', 'DELETE');
-            formData.append('id', id);
-
-            fetch(window.location.href, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message and remove item from DOM
-                    const itemElement = document.querySelector(`[data-item-id="${id}"]`);
-                    if (itemElement) {
-                        itemElement.style.opacity = '0';
-                        setTimeout(() => {
-                            itemElement.remove();
-                            // If no items left, show empty state
-                            if (document.querySelectorAll('[data-item-id]').length === 0) {
-                                location.reload();
-                            }
-                        }, 300);
-                    }
-                    showToast('success', data.message || 'Menu item deleted successfully');
-                } else {
-                    showToast('error', data.message || 'Failed to delete menu item');
-                    button.innerHTML = originalText;
-                    button.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('error', 'Error deleting menu item');
-                button.innerHTML = originalText;
-                button.disabled = false;
-            });
-        }
-    }
+    // Show the add modal
+    document.getElementById('addItemModal').classList.remove('hidden');
 }
 
-function showToast(type, message) {
-    // Remove existing toasts
-    document.querySelectorAll('.toast').forEach(toast => toast.remove());
 
-    const toast = document.createElement('div');
-    toast.className = `toast fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white font-medium z-50 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
-    toast.innerHTML = `
-        <div class="flex items-center">
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i>
-            <span>${message}</span>
-        </div>
-    `;
+// --- Toggle Item Status / Featured Status (using SweetAlert2 for confirmation and form submission) ---
+async function toggleItemProperty(itemId, actionType) {
+    let confirmTitle = 'Confirm Action';
+    let confirmText = '';
+    let successMsg = ''; // Although PHP handles message, good to have for consistency
 
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    // Determine the confirmation message based on actionType
+    if (actionType === 'toggle_status') {
+        const itemElement = document.querySelector(`.menu-item-card[data-item-id="${itemId}"]`);
+        const currentStatus = itemElement?.dataset.status;
+        const newStatusText = currentStatus === 'active' ? 'inactive' : 'active';
+        confirmText = `Are you sure you want to change the status to "${newStatusText}"?`;
+        successMsg = `Status updated to ${newStatusText}.`;
+    } else if (actionType === 'toggle_featured') {
+        const itemElement = document.querySelector(`.menu-item-card[data-item-id="${itemId}"]`);
+        const isCurrentlyFeatured = itemElement?.dataset.featured === '1';
+        const newFeaturedText = isCurrentlyFeatured ? 'not featured' : 'featured';
+        confirmText = `Are you sure you want to mark this item as ${newFeaturedText}?`;
+        successMsg = `Item marked as ${newFeaturedText}.`;
+    }
+
+    Swal.fire({
+        title: confirmTitle,
+        text: confirmText,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, do it!'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                // Create a temporary form to submit the action via POST
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'menu.php'; // Submit to the current page
+
+                // Hidden fields for ID and action type
+                const idInput = document.createElement('input');
+                idInput.type = 'hidden';
+                idInput.name = 'id';
+                idInput.value = itemId;
+
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'action';
+                actionInput.value = actionType;
+
+                form.appendChild(idInput);
+                form.appendChild(actionInput);
+                document.body.appendChild(form); // Temporarily append form to DOM
+                form.submit(); // Programmatically submit the form (this will cause a page reload)
+
+            } catch (error) {
+                console.error('Error in toggleItemProperty:', error);
+                Swal.fire('Error', `Failed to update item: ${error.message}. Please try again.`, 'error');
+            }
+        }
+    });
 }
 </script>
 
 <style>
-/* Enhanced styling */
+/* Enhanced styling specific to menu.php */
 .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -839,7 +1266,7 @@ function showToast(type, message) {
     overflow: hidden;
 }
 
-/* Filter tabs */
+/* Filter tabs using Tailwind */
 .filter-tab {
     @apply px-4 py-2 rounded-full bg-gray-100 text-gray-700 font-medium transition-colors duration-200;
 }
@@ -849,6 +1276,7 @@ function showToast(type, message) {
 }
 
 .filter-tab.active {
+    /* Tailwind 'primary' color should be defined in tailwind.config.js */
     @apply bg-primary text-white;
 }
 
@@ -862,28 +1290,13 @@ function showToast(type, message) {
 }
 
 /* Loading states */
+/* Used for buttons during AJAX actions */
 button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
 }
 
-/* Toast notifications */
-.toast {
-    animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
-/* Custom scrollbar */
+/* Custom scrollbar (Global styles) */
 ::-webkit-scrollbar {
     width: 8px;
 }
@@ -893,11 +1306,11 @@ button:disabled {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #C1272D;
+    background: #C1272D; /* Example: Matches a 'primary' color */
     border-radius: 4px;
 }
 
-/* Action buttons styling */
+/* Action buttons styling (using Tailwind for classes like group, relative, bg-gradient-to, etc.) */
 .action-buttons {
     width: 100%;
 }
@@ -912,87 +1325,40 @@ button:disabled {
 .action-buttons .primary-actions-top button,
 .action-buttons .primary-actions-top a,
 .action-buttons .primary-actions-bottom button {
-    font-size: 0.875rem;
-    font-weight: 500;
-    padding: 0.625rem 0.75rem;
-    border-radius: 0.5rem;
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 500;    /* font-medium */
+    padding: 0.625rem 0.75rem; /* py-2.5 px-3 */
+    border-radius: 0.5rem; /* rounded-lg */
     transition: all 0.2s ease;
     white-space: nowrap;
     text-align: center;
-    border: 1px solid transparent;
+    border: 1px solid transparent; /* default border for consistency */
     position: relative;
     overflow: hidden;
 }
 
-.action-buttons .primary-actions-top button:hover,
-.action-buttons .primary-actions-top a:hover,
-.action-buttons .primary-actions-bottom button:hover {
+/* Hover/Focus states for all action buttons */
+.action-buttons button:hover,
+.action-buttons a:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* strong hover shadow */
 }
 
-.action-buttons .primary-actions-top button:focus,
-.action-buttons .primary-actions-top a:focus,
-.action-buttons .primary-actions-bottom button:focus {
+.action-buttons button:focus,
+.action-buttons a:focus {
     outline: none;
-    ring: 2px solid rgba(193, 39, 45, 0.3);
+    box-shadow: 0 0 0 3px rgba(193, 39, 45, 0.3); /* ring-3 with primary color */
 }
 
-/* Specific button color improvements */
-.action-buttons .primary-actions-top a {
-    background: linear-gradient(135deg, #C1272D 0%, #B01E24 100%);
-}
+/* Specific Gradient Styles (Tailwind's bg-gradient-to-r utilities are directly in HTML) */
+/* The general hover/focus styles above apply to these buttons as well. */
 
-.action-buttons .primary-actions-top a:hover {
-    background: linear-gradient(135deg, #B01E24 0%, #A01720 100%);
+/* Modals styles - controlled by 'hidden' class with JS */
+#deleteModal, #editItemModal, #addItemModal {
+    /* Default is hidden, JS removes/adds 'hidden' */
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent backdrop */
+    z-index: 9999; /* Ensure modals are on top */
 }
+</style>
 
-/* Status button styling improvements */
-.action-buttons .primary-actions-top button[class*="bg-green"] {
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-    color: white;
-}
-
-.action-buttons .primary-actions-top button[class*="bg-green"]:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-}
-
-.action-buttons .primary-actions-top button[class*="bg-yellow"] {
-    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-    color: white;
-}
-
-.action-buttons .primary-actions-top button[class*="bg-yellow"]:hover {
-    background: linear-gradient(135deg, #D97706 0%, #B45309 100%);
-}
-
-/* Delete button styling */
-.action-buttons .primary-actions-bottom button[class*="bg-red"] {
-    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-    color: white;
-}
-
-.action-buttons .primary-actions-bottom button[class*="bg-red"]:hover {
-    background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
-}
-
-/* Featured button styling */
-.action-buttons .primary-actions-bottom button[class*="bg-yellow"] {
-    background: linear-gradient(135deg, #FCD34D 0%, #F59E0B 100%);
-    color: #92400E;
-}
-
-.action-buttons .primary-actions-bottom button[class*="bg-yellow"]:hover {
-    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-}
-
-.action-buttons .primary-actions-bottom button[class*="bg-gray"] {
-    background: linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%);
-    color: #374151;
-}
-
-.action-buttons .primary-actions-bottom button[class*="bg-gray"]:hover {
-    background: linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%);
-}
-
-<?php include 'includes/footer.php'; ?>
+<?php include 'includes/footer.php'; // Adjust this path as needed ?>

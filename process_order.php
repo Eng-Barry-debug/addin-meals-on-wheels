@@ -121,6 +121,7 @@ try {
                 delivery_fee, 
                 total, 
                 payment_method, 
+                payment_status, 
                 status
             ) VALUES (
                 :user_id, 
@@ -134,12 +135,23 @@ try {
                 :delivery_fee, 
                 :total, 
                 :payment_method, 
+                :payment_status, 
                 'pending'
             )
         ");
 
         // Generate order number (format: ORD-YYYYMMDD-XXXX)
         $order_number = 'ORD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
+        
+        // Determine initial payment status based on payment method
+        $initial_payment_status = 'pending';
+        if ($payment_method === 'mpesa') {
+            // For M-Pesa, we'll set to confirmed after successful payment processing
+            $initial_payment_status = 'confirmed';
+        } elseif ($payment_method === 'cash_on_delivery') {
+            // For cash on delivery, payment is pending until delivery and confirmation
+            $initial_payment_status = 'pending';
+        }
         
         $stmt->execute([
             ':user_id' => $user_id,
@@ -152,7 +164,8 @@ try {
             ':subtotal' => $subtotal,
             ':delivery_fee' => $delivery_fee,
             ':total' => $total,
-            ':payment_method' => $payment_method
+            ':payment_method' => $payment_method,
+            ':payment_status' => $initial_payment_status
         ]);
 
         $order_id = $pdo->lastInsertId();
@@ -195,11 +208,31 @@ try {
 
         // Process payment if M-Pesa
         if ($payment_method === 'mpesa') {
-            // TODO: Implement M-Pesa payment processing
-            // This would involve calling the M-Pesa API
-            // For now, we'll just update the order status to 'processing'
-            $stmt = $pdo->prepare("UPDATE orders SET status = 'processing' WHERE id = ?");
-            $stmt->execute([$order_id]);
+            // TODO: Implement actual M-Pesa payment processing here
+            // For now, simulate successful payment processing
+            try {
+                // Simulate M-Pesa API call
+                // In real implementation, you would:
+                // 1. Call M-Pesa STK Push API
+                // 2. Wait for payment confirmation callback
+                // 3. Update payment status based on callback
+
+                // For demonstration, we'll assume payment is successful
+                $payment_successful = true; // This would come from M-Pesa API response
+
+                if ($payment_successful) {
+                    $stmt = $pdo->prepare("UPDATE orders SET status = 'processing', payment_status = 'confirmed' WHERE id = ?");
+                    $stmt->execute([$order_id]);
+                } else {
+                    $stmt = $pdo->prepare("UPDATE orders SET status = 'cancelled', payment_status = 'failed' WHERE id = ?");
+                    $stmt->execute([$order_id]);
+                    throw new Exception('M-Pesa payment failed. Please try again.');
+                }
+            } catch (Exception $e) {
+                // If M-Pesa payment fails, cancel the order
+                $pdo->rollBack();
+                throw new Exception('Payment processing failed: ' . $e->getMessage());
+            }
         }
 
         // Set success response
