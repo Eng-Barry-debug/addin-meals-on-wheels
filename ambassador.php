@@ -22,43 +22,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Create uploads/ambassadors directory if it doesn't exist
         $upload_dir = 'uploads/ambassadors/';
         if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0755, true);
+            mkdir($upload_dir, 0755, true); // 0755 permissions for directory, true for recursive
         }
 
         // Handle ID front image upload
         if (isset($_FILES['id_front']) && $_FILES['id_front']['error'] === UPLOAD_ERR_OK) {
             $file_tmp = $_FILES['id_front']['tmp_name'];
-            $file_name = time() . '_front_' . basename($_FILES['id_front']['name']);
+            // Sanitize file name for security, prevent directory traversal, etc.
+            $original_file_name = basename($_FILES['id_front']['name']);
+            $extension = pathinfo($original_file_name, PATHINFO_EXTENSION);
+            $file_name = time() . '_front_' . uniqid() . '.' . $extension; // Add uniqid to prevent name collisions
             $file_path = $upload_dir . $file_name;
 
             if (move_uploaded_file($file_tmp, $file_path)) {
                 $id_front = $file_name;
+            } else {
+                throw new Exception('Failed to upload front ID card image.');
             }
         }
 
         // Handle ID back image upload
         if (isset($_FILES['id_back']) && $_FILES['id_back']['error'] === UPLOAD_ERR_OK) {
             $file_tmp = $_FILES['id_back']['tmp_name'];
-            $file_name = time() . '_back_' . basename($_FILES['id_back']['name']);
+            // Sanitize file name
+            $original_file_name = basename($_FILES['id_back']['name']);
+            $extension = pathinfo($original_file_name, PATHINFO_EXTENSION);
+            $file_name = time() . '_back_' . uniqid() . '.' . $extension; // Add uniqid
             $file_path = $upload_dir . $file_name;
 
             if (move_uploaded_file($file_tmp, $file_path)) {
                 $id_back = $file_name;
+            } else {
+                throw new Exception('Failed to upload back ID card image.');
             }
         }
 
         // Basic validation
         if (empty($name) || empty($email) || empty($phone)) {
+            // Unlink uploaded files if validation fails later
+            if (!empty($id_front)) @unlink($upload_dir . $id_front);
+            if (!empty($id_back)) @unlink($upload_dir . $id_back);
             throw new Exception('Name, email, and phone are required.');
         }
 
         if (empty($id_front) || empty($id_back)) {
+            // Unlink uploaded files if validation fails
+            if (!empty($id_front)) @unlink($upload_dir . $id_front);
+            if (!empty($id_back)) @unlink($upload_dir . $id_back);
             throw new Exception('Both front and back ID card images are required.');
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            // Unlink uploaded files if validation fails
+            if (!empty($id_front)) @unlink($upload_dir . $id_front);
+            if (!empty($id_back)) @unlink($upload_dir . $id_back);
             throw new Exception('Please enter a valid email address.');
         }
+        
+        // Ensure terms are accepted
+        if (!isset($_POST['terms'])) {
+            // Unlink uploaded files if validation fails
+            if (!empty($id_front)) @unlink($upload_dir . $id_front);
+            if (!empty($id_back)) @unlink($upload_dir . $id_back);
+            throw new Exception('You must agree to the Terms and Conditions and Privacy Policy.');
+        }
+
 
         // Insert into database
         $stmt = $pdo->prepare("
@@ -74,17 +102,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':experience' => $experience,
             ':motivation' => $motivation,
             ':message' => $message,
-            ':id_front' => $id_front,
-            ':id_back' => $id_back
+            ':id_front' => 'uploads/ambassadors/' . $id_front, // Store full path relative to project root
+            ':id_back' => 'uploads/ambassadors/' . $id_back       // Store full path relative to project root
         ]);
 
         $success = true;
         $_POST = []; // Clear form on success
+        // Redirect to self to prevent form re-submission on refresh
+        header('Location: ' . $_SERVER['PHP_SELF'] . '?success=1');
+        exit();
 
     } catch (Exception $e) {
         $error = $e->getMessage();
+        // Here, if `id_front` or `id_back` were uploaded but a later validation failed,
+        // we should delete them to prevent orphaned files. Check if they were uploaded
+        // successfully before trying to unlink.
+        if (isset($file_path_front) && file_exists($file_path_front) && empty($id_front)) {
+            @unlink($file_path_front);
+        }
+        if (isset($file_path_back) && file_exists($file_path_back) && empty($id_back)) {
+            @unlink($file_path_back);
+        }
     }
+} elseif (isset($_GET['success']) && $_GET['success'] == 1) {
+    // This block runs after a successful redirect
+    $success = true;
 }
+
 
 $page_title = "Addins Ambassador Program - Join Our Community";
 ?>
@@ -249,7 +293,7 @@ $page_title = "Addins Ambassador Program - Join Our Community";
                         </div>
                     <?php endif; ?>
 
-                    <form method="POST" class="space-y-6">
+                    <form method="POST" class="space-y-6" enctype="multipart/form-data">
                         <div class="grid md:grid-cols-2 gap-6">
                             <div>
                                 <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Full Name <span class="text-red-500">*</span></label>
@@ -328,7 +372,7 @@ $page_title = "Addins Ambassador Program - Join Our Community";
                             <div>
                                 <label for="id_front" class="block text-sm font-semibold text-gray-700 mb-2">ID Card Front <span class="text-red-500">*</span></label>
                                 <div class="relative">
-                                    <input type="file" id="id_front" name="id_front" accept="image/*" required
+                                    <input type="file" id="id_front" name="id_front" accept="image/jpeg,image/png,image/gif" required
                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark">
                                     <p class="text-xs text-gray-500 mt-1">Upload a clear photo of the front of your ID card</p>
                                 </div>
@@ -337,7 +381,7 @@ $page_title = "Addins Ambassador Program - Join Our Community";
                             <div>
                                 <label for="id_back" class="block text-sm font-semibold text-gray-700 mb-2">ID Card Back <span class="text-red-500">*</span></label>
                                 <div class="relative">
-                                    <input type="file" id="id_back" name="id_back" accept="image/*" required
+                                    <input type="file" id="id_back" name="id_back" accept="image/jpeg,image/png,image/gif" required
                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark">
                                     <p class="text-xs text-gray-500 mt-1">Upload a clear photo of the back of your ID card</p>
                                 </div>
@@ -665,7 +709,7 @@ $page_title = "Addins Ambassador Program - Join Our Community";
         <?php endif; ?>
     });
 
-    // Form validation enhancement
+    // Form validation enhancement (client-side visually)
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.querySelector('form');
         const submitButton = form.querySelector('button[type="submit"]');
@@ -679,7 +723,7 @@ $page_title = "Addins Ambassador Program - Join Our Community";
             const formContainer = document.querySelector('.bg-white.rounded-2xl.shadow-xl');
             if (formContainer) {
                 formContainer.style.opacity = '0.7';
-                formContainer.style.pointerEvents = 'none';
+                formContainer.style.pointerEvents = 'none'; // Prevent interaction while submitting
             }
         });
     });

@@ -21,6 +21,9 @@ if ($conn->connect_error) {
 // Set charset to utf8mb4
 $conn->set_charset("utf8mb4");
 
+// Make connection globally available
+$GLOBALS['conn'] = $conn;
+
 // PDO Connection for compatibility
 try {
     $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME, DB_USER, DB_PASS);
@@ -37,20 +40,42 @@ function redirect($url) {
     exit();
 }
 
-// Check if user is logged in
+// Check if user is logged in and active
 function isLoggedIn() {
-    return isset($_SESSION['user_id']);
+    return isset($_SESSION['user_id']) && isset($_SESSION['user_status']) && $_SESSION['user_status'] === 'active';
 }
 
-// Check if user is admin
+// Check if user is admin and active
 function isAdmin() {
-    return isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+    return isset($_SESSION['role']) && $_SESSION['role'] === 'admin' && isset($_SESSION['user_status']) && $_SESSION['user_status'] === 'active';
+}
+
+// Check if user account is still active (for existing sessions)
+function validateUserStatus() {
+    if (isset($_SESSION['user_id']) && isset($_SESSION['user_status'])) {
+        if ($_SESSION['user_status'] !== 'active') {
+            // Clear session and redirect to login
+            session_unset();
+            session_destroy();
+            $_SESSION['error'] = 'Your account has been deactivated. Please contact an administrator.';
+            redirect('../auth/login.php');
+        }
+    }
 }
 
 // Check if user is logged in, if not redirect to login
 function requireLogin() {
     if (!isLoggedIn()) {
-        $_SESSION['error'] = 'Please log in to access this page.';
+        if (isset($_SESSION['user_id']) && !isset($_SESSION['user_status'])) {
+            // User session exists but status not set (legacy session)
+            $_SESSION['error'] = 'Session expired. Please log in again.';
+        } else if (isset($_SESSION['user_id']) && $_SESSION['user_status'] !== 'active') {
+            // User is inactive
+            $_SESSION['error'] = 'Your account has been deactivated. Please contact an administrator.';
+        } else {
+            // User not logged in
+            $_SESSION['error'] = 'Please log in to access this page.';
+        }
         redirect('login.php');
     }
 }

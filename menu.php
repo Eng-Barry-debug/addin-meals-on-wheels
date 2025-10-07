@@ -1,7 +1,9 @@
 <?php
 // Ensure no output is sent before headers
+// Temporarily enable error reporting for debugging, but set display_errors to 0 for production.
 error_reporting(E_ALL);
-ini_set('display_errors', 0); // Don't show errors to users
+ini_set('display_errors', 0); // Keep this at 0 in production to prevent exposing sensitive info.
+// To debug 500 errors, you might temporarily set display_errors = 1, but remove it immediately after fixing.
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
@@ -9,6 +11,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once 'includes/config.php';
+require_once 'includes/Cart.php'; // <--- THIS IS THE CRUCIAL ADDITION
 
 // Fetch menu items from database
 try {
@@ -67,14 +70,32 @@ try {
 
 // Handle add to cart action
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
+    // --- Start of AJAX response setup ---
+    // Ensure no output before JSON header and clear output buffer immediately
+    if (ob_get_length()) {
+        ob_clean();
+    }
+    header('Content-Type: application/json');
+    // Ensure headers haven't been sent before attempting to set new ones
+    if (headers_sent()) {
+        error_log('Headers already sent when attempting to send JSON response for add_to_cart.');
+        // Fallback or just exit, as we can't send proper JSON now
+        echo json_encode(['success' => false, 'message' => 'Server error: Output started before JSON response could be sent.']);
+        exit();
+    }
+    // --- End of AJAX response setup ---
+
     $response = ['success' => false, 'message' => ''];
     $product_id = (int)($_POST['product_id'] ?? 0);
     $quantity = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 1;
     
     // Validate quantity
     if ($quantity < 1) {
+        // Use http_response_code for clearer error status in AJAX
+        http_response_code(400); 
         $response['message'] = 'Invalid quantity';
-        sendJsonResponse($response);
+        echo json_encode($response);
+        exit();
     }
     
     // Find the product in the database
@@ -85,10 +106,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
         $product = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$product) {
+             // Use http_response_code for clearer error status in AJAX
+            http_response_code(404);
             throw new Exception('Product not found or not available');
         }
         
-        // Initialize cart
+        // Initialize cart (now that Cart.php is included)
         $cart = new Cart($pdo);
         
         // Add item to cart using Cart class
@@ -106,13 +129,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) {
         
     } catch (Exception $e) {
         error_log("Error when adding to cart: " . $e->getMessage());
-        $response['message'] = 'Error adding item to cart. Please try again.';
+        // Set an HTTP response code for the error if not already set by specific exceptions
+        if (http_response_code() === 200) {
+            http_response_code(500); // Default to 500 for generic server errors
+        }
+        $response['message'] = 'Error adding item to cart. Please try again. (' . $e->getMessage() . ')'; // Include message temporarily for debug
     }
     
-    sendJsonResponse($response);
+    echo json_encode($response);
+    exit();
 }
 
-// Helper function to send JSON response
+// Helper function to send JSON response (This function is now largely redundant due to the in-place AJAX handling above)
 function sendJsonResponse($data) {
     // Clear any previous output
     if (ob_get_length()) ob_clean();
@@ -414,11 +442,11 @@ document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
                     <span class="text-sm text-gray-500">Max 99 items</span>
                 </div>
                 <div class="flex items-center justify-center bg-white rounded-lg border-2 border-gray-200 hover:border-primary transition-colors">
-                    <button type="button" class="quantity-btn px-4 py-3 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-all duration-200 rounded-l-lg" onclick="updateQuantity(-1)" title="Decrease quantity">
+                    <button type="button" class="quantity-btn px-4 py-3 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-all duration-200 rounded-l-lg" onclick="updateQuantity(-1, ${price})" title="Decrease quantity">
                         <i class="fas fa-minus"></i>
                     </button>
                     <input type="number" id="quantity" value="1" min="1" max="99" class="w-16 text-center py-3 border-0 focus:ring-0 focus:outline-none text-lg font-semibold">
-                    <button type="button" class="quantity-btn px-4 py-3 hover:bg-green-50 text-gray-600 hover:text-green-600 transition-all duration-200 rounded-r-lg" onclick="updateQuantity(1)" title="Increase quantity">
+                    <button type="button" class="quantity-btn px-4 py-3 hover:bg-green-50 text-gray-600 hover:text-green-600 transition-all duration-200 rounded-r-lg" onclick="updateQuantity(1, ${price})" title="Increase quantity">
                         <i class="fas fa-plus"></i>
                     </button>
                 </div>
@@ -493,7 +521,7 @@ window.addEventListener('click', (e) => {
 });
 
 // Enhanced quantity update
-function updateQuantity(change) {
+function updateQuantity(change, price) {
     const input = document.getElementById('quantity');
     let value = parseInt(input.value) + change;
 
@@ -503,7 +531,6 @@ function updateQuantity(change) {
     input.value = value;
 
     // Update total with animation
-    const price = parseFloat(document.querySelector('.quantity-btn').closest('div').querySelector('button').dataset.price || 0);
     const totalElement = document.getElementById('itemTotal');
 
     if (totalElement) {
@@ -538,7 +565,19 @@ function addToCart(id, name, price) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        // Check if the response was NOT ok (e.g., HTTP 4xx or 5xx status)
+        if (!response.ok) {
+            // Attempt to read the JSON error message, if any
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || 'Server error occurred.');
+            }).catch(() => {
+                // If it's not JSON, just throw a generic error
+                throw new Error('Server error: Could not parse response.');
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             // Update cart count in the header
@@ -552,10 +591,13 @@ function addToCart(id, name, price) {
 
             // Optional: Show cart preview or redirect to cart
             setTimeout(() => {
-                if (confirm('Item added to cart! Would you like to view your cart?')) {
-                    window.location.href = 'cart.php';
-                }
-            }, 1500);
+                // Optionally reload cart to reflect changes immediately
+                // if (confirm('Item added to cart! Would you like to view your cart?')) {
+                //     window.location.href = 'cart.php';
+                // }
+                // For this example, we just show notification and close modal,
+                // actual cart state reflected on cart page visit.
+            }, 500); // Give notification time to show
         } else {
             showNotification('error', data.message || 'Failed to add item to cart');
             addToCartBtn.disabled = false;
@@ -564,7 +606,7 @@ function addToCart(id, name, price) {
     })
     .catch(error => {
         console.error('Error:', error);
-        showNotification('error', 'An error occurred. Please try again.');
+        showNotification('error', 'An error occurred: ' + error.message); // Display the actual error message
         addToCartBtn.disabled = false;
         addToCartBtn.innerHTML = '<i class="fas fa-shopping-cart mr-2 group-hover:scale-110 transition-transform"></i> Add to Cart';
     });

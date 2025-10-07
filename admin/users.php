@@ -126,7 +126,10 @@ include 'includes/header.php';
                 <select id="role" name="role" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md">
                     <option value="">All Roles</option>
                     <option value="admin" <?= $role === 'admin' ? 'selected' : '' ?>>Admin</option>
-                    <option value="user" <?= $role === 'user' ? 'selected' : '' ?>>User</option>
+                    <option value="customer" <?= $role === 'customer' ? 'selected' : '' ?>>Customer</option>
+                    <option value="driver" <?= $role === 'driver' ? 'selected' : '' ?>>Driver</option>
+                    <option value="delivery" <?= $role === 'delivery' ? 'selected' : '' ?>>Delivery</option>
+                    <option value="ambassador" <?= $role === 'ambassador' ? 'selected' : '' ?>>Ambassador</option>
                 </select>
             </div>
             
@@ -183,7 +186,16 @@ include 'includes/header.php';
                                     <?= htmlspecialchars($user['email']) ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?= $user['role'] === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' ?>">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                        <?php if ($user['role'] === 'admin'): ?>
+                                            bg-purple-100 text-purple-800
+                                        <?php elseif ($user['role'] === 'driver' || $user['role'] === 'delivery'): ?>
+                                            bg-blue-100 text-blue-800
+                                        <?php elseif ($user['role'] === 'ambassador'): ?>
+                                            bg-green-100 text-green-800
+                                        <?php else: ?>
+                                            bg-gray-100 text-gray-800
+                                        <?php endif; ?>">
                                         <?= ucfirst($user['role']) ?>
                                     </span>
                                 </td>

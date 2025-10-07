@@ -3,8 +3,17 @@
 require_once __DIR__ . '/../admin/includes/config.php';
 
 // Redirect if already logged in
-if (isLoggedIn()) {
-    redirect(isAdmin() ? '../admin/dashboard.php' : '../index.php');
+if (isset($_SESSION['user_id'])) {
+    $role = $_SESSION['role'] ?? $_SESSION['user_role'] ?? 'customer';
+    if ($role === 'admin') {
+        redirect('../admin/dashboard.php');
+    } else if ($role === 'driver' || $role === 'delivery') {
+        redirect('../dashboards/delivery/index.php');
+    } else if ($role === 'ambassador') {
+        redirect('../dashboards/ambassador/index.php');
+    } else {
+        redirect('../account/customerdashboard.php');
+    }
 }
 
 // Initialize variables
@@ -22,51 +31,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($email) || empty($password)) {
         $error = 'Please enter both email and password.';
     } else {
-        // Prepare and execute query
-        $stmt = $GLOBALS['conn']->prepare("SELECT id, name, email, password, role FROM users WHERE email = ? LIMIT 1");
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($user = $result->fetch_assoc()) {
-            // Verify password
-            if (password_verify($password, $user['password'])) {
-                // Set session variables
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['username'] = $user['name'];
-                $_SESSION['email'] = $user['email'];
-                $_SESSION['role'] = $user['role'];  // Keep this for backward compatibility
-                $_SESSION['user_role'] = $user['role'];  // Add this for admin dashboard
-                
-                // Set remember me cookie if requested (30 days)
-                if ($remember) {
-                    $token = bin2hex(random_bytes(32));
-                    $expires = time() + (86400 * 30); // 30 days
-                    setcookie('remember_token', $token, $expires, '/');
-                    
-                    // Store token in database (you'll need to add a remember_tokens table)
-                    $stmt = $GLOBALS['conn']->prepare("INSERT INTO remember_tokens (user_id, token, expires_at) VALUES (?, ?, ?)");
-                    $expires_date = date('Y-m-d H:i:s', $expires);
-                    $stmt->bind_param("iss", $user['id'], $token, $expires_date);
-                    $stmt->execute();
-                }
-                
-                // Redirect based on role
-                if ($user['role'] === 'admin') {
-                    header('Location: /admin/dashboard.php');
-                    exit();
-                } else {
-                    header('Location: /account/customerdashboard.php');
-                    exit();
-                }
-            } else {
-                $error = 'Invalid email or password.';
-            }
+        // Check if database connection exists
+        if (!isset($GLOBALS['conn']) || !$GLOBALS['conn']) {
+            $error = 'Database connection error. Please try again later.';
         } else {
-            $error = 'Invalid email or password.';
+            // Prepare and execute query with status check
+            $stmt = $GLOBALS['conn']->prepare("SELECT id, name, email, password, role, status FROM users WHERE email = ? LIMIT 1");
+            if (!$stmt) {
+                $error = 'Database query error. Please try again later.';
+            } else {
+                $stmt->bind_param("s", $email);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                
+                if ($user = $result->fetch_assoc()) {
+                    // Check if user is active
+                    if ($user['status'] !== 'active') {
+                        $error = 'Your account has been deactivated. Please contact an administrator.';
+                    } else if (password_verify($password, $user['password'])) {
+                        // Set session variables
+                        $_SESSION['user_id'] = $user['id'];
+                        $_SESSION['username'] = $user['name'];
+                        $_SESSION['email'] = $user['email'];
+                        $_SESSION['role'] = $user['role'];  // Keep this for backward compatibility
+                        $_SESSION['user_role'] = $user['role'];  // Add this for admin dashboard
+                        $_SESSION['user_status'] = $user['status'];  // Add user status to session
+
+                        // Force session write
+                        session_write_close();
+
+                        // Set remember me cookie if requested (30 days)
+                        if ($remember) {
+                            $token = bin2hex(random_bytes(32));
+                            $expires = time() + (86400 * 30); // 30 days
+                            setcookie('remember_token', $token, $expires, '/', '', false, true);
+
+                            // Store token in database (you'll need to add a remember_tokens table)
+                            $stmt = $GLOBALS['conn']->prepare("INSERT INTO remember_tokens (user_id, token, expires_at) VALUES (?, ?, ?)");
+                            $expires_date = date('Y-m-d H:i:s', $expires);
+                            $stmt->bind_param("iss", $user['id'], $token, $expires_date);
+                            $stmt->execute();
+                        }
+
+                        // Redirect based on role
+                        if ($user['role'] === 'admin') {
+                            header('Location: /admin/dashboard.php');
+                            exit();
+                        } else if ($user['role'] === 'driver' || $user['role'] === 'delivery') {
+                            header('Location: /dashboards/delivery/index.php');
+                            exit();
+                        } else if ($user['role'] === 'ambassador') {
+                            header('Location: /dashboards/ambassador/index.php');
+                            exit();
+                        } else {
+                            header('Location: /account/customerdashboard.php');
+                            exit();
+                        }
+                    } else {
+                        $error = 'Invalid email or password.';
+                    }
+                } else {
+                    $error = 'Invalid email or password.';
+                }
+                
+                $stmt->close();
+            }
         }
-        
-        $stmt->close();
     }
 }
 ?>
@@ -140,32 +170,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             <?php if (isset($_SESSION['message'])): ?>
                 <div class="mb-4 p-3 rounded <?php echo $_SESSION['message']['type'] === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'; ?>">
-                    <?php 
+                    <?php
                     echo htmlspecialchars($_SESSION['message']['text']);
                     unset($_SESSION['message']);
                     ?>
                 </div>
             <?php endif; ?>
-            
+
             <?php if ($error): ?>
                 <div class="mb-4 p-3 bg-red-100 text-red-800 rounded">
                     <?php echo htmlspecialchars($error); ?>
                 </div>
             <?php endif; ?>
-            
+
             <form method="POST" action="" class="space-y-6">
                 <div>
                     <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" id="email" name="email" required 
+                    <input type="email" id="email" name="email" required
                            class="w-full px-4 py-2 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#fc7703] focus:border-transparent"
                            value="<?php echo htmlspecialchars($email); ?>"
                            placeholder="Enter your email">
                 </div>
-                
+
                 <div class="password-toggle">
                     <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
                     <div class="relative">
-                        <input type="password" id="password" name="password" required 
+                        <input type="password" id="password" name="password" required
                                class="w-full px-4 py-2 pr-12 border rounded-md form-input focus:outline-none focus:ring-2 focus:ring-[#fc7703] focus:border-transparent"
                                placeholder="Enter your password">
                         <button type="button" onclick="togglePassword('password', 'passwordToggle')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 z-10">
@@ -173,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </button>
                     </div>
                 </div>
-                
+
                 <div class="flex items-center justify-between">
                     <div class="flex items-center">
                         <input id="remember" name="remember" type="checkbox" class="h-4 w-4 text-[#fc7703] focus:ring-[#fc7703] border-gray-300 rounded">
@@ -181,24 +211,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             Remember me
                         </label>
                     </div>
-                    
+
                     <div class="text-sm">
                         <a href="forgot-password.php" class="font-medium text-[#fc7703] hover:text-[#e66b02]">
                             Forgot password?
                         </a>
                     </div>
                 </div>
-                
+
                 <div>
                     <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#fc7703] hover:bg-[#e66b02] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#fc7703]">
                         Sign in
                     </button>
                 </div>
             </form>
-            
+
             <div class="mt-6 text-center text-sm">
                 <p class="text-gray-600">
-                    Don't have an account? 
+                    Don't have an account?
                     <a href="register.php" class="font-medium text-[#fc7703] hover:text-[#e66b02]">
                         Sign up
                     </a>

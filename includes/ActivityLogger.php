@@ -96,20 +96,15 @@ class ActivityLogger {
     }
 
     /**
-     * Log user activities
+     * Log activity with simpler parameters (convenience method)
+     *
+     * @param string $description Description of the activity
+     * @param int $user_id User ID performing the action (optional)
+     * @param string $activity_type Type of activity (optional, defaults to 'system')
+     * @return bool Success status
      */
-    public function logUserActivity($action, $user_id, $user_name = null) {
-        $descriptions = [
-            'created' => 'New user registered',
-            'updated' => 'User profile updated',
-            'deleted' => 'User account deleted',
-            'activated' => 'User account activated',
-            'deactivated' => 'User account deactivated',
-            'login' => 'User logged in',
-            'logout' => 'User logged out'
-        ];
-
-        return $this->log('user', $action, $descriptions[$action] ?? "User {$action}", 'user', $user_id, null, ['name' => $user_name]);
+    public function logActivity($description, $user_id = null, $activity_type = 'system') {
+        return $this->log($activity_type, 'activity', $description, null, null, null, null, $user_id);
     }
 
     /**

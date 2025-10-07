@@ -1,21 +1,32 @@
 <?php
-// Start session and check admin authentication
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Include header with session start and admin authentication
+// The header.php inherently contains the session_start(), config.php include,
+// and the admin user check, redirecting if not an admin.
+require_once 'includes/header.php'; // Adjust this path as needed to your main admin header.
 
-// Include database connection
-require_once '../includes/config.php';
-
-// Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
-    header('Location: ../login.php');
-    exit();
+// Define a helper function for status badges if not already defined in functions.php
+if (!function_exists('getStatusBadgeClass')) {
+    function getStatusBadgeClass($status) {
+        switch ($status) {
+            case 'active':
+                return 'bg-green-100 text-green-800';
+            case 'inactive':
+                return 'bg-yellow-100 text-yellow-800';
+            case 'suspended':
+                return 'bg-red-100 text-red-800';
+            default:
+                return 'bg-gray-100 text-gray-800';
+        }
+    }
 }
 
 // Initialize variables
 $error = '';
 $success = '';
+
+// Include ActivityLogger for activity tracking (must be before form processing)
+require_once '../includes/ActivityLogger.php';
+$activityLogger = new ActivityLogger($pdo);
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -31,35 +42,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, role = ?, status = ? WHERE id = ?");
             $stmt->execute([$name, $email, $role, $status, $id]);
             $success = 'User updated successfully';
+            // Log activity
+            $activityLogger->logActivity("User '{$name}' (ID: {$id}) updated.", $id, 'user_update');
         } catch (PDOException $e) {
             $error = 'Error updating user: ' . $e->getMessage();
+            error_log("Error updating user (ID: $id): " . $e->getMessage());
         }
     } elseif (isset($_POST['delete_user'])) {
         // Delete user
         $id = (int)$_POST['user_id'];
+        $username_to_delete = '';
 
         try {
             // Prevent deleting own account
             if ($id == $_SESSION['user_id']) {
                 $error = 'You cannot delete your own account';
             } else {
+                // Get user name before deleting for activity log
+                $stmt = $pdo->prepare("SELECT name FROM users WHERE id = ?");
+                $stmt->execute([$id]);
+                $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($user_info) {
+                    $username_to_delete = $user_info['name'];
+                }
+
                 $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
                 $stmt->execute([$id]);
-                $success = 'User deleted successfully';
+                $success = "User '{$username_to_delete}' (ID: {$id}) deleted successfully";
+                // Log activity
+                $activityLogger->logActivity("User '{$username_to_delete}' (ID: {$id}) deleted.", $_SESSION['user_id'], 'user_delete');
             }
         } catch (PDOException $e) {
             $error = 'Error deleting user: ' . $e->getMessage();
+            error_log("Error deleting user (ID: $id): " . $e->getMessage());
+        }
+    } elseif (isset($_POST['add_user'])) {
+        // Add new user
+        $name = trim($_POST['name']);
+        $email = trim($_POST['email']);
+        $password = password_hash(trim($_POST['password']), PASSWORD_DEFAULT); // Hash password
+        $role = $_POST['role'];
+        $status = $_POST['status'];
+
+        try {
+            $stmt = $pdo->prepare("INSERT INTO users (name, email, password, role, status) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$name, $email, $password, $role, $status]);
+            $new_user_id = $pdo->lastInsertId();
+            $success = "New user '{$name}' (ID: {$new_user_id}) added successfully";
+            // Log activity
+            $activityLogger->logActivity("New user '{$name}' (ID: {$new_user_id}) added.", $_SESSION['user_id'], 'user_add');
+        } catch (PDOException $e) {
+            // Check for duplicate email error
+            if ($e->getCode() == '23000') { // SQLSTATE for integrity constraint violation
+                $error = 'Error adding user: Email already exists.';
+            } else {
+                $error = 'Error adding user: ' . $e->getMessage();
+            }
+            error_log("Error adding user: " . $e->getMessage());
         }
     }
+
+    // After any POST operation, re-fetch users to reflect changes
 }
 
-// Get all users
+// Get all users for display and statistics
 $users = [];
 try {
     $stmt = $pdo->query("SELECT * FROM users ORDER BY created_at DESC");
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $error = 'Error fetching users: ' . $e->getMessage();
+    error_log("Error fetching users: " . $e->getMessage());
 }
 
 // Get customer statistics
@@ -69,53 +122,27 @@ $adminUsers = 0;
 $newCustomersThisMonth = 0;
 
 foreach ($users as $user) {
-    if ($user['status'] === 'active') {
+    if (($user['status'] ?? 'inactive') === 'active') {
         $activeCustomers++;
     }
-    if ($user['role'] === 'admin') {
+    if (($user['role'] ?? 'user') === 'admin') {
         $adminUsers++;
     }
     // Count customers registered this month
-    if (date('Y-m', strtotime($user['created_at'])) === date('Y-m')) {
+    if (isset($user['created_at']) && date('Y-m', strtotime($user['created_at'])) === date('Y-m')) {
         $newCustomersThisMonth++;
     }
 }
 
-// Set page title
+// Set page title for header
 $page_title = 'Manage Customers';
-
-// Include header
-require_once 'includes/header.php';
 ?>
 
-<!-- Global functions for customer management -->
-<script>
-function editUser(user) {
-    document.getElementById('userId').value = user.id;
-    document.getElementById('name').value = user.name;
-    document.getElementById('email').value = user.email;
-    document.getElementById('role').value = user.role;
-    document.getElementById('status').value = user.status;
-
-    // Show modal
-    document.getElementById('editUserModal').classList.remove('hidden');
-}
-
-function closeModal() {
-    document.getElementById('editUserModal').classList.add('hidden');
-}
-
-// Close modal when clicking outside
-window.onclick = function(event) {
-    const modal = document.getElementById('editUserModal');
-    if (event.target === modal) {
-        closeModal();
-    }
-}
-</script>
+<!-- Your HTML starts here, which will be within the <body> of header.php -->
 
 <!-- Dashboard Header -->
-<div class="bg-gradient-to-br from-primary via-primary-dark to-secondary text-white">
+{{-- Added mt-0 to ensure no top margin pushes it down, as content-container already provides padding --}}
+<div class="bg-gradient-to-br from-primary via-primary-dark to-secondary text-white mt-0">
     <div class="container mx-auto px-6 py-8">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -123,11 +150,12 @@ window.onclick = function(event) {
                 <p class="text-lg opacity-90">Manage user accounts and permissions efficiently</p>
             </div>
             <div class="mt-4 lg:mt-0">
-                <a href="customer_add.php"
-                   class="bg-accent hover:bg-accent-dark text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-                    <i class="fas fa-plus mr-2"></i>
-                    Add Customer
-                </a>
+                <button onclick="addUser()"
+                   class="group relative bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center shadow-lg hover:shadow-xl transform hover:-translate-y-1 border border-emerald-400/20">
+                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                    <i class="fas fa-plus mr-2 relative z-10"></i>
+                    <span class="relative z-10 font-medium">Add Customer</span>
+                </button>
             </div>
         </div>
     </div>
@@ -224,7 +252,7 @@ window.onclick = function(event) {
             <div class="lg:col-span-2">
                 <label class="block text-sm font-semibold text-gray-700 mb-2">Search Customers</label>
                 <div class="relative">
-                    <input type="text" id="searchInput" value=""
+                    <input type="text" id="searchInput"
                            placeholder="Search by name, email, or role..."
                            class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
                     <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
@@ -236,8 +264,10 @@ window.onclick = function(event) {
                 <label class="block text-sm font-semibold text-gray-700 mb-2">Filter by Role</label>
                 <select id="roleFilter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
                     <option value="">All Roles</option>
-                    <option value="user">Customers</option>
+                    <option value="customer">Customers</option>
                     <option value="admin">Administrators</option>
+                    <option value="driver">Drivers</option>
+                    <option value="ambassador">Ambassadors</option>
                 </select>
             </div>
         </div>
@@ -291,10 +321,16 @@ window.onclick = function(event) {
                         </tr>
                     <?php else: ?>
                         <?php foreach ($users as $user): ?>
-                            <tr class="hover:bg-gray-50 transition-colors duration-200" data-role="<?php echo $user['role']; ?>" data-status="<?php echo $user['status']; ?>" data-name="<?php echo strtolower($user['name']); ?>">
+                            <tr class="hover:bg-gray-50 transition-colors duration-200"
+                                data-id="<?php echo $user['id']; ?>"
+                                data-name="<?php echo htmlspecialchars($user['name']); ?>"
+                                data-email="<?php echo htmlspecialchars($user['email']); ?>"
+                                data-role="<?php echo htmlspecialchars($user['role']); ?>"
+                                data-status="<?php echo htmlspecialchars($user['status']); ?>"
+                                >
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        <div class="flex-shrink-0 h-12 w-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold text-lg">
+                                        <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-lg">
                                             <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
                                         </div>
                                         <div class="ml-4">
@@ -305,22 +341,38 @@ window.onclick = function(event) {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900"><?php echo htmlspecialchars($user['email']); ?></div>
-                                    <?php if (isset($user['phone'])): ?>
+                                    <?php // Assuming 'phone' might not always exist ?>
+                                    <?php if (!empty($user['phone'])): ?>
                                         <div class="text-sm text-gray-500"><?php echo htmlspecialchars($user['phone']); ?></div>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
-                                        <?php echo $user['role'] === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'; ?>">
-                                        <i class="fas fa-<?php echo $user['role'] === 'admin' ? 'shield-alt' : 'user'; ?> mr-1"></i>
-                                        <?php echo ucfirst(htmlspecialchars($user['role'])); ?>
+                                        <?php
+                                        // Dynamic role badge
+                                        switch ($user['role'] ?? 'customer') {
+                                            case 'admin': echo 'bg-purple-100 text-purple-800'; break;
+                                            case 'driver': echo 'bg-orange-100 text-orange-800'; break;
+                                            case 'ambassador': echo 'bg-pink-100 text-pink-800'; break;
+                                            default: echo 'bg-blue-100 text-blue-800'; break; // 'customer' role
+                                        }
+                                        ?>">
+                                        <i class="fas fa-<?php
+                                        switch ($user['role'] ?? 'customer') {
+                                            case 'admin': echo 'shield-alt'; break;
+                                            case 'driver': echo 'truck'; break;
+                                            case 'ambassador': echo 'hands-helping'; break;
+                                            default: echo 'user'; break;
+                                        }
+                                        ?> mr-1"></i>
+                                        <?php echo ucfirst(htmlspecialchars($user['role'] ?? 'customer')); ?>
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
                                         <?php echo getStatusBadgeClass($user['status']); ?>">
-                                        <i class="fas fa-<?php echo $user['status'] === 'active' ? 'check-circle' : 'clock'; ?> mr-1"></i>
-                                        <?php echo ucfirst(htmlspecialchars($user['status'])); ?>
+                                        <i class="fas fa-<?php echo ($user['status'] ?? 'active') === 'active' ? 'check-circle' : 'circle'; ?> mr-1"></i>
+                                        <?php echo ucfirst(htmlspecialchars($user['status'] ?? 'active')); ?>
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -330,18 +382,21 @@ window.onclick = function(event) {
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex justify-end space-x-2">
                                         <button onclick="editUser(<?php echo htmlspecialchars(json_encode($user)); ?>)"
-                                                class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-primary hover:bg-primary-dark transition-colors duration-200">
-                                            <i class="fas fa-edit mr-1"></i>
-                                            Edit
+                                                class="group relative bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-blue-400/20"
+                                                type="button">
+                                            <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                                            <i class="fas fa-edit text-sm relative z-10"></i>
+                                            <span class="relative z-10 font-medium">Edit</span>
                                         </button>
-                                        <?php if ($user['id'] != $_SESSION['user_id']): ?>
+                                        <?php if ($user['id'] != $_SESSION['user_id']): // Prevent admin from deleting their own account ?>
                                             <form action="" method="POST" class="inline"
                                                   onsubmit="return confirm('Are you sure you want to delete this customer? This action cannot be undone.');">
                                                 <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
                                                 <button type="submit" name="delete_user"
-                                                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700 transition-colors duration-200">
-                                                    <i class="fas fa-trash mr-1"></i>
-                                                    Delete
+                                                        class="group relative bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-red-400/20">
+                                                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                                                    <i class="fas fa-trash text-sm relative z-10"></i>
+                                                    <span class="relative z-10 font-medium">Delete</span>
                                                 </button>
                                             </form>
                                         <?php endif; ?>
@@ -365,7 +420,7 @@ window.onclick = function(event) {
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-user-edit mr-2"></i>Edit Customer
                 </h3>
-                <button onclick="closeModal()" class="text-white hover:text-gray-200 text-2xl">
+                <button onclick="closeModal('editUserModal')" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -373,36 +428,38 @@ window.onclick = function(event) {
 
         <!-- Modal Body -->
         <div class="p-6">
-            <form id="userForm" action="" method="POST" class="space-y-6">
-                <input type="hidden" name="user_id" id="userId">
+            <form id="editUserForm" action="" method="POST" class="space-y-6">
+                <input type="hidden" name="user_id" id="edit_userId">
                 <input type="hidden" name="update_user" value="1">
 
                 <div>
-                    <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Full Name <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" id="name" required
+                    <label for="edit_name" class="block text-sm font-semibold text-gray-700 mb-2">Full Name <span class="text-red-500">*</span></label>
+                    <input type="text" name="name" id="edit_name" required
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors"
                            placeholder="Enter full name">
                 </div>
 
                 <div>
-                    <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Email Address <span class="text-red-500">*</span></label>
-                    <input type="email" name="email" id="email" required
+                    <label for="edit_email" class="block text-sm font-semibold text-gray-700 mb-2">Email Address <span class="text-red-500">*</span></label>
+                    <input type="email" name="email" id="edit_email" required
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors"
                            placeholder="Enter email address">
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label for="role" class="block text-sm font-semibold text-gray-700 mb-2">Role</label>
-                        <select id="role" name="role"
+                        <label for="edit_role" class="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+                        <select id="edit_role" name="role"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
-                            <option value="user">Customer</option>
+                            <option value="customer">Customer</option>
                             <option value="admin">Administrator</option>
+                            <option value="driver">Driver</option>
+                            <option value="ambassador">Ambassador</option>
                         </select>
                     </div>
                     <div>
-                        <label for="status" class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-                        <select id="status" name="status"
+                        <label for="edit_status" class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                        <select id="edit_status" name="status"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
@@ -414,13 +471,97 @@ window.onclick = function(event) {
                 <!-- Modal Footer -->
                 <div class="flex gap-3 pt-4">
                     <button type="submit"
-                            class="flex-1 bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center justify-center">
-                        <i class="fas fa-save mr-2"></i>
-                        Update Customer
+                            class="group relative bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-primary/20 flex-1">
+                        <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                        <i class="fas fa-save mr-2 relative z-10"></i>
+                        <span class="relative z-10 font-medium">Update Customer</span>
                     </button>
-                    <button type="button" onclick="closeModal()"
-                            class="px-6 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200">
-                        Cancel
+                    <button type="button" onclick="closeModal('editUserModal')"
+                            class="group relative bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-gray-400/20">
+                        <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                        <span class="relative z-10 font-medium">Cancel</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div id="addUserModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">
+                    <i class="fas fa-user-plus mr-2"></i>Add New Customer
+                </h3>
+                <button onclick="closeModal('addUserModal')" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6">
+            <form id="addUserForm" action="" method="POST" class="space-y-6">
+                <input type="hidden" name="add_user" value="1">
+
+                <div>
+                    <label for="add_name" class="block text-sm font-semibold text-gray-700 mb-2">Full Name <span class="text-red-500">*</span></label>
+                    <input type="text" name="name" id="add_name" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors"
+                           placeholder="Enter full name">
+                </div>
+
+                <div>
+                    <label for="add_email" class="block text-sm font-semibold text-gray-700 mb-2">Email Address <span class="text-red-500">*</span></label>
+                    <input type="email" name="email" id="add_email" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors"
+                           placeholder="Enter email address">
+                </div>
+
+                <div>
+                    <label for="add_password" class="block text-sm font-semibold text-gray-700 mb-2">Password <span class="text-red-500">*</span></label>
+                    <input type="password" name="password" id="add_password" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors"
+                           placeholder="Enter password">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="add_role" class="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+                        <select id="add_role" name="role"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
+                            <option value="customer">Customer</option>
+                            <option value="admin">Administrator</option>
+                            <option value="driver">Driver</option>
+                            <option value="ambassador">Ambassador</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="add_status" class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                        <select id="add_status" name="status"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="suspended">Suspended</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="flex gap-3 pt-4">
+                    <button type="submit"
+                            class="group relative bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-emerald-400/20 flex-1">
+                        <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                        <i class="fas fa-plus mr-2 relative z-10"></i>
+                        <span class="relative z-10 font-medium">Add Customer</span>
+                    </button>
+                    <button type="button" onclick="closeModal('addUserModal')"
+                            class="group relative bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-gray-400/20">
+                        <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                        <span class="relative z-10 font-medium">Cancel</span>
                     </button>
                 </div>
             </form>
@@ -429,158 +570,173 @@ window.onclick = function(event) {
 </div>
 
 <script>
+// Global functions for customer management
+function editUser(user) {
+    document.getElementById('edit_userId').value = user.id;
+    document.getElementById('edit_name').value = user.name;
+    document.getElementById('edit_email').value = user.email;
+    document.getElementById('edit_role').value = user.role;
+    document.getElementById('edit_status').value = user.status;
+
+    // Show modal
+    document.getElementById('editUserModal').classList.remove('hidden');
+}
+
+function addUser() {
+    // Clear form fields before opening for add
+    document.getElementById('addUserForm').reset();
+    // Set default values if desired (e.g., role to 'customer', status to 'active')
+    document.getElementById('add_role').value = 'customer';
+    document.getElementById('add_status').value = 'active';
+    // Ensure password field is visible/active (if it was hidden for edit)
+    document.getElementById('add_password').required = true;
+
+
+    // Show modal
+    document.getElementById('addUserModal').classList.remove('hidden');
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const editModal = document.getElementById('editUserModal');
+    const addModal = document.getElementById('addUserModal');
+    // Ensure the click target IS a modal and NOT inside a modal's content
+    if (event.target === editModal) {
+        closeModal('editUserModal');
+    }
+    if (event.target === addModal) {
+        closeModal('addUserModal');
+    }
+}
+
+
 // Enhanced filtering functionality for customers page
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const roleFilter = document.getElementById('roleFilter');
     const filterTabs = document.querySelectorAll('.filter-tab');
+    const customerTableBody = document.querySelector('tbody');
 
-    // Search functionality
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            filterCustomers();
+    // Function to apply all filters
+    function filterCustomers() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const roleValue = roleFilter.value; // No toLowerCase needed for direct match
+        const activeTabFilter = document.querySelector('.filter-tab.active')?.dataset.filter;
 
-            // Update URL without page reload
-            const url = new URL(window.location);
-            if (searchTerm) {
-                url.searchParams.set('search', searchTerm);
-            } else {
-                url.searchParams.delete('search');
+        let visibleCustomerCount = 0;
+        let hasNoResultsRow = false; // Track if we added the no results row
+
+        document.querySelectorAll('tbody tr').forEach(customerRow => {
+            // Skip the no-results row if it exists
+            if (customerRow.id === 'no-results-row') {
+                customerRow.style.display = 'none'; // Hide it initially
+                hasNoResultsRow = true;
+                return;
             }
-            window.history.pushState({}, '', url);
+
+            const name = customerRow.dataset.name.toLowerCase();
+            const email = customerRow.dataset.email.toLowerCase();
+            const role = customerRow.dataset.role;
+            const status = customerRow.dataset.status;
+
+            let shouldShow = true;
+
+            // Search filter
+            if (searchTerm && !(name.includes(searchTerm) || email.includes(searchTerm) || role.includes(searchTerm))) {
+                shouldShow = false;
+            }
+
+            // Role filter
+            if (roleValue && roleValue !== '' && role !== roleValue) {
+                shouldShow = false;
+            }
+
+            // Quick filter tabs
+            if (activeTabFilter) {
+                if (activeTabFilter === 'active' && status !== 'active') { // Filter by status for 'active' tab
+                    shouldShow = false;
+                } else if (activeTabFilter === 'admin' && role !== 'admin') { // Filter by role for 'admin' tab
+                    shouldShow = false;
+                }
+                // 'all' filter doesn't restrict, so no specific `shouldShow = false`
+            }
+
+            if (shouldShow) {
+                customerRow.style.display = 'table-row';
+                visibleCustomerCount++;
+            } else {
+                customerRow.style.display = 'none';
+            }
         });
+
+        // Handle empty search/filter results
+        const noResultsRowId = 'no-results-row';
+        let existingNoResultsRow = document.getElementById(noResultsRowId);
+
+        if (visibleCustomerCount === 0) {
+            if (!existingNoResultsRow) { // If no results AND no row exists, create one
+                const newRow = customerTableBody.insertRow();
+                newRow.id = noResultsRowId;
+                const cell = newRow.insertCell();
+                cell.colSpan = 6; // Match the number of columns in your table
+                cell.className = 'px-6 py-4 text-center text-sm text-gray-500';
+                cell.innerHTML = '<i class="fas fa-search text-2xl text-gray-300 mb-2"></i><p>No customers match your filters</p>';
+                customerTableBody.appendChild(newRow);
+            } else {
+                existingNoResultsRow.style.display = 'table-row'; // Show existing if it was hidden
+            }
+        } else {
+            if (existingNoResultsRow) { // If results are found, hide or remove the no-results row
+                existingNoResultsRow.remove(); // Safely remove it
+            }
+        }
     }
 
-    // Role filter
-    if (roleFilter) {
-        roleFilter.addEventListener('change', function() {
-            filterCustomers();
+    // Event listeners for filters
+    searchInput.addEventListener('input', filterCustomers);
+    roleFilter.addEventListener('change', filterCustomers);
 
-            // Update URL
-            const url = new URL(window.location);
-            if (this.value) {
-                url.searchParams.set('role', this.value);
-            } else {
-                url.searchParams.delete('role');
-            }
-            window.history.pushState({}, '', url);
-        });
-    }
-
-    // Filter tabs
     filterTabs.forEach(tab => {
         tab.addEventListener('click', function() {
-            const filter = this.dataset.filter;
-
-            // Update active tab
+            // Update active tab style
             filterTabs.forEach(t => t.classList.remove('active'));
             this.classList.add('active');
 
-            // Update role filter based on tab
-            if (roleFilter) {
-                switch(filter) {
-                    case 'admin':
-                        roleFilter.value = 'admin';
-                        break;
-                    case 'active':
-                        // For active filter, we'll handle this in the filterCustomers function
-                        break;
-                    default:
-                        roleFilter.value = '';
-                }
+            // Set role filter input and then re-filter based on clicked tab
+            const filter = this.dataset.filter;
+            if (filter === 'admin') {
+                roleFilter.value = 'admin';
+            } else if (filter === 'all' || filter === 'active') {
+                roleFilter.value = ''; // Clear role filter for 'all' and 'active' special cases
             }
-
             filterCustomers();
-
-            // Update URL
-            const url = new URL(window.location);
-            if (filter === 'all') {
-                url.searchParams.delete('role');
-            } else if (filter === 'admin') {
-                url.searchParams.set('role', 'admin');
-            }
+        });
     });
 
-// Global functions for customer management
-function filterCustomers() {
-    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-    const roleValue = document.getElementById('roleFilter')?.value || '';
+    window.clearFilters = function() {
+        searchInput.value = '';
+        roleFilter.value = '';
 
-    const customers = document.querySelectorAll('tbody tr');
+        // Reset active tab to 'all'
+        filterTabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.filter === 'all');
+        });
 
-    customers.forEach(customer => {
-        const name = customer.dataset.name || '';
-        const role = customer.dataset.role || '';
-        const status = customer.dataset.status || '';
-
-        let shouldShow = true;
-
-        // Search filter
-        if (searchTerm && !name.includes(searchTerm)) {
-            shouldShow = false;
-        }
-
-        // Role filter
-        if (roleValue && role !== roleValue) {
-            shouldShow = false;
-        }
-
-        // Status filter (for active tab)
-        if (document.querySelector('.filter-tab.active')?.dataset.filter === 'active' && status !== 'active') {
-            shouldShow = false;
-        }
-
-        if (shouldShow) {
-            customer.style.display = 'table-row';
-        } else {
-            customer.style.display = 'none';
-        }
-    });
-
-    // Show/hide empty state
-    const visibleCustomers = document.querySelectorAll('tbody tr[style*="table-row"]');
-    const noResultsRow = document.querySelector('tbody tr td[colspan="6"]');
-
-    if (visibleCustomers.length === 0 && !noResultsRow) {
-        const tbody = document.querySelector('tbody');
-        const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = '<td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500"><i class="fas fa-search text-2xl text-gray-300 mb-2"></i><p>No customers match your filters</p></td>';
-        tbody.appendChild(emptyRow);
-    } else if (visibleCustomers.length > 0 && noResultsRow) {
-        noResultsRow.closest('tr').remove();
-    }
-}
-
-function clearFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('roleFilter').value = '';
-
-    // Reset active tab
-    document.querySelectorAll('.filter-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.filter === 'all');
-    });
-
-    // Show all customers
-    document.querySelectorAll('tbody tr').forEach(customer => {
-        customer.style.display = 'table-row';
-    });
-
-    // Remove empty state
-    const noResultsRow = document.querySelector('tbody tr td[colspan="6"]');
-    if (noResultsRow) {
-        noResultsRow.closest('tr').remove();
+        filterCustomers(); // Re-apply filters to show all
     }
 
-    // Update URL
-    const url = new URL(window.location);
-    url.searchParams.delete('search');
-    url.searchParams.delete('role');
-    window.history.replaceState({}, '', url);
-}
+    // Initial filter application on page load to set up "All" correctly
+    filterCustomers();
+
+    // Modern button styling - Already present and correct in your previous code
+});
 </script>
 
 <?php
-// Include footer
-require_once 'includes/footer.php';
+// Include footer (closing </body> and </html> tags)
+require_once 'includes/footer.php'; // Adjust this path as needed
 ?>

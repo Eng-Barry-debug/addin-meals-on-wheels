@@ -7,68 +7,145 @@ if (session_status() === PHP_SESSION_NONE) {
 // Set default timezone to East Africa Time (Nairobi)
 date_default_timezone_set('Africa/Nairobi');
 
-// Include database connection
-require_once dirname(__DIR__, 2) . '/includes/config.php';
-
-// Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
-    header('Location: ../login.php');
-    exit();
+/*
+ * IMPORTANT: config.php MUST be included BEFORE header.php.
+ * It's usually included by the main script (e.g., dashboard.php, ambassador.php)
+ * before it includes the header. This ensures $pdo is ready.
+ *
+ * If you encounter errors like "Undefined variable $pdo", it means the main script
+ * did not include config.php or included it AFTER header.php.
+ *
+ * The path below assumes config.php is two directories up:
+ * e.g., 'admin/includes/header.php' -> '../../includes/config.php'
+ */
+if (!isset($pdo) || !$pdo instanceof PDO) { // Only include if $pdo is not already a valid PDO object
+    require_once dirname(__DIR__, 2) . '/includes/config.php';
 }
 
-// Include activity logger for notifications
-require_once dirname(__DIR__, 2) . '/includes/ActivityLogger.php';
-$activityLogger = new ActivityLogger($pdo);
-
-// Include functions for utility functions
-require_once 'functions.php';
-
-// Make PDO globally available for functions
+// Ensure $pdo is global within this scope so functions like getCount can access it
 global $pdo;
 
-// Get notification count (recent activities in last 24 hours)
+// Default page title in case it's not set by the calling script
+$page_title = $page_title ?? 'Dashboard';
+
+// Check if user is logged in and is admin
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    // If not logged in, redirect to login
+    if (!isset($_SESSION['user_id'])) {
+        header('Location: ../login.php');
+        exit();
+    }
+    // If logged in but not admin, redirect to appropriate dashboard
+    if (isset($_SESSION['role'])) {
+        switch ($_SESSION['role']) {
+            case 'driver':
+            case 'delivery':
+                header('Location: ../dashboards/delivery/index.php');
+                exit();
+            case 'ambassador':
+                header('Location: ../dashboards/ambassador/index.php');
+                exit();
+            case 'customer':
+                header('Location: ../account/customerdashboard.php');
+                exit();
+            default:
+                header('Location: ../login.php');
+                exit();
+        }
+    } else {
+        header('Location: ../login.php');
+        exit();
+    }
+}
+
+/*
+ * Include common functions.
+ * Adjust path based on your 'admin' directory structure.
+ * Assuming admin functions might be in 'admin/functions.php' or 'includes/functions.php'
+ */
+if (file_exists(dirname(__DIR__) . '/functions.php')) { // Check 'admin/functions.php'
+    require_once dirname(__DIR__) . '/functions.php';
+} elseif (file_exists(dirname(__DIR__, 2) . '/includes/functions.php')) { // Check project_root/includes/functions.php
+     require_once dirname(__DIR__, 2) . '/includes/functions.php';
+} else {
+    // Fallback if 'getCount' is critical and functions.php is not found
+    if (!function_exists('getCount')) {
+        function getCount($pdo, $table, $where_clause = '') {
+            // Ensure $pdo is accessible within this function if it's a fallback
+            global $pdo; // Make sure $pdo is available here
+            $sql = "SELECT COUNT(*) FROM $table";
+            if (!empty($where_clause)) {
+                $sql .= " WHERE " . $where_clause;
+            }
+            $stmt = $pdo->query($sql);
+            return $stmt->fetchColumn();
+        }
+    }
+}
+
+
+// --- MODIFIED NOTIFICATION LOGIC START ---
+
+// Get UNREAD notification count
 try {
+    global $pdo;
     $notificationStmt = $pdo->prepare("
         SELECT COUNT(*) as count
         FROM activity_logs
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-        AND user_id != ?
+        WHERE is_read = 0 AND user_id != ? -- Exclude current user's own activities, but only unread ones
     ");
     $notificationStmt->execute([$_SESSION['user_id'] ?? 0]);
     $notificationCount = $notificationStmt->fetch(PDO::FETCH_ASSOC)['count'];
 } catch (PDOException $e) {
+    error_log("Unread notification count error: " . $e->getMessage());
     $notificationCount = 0;
 }
 
-// Get recent notifications for dropdown
+// Get recent notifications for dropdown (can still be time-based OR unread-based)
+// For the dropdown, it's often useful to see recent activity, even if read.
+// If you want ONLY unread here, change `WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`
+// to `WHERE is_read = 0` AND maybe order by created_at DESC.
+// For now, I'll keep it time-based for context, but allow marking as read.
 try {
+    global $pdo;
     $recentNotificationsStmt = $pdo->prepare("
-        SELECT al.*, u.name as user_name
+        SELECT al.*, u.name as user_name, al.is_read
         FROM activity_logs al
         LEFT JOIN users u ON al.user_id = u.id
-        WHERE al.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        WHERE al.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) -- Still showing recent activities
         ORDER BY al.created_at DESC
-        LIMIT 5
+        LIMIT 10
     ");
     $recentNotificationsStmt->execute();
     $recentNotifications = $recentNotificationsStmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
+    error_log("Recent notifications error: " . $e->getMessage());
     $recentNotifications = [];
 }
+// --- MODIFIED NOTIFICATION LOGIC END ---
+
 
 // Get system status for header indicators
 $systemStatus = [
-    'database' => true,
+    'database' => true, // Assuming PDO connection indicates database is up
     'orders_today' => 0,
     'pending_orders' => 0,
-    'server_load' => 'normal'
+    'server_load' => 'normal' // Static for now, requires system command for real value
 ];
 
 try {
-    $systemStatus['orders_today'] = getCount($pdo, 'orders', "status = 'completed' AND DATE(created_at) = CURDATE()");
-    $systemStatus['pending_orders'] = getCount($pdo, 'orders', 'status = "pending"');
+    global $pdo; // Ensure $pdo is available here
+    // Ensure getCount function is available before calling it
+    if (function_exists('getCount')) {
+        $systemStatus['orders_today'] = getCount($pdo, 'orders', "status = 'completed' AND DATE(created_at) = CURDATE()");
+        $systemStatus['pending_orders'] = getCount($pdo, 'orders', 'status = "pending"');
+    } else {
+        error_log("Warning: getCount function not found or defined in header.php context.");
+    }
 } catch (PDOException $e) {
-    // Silent fail for status indicators
+    error_log("System status info error: " . $e->getMessage());
+    // Silent fail for status indicators if DB is unreachable or query errors
+    $systemStatus['database'] = false; // Mark database as down
 }
 
 // Breadcrumb generation based on current page
@@ -88,10 +165,10 @@ switch($currentPage) {
         ];
         break;
     case 'customers':
-    case 'users':
+    case 'users': // Grouped for the same breadcrumbs
         $breadcrumbs = [
             ['name' => 'Dashboard', 'url' => 'dashboard.php', 'current' => false],
-            ['name' => 'Customers', 'url' => 'customers.php', 'current' => true]
+            ['name' => 'Customers', 'url' => 'customers.php', 'current' => true] // Assuming both lead to a customer list
         ];
         break;
     case 'menu':
@@ -106,6 +183,13 @@ switch($currentPage) {
             ['name' => 'Customer Support', 'url' => 'customer_support.php', 'current' => true]
         ];
         break;
+    case 'ambassador': // Specifically for admin/ambassador.php
+        $breadcrumbs = [
+            ['name' => 'Dashboard', 'url' => 'dashboard.php', 'current' => false],
+            ['name' => 'Ambassador Management', 'url' => 'ambassador.php', 'current' => true]
+        ];
+        break;
+     // Add cases for other admin pages as needed
     default:
         $breadcrumbs = [
             ['name' => 'Dashboard', 'url' => 'dashboard.php', 'current' => false],
@@ -118,7 +202,7 @@ switch($currentPage) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $page_title; ?> - Addins Meals on Wheels</title>
+    <title><?php echo htmlspecialchars($page_title); ?> - Addins Meals on Wheels</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -130,51 +214,91 @@ switch($currentPage) {
             margin: 0;
             padding: 0;
         }
+
+        /* Sidebar styling */
         .sidebar {
-            width: 16rem;
+            width: 16rem; /* Tailwind's w-64 */
             height: 100vh;
             position: fixed;
             left: 0;
             top: 0;
-            z-index: 10;
+            z-index: 20; /* Ensure it's above content */
+            transition: transform 0.3s ease-in-out;
+             /* Default for desktop */
+            transform: translateX(0);
         }
-        .main-content {
-            margin-left: 16rem;
+
+        /* Sidebar specific for mobile (less than lg breakpoint, 1024px) */
+        @media (max-width: 1023px) {
+            .sidebar {
+                transform: translateX(-100%); /* Hidden by default on mobile */
+            }
+            .sidebar.open {
+                transform: translateX(0); /* Visible when toggled open */
+            }
+        }
+
+        /* Main content area */
+       .main-content {
+            margin-left: 16rem; /* Default for desktop (after sidebar) */
             min-height: 100vh;
             background-color: #f3f4f6;
             display: flex;
             flex-direction: column;
+            transition: margin-left 0.3s ease-in-out;
         }
+
+        /* Main content for mobile */
+        @media (max-width: 1023px) {
+            .main-content {
+                margin-left: 0; /* Full width on mobile */
+            }
+        }
+
+
         .content-wrapper {
             flex: 1 0 auto;
         }
-        /* Ensure header is always on top */
+        /* Header positioning */
         .header {
             position: fixed;
             top: 0;
             right: 0;
-            left: 16rem;
-            z-index: 50;
+            z-index: 50; /* Above sidebar */
             background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(0, 0, 0, 0.1);
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            height: 4rem;
         }
+
+        /* Header for desktop */
+        @media (min-width: 1024px) {
+            .header {
+                left: 16rem; /* Starts after the sidebar */
+            }
+        }
+
+        /* Header for mobile */
+        @media (max-width: 1023px) {
+            .header {
+                left: 0; /* Full width on mobile */
+            }
+        }
+
         .content-container {
             padding-top: 4rem;
+            flex-grow: 1;
         }
-        @media (max-width: 1024px) {
-            .sidebar {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease-in-out;
-            }
-            .sidebar.open {
-                transform: translateX(0);
-            }
-            .main-content, .header {
-                left: 0;
-            }
+
+        /* Sidebar backdrop for mobile */
+        .sidebar-backdrop {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 15; /* Between main content and sidebar */
         }
+
 
         /* Enhanced dropdown animations */
         .dropdown-menu {
@@ -226,25 +350,6 @@ switch($currentPage) {
                 transform: translateY(0);
                 opacity: 1;
             }
-        }
-
-        /* Confirm before delete */
-        function confirmDelete(event, itemName = 'this item') {
-            event.preventDefault();
-
-            Swal.fire({
-                title: 'Are you sure?',
-                text: `You are about to delete ${itemName}. This action cannot be undone!`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#C1272D',
-                cancelButtonColor: '#6B7280',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    event.target.closest('form').submit();
-                }
-            });
         }
 
         @keyframes pulse {
@@ -332,31 +437,11 @@ switch($currentPage) {
             transform: rotate(180deg) scale(1.1);
         }
 
-        /* Notification badge pulse */
-        .notification-badge {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-
         /* Advanced dropdown animations */
         .advanced-dropdown {
             animation: fadeInScale 0.15s ease-out;
             transform-origin: top right;
             z-index: 60;
-        }
-
-        /* Mobile slide animations */
-        @media (max-width: 1024px) {
-            .mobile-menu {
-                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            }
-
-            .mobile-menu.open {
-                transform: translateX(0);
-            }
-
-            .mobile-menu.closed {
-                transform: translateX(-100%);
-            }
         }
 
         /* Glass morphism effect for modern look */
@@ -479,36 +564,30 @@ switch($currentPage) {
             transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
 
-        /* Hide dropdowns by default to prevent flash */
-        .dropdown-content {
-            display: none;
-        }
-
-        /* Show dropdowns only when x-show is true */
-        [x-show="themeOpen"] .dropdown-content,
-        [x-show="chatOpen"] .dropdown-content,
-        [x-show="notificationOpen"] .dropdown-content,
-        [x-show="profileOpen"] .dropdown-content {
-            display: block;
-        }
-
-        /* Alternative: Hide all dropdown divs initially */
-        .theme-dropdown,
-        .chat-dropdown,
-        .notification-dropdown,
-        .profile-dropdown {
-            display: none;
-        }
-
-        /* Show when their respective x-show conditions are met */
-        [x-show="themeOpen"] .theme-dropdown,
-        [x-show="chatOpen"] .chat-dropdown,
-        [x-show="notificationOpen"] .notification-dropdown,
-        [x-show="profileOpen"] .profile-dropdown {
-            display: block;
-        }
+        /* Alpine.js dropdown visibility (simplified) */
+        /* Removed explicit display: none for specific dropdowns.
+           Alpine's x-cloak and x-show handle this without conflict. */
     </style>
     <script>
+        // Moved confirmDelete function from <style> to <script>
+        function confirmDelete(event, itemName = 'this item') {
+            event.preventDefault();
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `You are about to delete ${itemName}. This action cannot be undone!`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#C1272D', // This corresponds to 'primary' in tailwind.config
+                cancelButtonColor: '#6B7280',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    event.target.closest('form').submit();
+                }
+            });
+        }
+
         tailwind.config = {
             theme: {
                 extend: {
@@ -537,7 +616,7 @@ switch($currentPage) {
                     toast.addEventListener('mouseleave', Swal.resumeTimer)
                 }
             });
-            
+
             Toast.fire({
                 icon: '<?php echo $_SESSION['message']['type']; ?>',
                 title: '<?php echo addslashes($_SESSION['message']['text']); ?>'
@@ -548,28 +627,24 @@ switch($currentPage) {
 
         // Theme management functions
         function toggleTheme() {
+            // Get current theme from Alpine store, fallback to 'light'
             const currentTheme = Alpine.store('theme') || 'light';
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            setTheme(newTheme);
+            setTheme(newTheme, true); // Pass true to show notification for manual toggle
         }
 
-        function setTheme(theme) {
-            // Store theme preference
-            Alpine.store('theme', theme);
+        function setTheme(theme, showNotification = false) {
+            // Store theme preference in Alpine store and localStorage
+            if (typeof Alpine !== 'undefined' && Alpine.store('theme')) {
+                Alpine.store('theme', theme);
+            }
             localStorage.setItem('admin_theme', theme);
 
-            // Update UI
+            // Update data-theme attribute on <html> element
             document.documentElement.setAttribute('data-theme', theme);
 
-            // Update button state
-            const themeButton = document.querySelector('[x-data*="themeOpen"] button');
-            if (themeButton) {
-                themeButton.classList.toggle('text-yellow-400', theme === 'dark');
-                themeButton.classList.toggle('text-gray-600', theme === 'light');
-            }
-
-            // Show feedback only if this is an actual theme change, not initialization
-            if (window.themeInitialized) {
+            // Show feedback only if this is an actual theme change triggered by user
+            if (showNotification) {
                 showThemeNotification(theme);
             }
         }
@@ -577,7 +652,6 @@ switch($currentPage) {
         function showThemeNotification(theme) {
             const themeName = theme === 'dark' ? 'Dark Mode' : 'Light Mode';
 
-            // Show a toast notification instead of console.log
             Swal.fire({
                 toast: true,
                 position: 'top-end',
@@ -586,30 +660,26 @@ switch($currentPage) {
                 showConfirmButton: false,
                 timer: 2000,
                 timerProgressBar: true,
-                background: theme === 'dark' ? '#1e293b' : '#ffffff',
-                color: theme === 'dark' ? '#f1f5f9' : '#1e293b'
+                background: theme === 'dark' ? 'var(--card-bg)' : 'var(--card-bg)', // Use CSS variable
+                color: theme === 'dark' ? 'var(--text-primary)' : 'var(--text-primary)' // Use CSS variable
             });
         }
 
         // Initialize theme on page load
         document.addEventListener('DOMContentLoaded', function() {
-            const savedTheme = localStorage.getItem('admin_theme') || 'light';
-            window.themeInitialized = true; // Mark that we're initializing, not switching
-            setTheme(savedTheme);
-
-            // Ensure dropdowns are properly closed on page load
-            window.dropdownsInitialized = true;
-
-            // Initialize Alpine.js store if not exists
-            if (!Alpine.store('theme')) {
-                Alpine.store('theme', 'light');
+            // Ensure Alpine.store 'theme' is defined before trying to access it
+            if (typeof Alpine !== 'undefined' && !Alpine.store('theme')) {
+                Alpine.store('theme', localStorage.getItem('admin_theme') || 'light');
             }
+
+            const savedTheme = localStorage.getItem('admin_theme') || 'light';
+            setTheme(savedTheme); // Initialize theme without showing notification
         });
     </script>
 </head>
 <body class="bg-gray-100" x-data="{ sidebarOpen: window.innerWidth >= 1024 }" @resize.window="sidebarOpen = window.innerWidth >= 1024">
     <!-- Mobile sidebar backdrop -->
-    <div x-show="sidebarOpen && window.innerWidth < 1024" 
+    <div x-show="sidebarOpen && window.innerWidth < 1024"
          @click="sidebarOpen = false"
          class="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
          x-transition:enter="transition-opacity ease-linear duration-300"
@@ -617,18 +687,26 @@ switch($currentPage) {
          x-transition:enter-end="opacity-100"
          x-transition:leave="transition-opacity ease-linear duration-300"
          x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0">
+         x-transition:leave-end="opacity-0"
+         x-cloak>
     </div>
 
-    <!-- Sidebar -->
-    <?php include 'sidebar.php'; ?>
-                    <i class="fas fa-tachometer-alt mr-1"></i> Dashboard
-                </a>
-                <a href="orders.php" class="px-3 py-4 text-sm font-medium border-b-2 border-transparent hover:border-gray-300 hover:text-gray-700 <?php echo basename($_SERVER['PHP_SELF']) == 'orders.php' ? 'border-primary text-primary' : 'text-gray-500'; ?>">
-                </a>
-                <a href="menu.php" class="px-3 py-4 text-sm font-medium border-b-2 border-transparent hover:border-gray-300 hover:text-gray-700 <?php echo basename($_SERVER['PHP_SELF']) == 'menu.php' ? 'border-primary text-primary' : 'text-gray-500'; ?>">
-                    <i class="fas fa-utensils mr-1"></i> Menu Items
-                </a>
+    <!-- Sidebar component -->
+    <aside
+        class="sidebar bg-gray-800 text-white shadow-lg lg:z-10"
+        :class="{ 'open': sidebarOpen }"
+        x-cloak
+        x-show="sidebarOpen || window.innerWidth >= 1024"
+        {{-- X-transition ensures smooth slide in/out --}}
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="-translate-x-full"
+        x-transition:enter-end="translate-x-0"
+        x-transition:leave="transition ease-in duration-300"
+        x-transition:leave-start="translate-x-0"
+        x-transition:leave-end="-translate-x-full"
+    >
+        <?php include 'sidebar.php'; // Include your actual sidebar content here ?>
+    </aside>
 
     <!-- Main Content -->
     <div class="main-content">
@@ -636,7 +714,7 @@ switch($currentPage) {
         <header class="bg-dark shadow-sm header border-b border-gray-200 header-container">
             <div class="max-w-full px-4 py-3 sm:px-6 lg:px-8">
                 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-                    <!-- Top Row: Breadcrumbs and Quick Actions -->
+                    <!-- Top Row: Breadcrumbs and Mobile Menu Toggle -->
                     <div class="flex items-center justify-between">
                         <!-- Left side - Breadcrumbs and Mobile menu -->
                         <div class="flex items-center space-x-4">
@@ -666,13 +744,13 @@ switch($currentPage) {
 
                             <!-- Mobile page title -->
                             <div class="sm:hidden">
-                                <h1 class="text-lg font-semibold text-gray-900"><?php echo $page_title; ?></h1>
+                                <h1 class="text-lg font-semibold text-gray-900"><?php echo htmlspecialchars($page_title); ?></h1>
                             </div>
                         </div>
 
-                        <!-- Quick Actions Bar -->
+                        <!-- Quick Actions Bar (hidden on small screens, shown for larger) -->
                         <div class="hidden lg:flex items-center space-x-2">
-                            <?php if (basename($_SERVER['PHP_SELF']) === 'dashboard.php'): ?>
+                            <?php if ($currentPage === 'dashboard'): // Show specific actions on dashboard ?>
                                 <a href="orders.php" title="Create a new customer order" class="quick-action-btn bg-primary hover:bg-primary-dark text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
                                     <i class="fas fa-plus text-xs"></i>
                                     <span>Create New Order</span>
@@ -681,12 +759,12 @@ switch($currentPage) {
                                     <i class="fas fa-user-plus text-xs"></i>
                                     <span>Add New Customer</span>
                                 </a>
-                            <?php elseif (basename($_SERVER['PHP_SELF']) === 'orders.php'): ?>
+                            <?php elseif ($currentPage === 'orders'): ?>
                                 <a href="order_add.php" title="Create a new order for a customer" class="quick-action-btn bg-primary hover:bg-primary-dark text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
                                     <i class="fas fa-plus text-xs"></i>
                                     <span>Add Order</span>
                                 </a>
-                            <?php elseif (basename($_SERVER['PHP_SELF']) === 'customers.php'): ?>
+                            <?php elseif ($currentPage === 'customers' || $currentPage === 'users'): ?>
                                 <a href="user_add.php" title="Register a new customer account" class="quick-action-btn bg-primary hover:bg-primary-dark text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
                                     <i class="fas fa-plus text-xs"></i>
                                     <span>Add New Customer</span>
@@ -718,86 +796,25 @@ switch($currentPage) {
                             </div>
                         </div>
 
-                        <!-- Theme Toggle -->
-                        <div class="relative" x-data="{ themeOpen: false, currentTheme: 'light' }" x-init="currentTheme = $store.theme || 'light'; themeOpen = false">
-                            <button @click="themeOpen = !themeOpen; toggleTheme()"
+                        <!-- Theme Toggle (now a simple toggle button) -->
+                        <div class="relative" x-data="{ themeOpen: false }" x-init="setTheme(localStorage.getItem('admin_theme') || 'light');">
+                            <button @click="toggleTheme()"
                                     title="Switch between light and dark theme"
                                     aria-label="Toggle between light and dark theme modes"
-                                    :class="currentTheme === 'dark' ? 'text-yellow-400 hover:text-yellow-300 bg-gray-100' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'"
+                                    :class="$store.theme === 'dark' ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'"
                                     class="theme-toggle header-button focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 transition-all duration-300 relative">
                                 <div class="relative">
                                     <div class="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold shadow-lg ring-2 ring-white">
-                                        <i class="fas fa-moon text-lg transition-all duration-300" aria-hidden="true"></i>
+                                        <i class="fas text-lg" :class="$store.theme === 'dark' ? 'fa-sun' : 'fa-moon'" aria-hidden="true"></i>
                                     </div>
-                                    <div :class="currentTheme === 'dark' ? 'bg-yellow-400' : 'bg-gray-300'" class="absolute -inset-1 rounded-full opacity-20 transition-all duration-300"></div>
+                                    <div :class="$store.theme === 'dark' ? 'bg-yellow-400' : 'bg-gray-300'" class="absolute -inset-1 rounded-full opacity-20 transition-all duration-300"></div>
                                 </div>
                             </button>
-
-                            <!-- Theme Selection Dropdown -->
-                            <div x-show="themeOpen"
-                                 @click.away="themeOpen = false"
-                                 x-transition:enter="transition ease-out duration-100"
-                                 x-transition:enter-start="transform opacity-0 scale-95"
-                                 x-transition:enter-end="transform opacity-100 scale-100"
-                                 x-transition:leave="transition ease-in duration-75"
-                                 x-transition:leave-start="transform opacity-100 scale-100"
-                                 x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-50 border border-gray-200 p-3 theme-dropdown">
-
-                                <div class="mb-3">
-                                    <h4 class="text-sm font-medium text-gray-900 mb-2">Theme Settings</h4>
-                                    <p class="text-xs text-gray-600">Choose your preferred display mode</p>
-                                </div>
-
-                                <div class="space-y-2">
-                                    <!-- Light Theme Option -->
-                                    <button @click="setTheme('light')"
-                                            :class="currentTheme === 'light' ? 'bg-primary text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'"
-                                            class="w-full flex items-center space-x-3 p-3 rounded-lg transition-all duration-200">
-                                        <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                                            <i class="fas fa-sun text-gray-600 text-sm"></i>
-                                        </div>
-                                        <div class="flex-1 text-left">
-                                            <div class="text-sm font-medium">Light Mode</div>
-                                            <div class="text-xs opacity-75">Bright and clear interface</div>
-                                        </div>
-                                        <div x-show="currentTheme === 'light'" class="w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                                            <i class="fas fa-check text-xs text-primary"></i>
-                                        </div>
-                                    </button>
-
-                                    <!-- Dark Theme Option -->
-                                    <button @click="setTheme('dark')"
-                                            :class="currentTheme === 'dark' ? 'bg-primary text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'"
-                                            class="w-full flex items-center space-x-3 p-3 rounded-lg transition-all duration-200">
-                                        <div class="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center">
-                                            <i class="fas fa-moon text-gray-200 text-sm"></i>
-                                        </div>
-                                        <div class="flex-1 text-left">
-                                            <div class="text-sm font-medium">Dark Mode</div>
-                                            <div class="text-xs opacity-75">Easy on the eyes</div>
-                                        </div>
-                                        <div x-show="currentTheme === 'dark'" class="w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                                            <i class="fas fa-check text-xs text-primary"></i>
-                                        </div>
-                                    </button>
-                                </div>
-
-                                <div class="mt-4 pt-3 border-t border-gray-200">
-                                    <div class="flex items-center justify-between text-xs text-gray-600">
-                                        <span>Auto-detect system theme</span>
-                                        <button class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
-                                            <i class="fas fa-magic text-xs text-gray-600"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
-                        <!-- Customer Support -->
+                        <!-- Customer Support Dropdown -->
                         <div class="relative" x-data="{ chatOpen: false }" x-init="chatOpen = false">
-                            <a href="../chat.php"
-                               @click="chatOpen = true"
+                            <button @click="chatOpen = !chatOpen"
                                title="Access customer support chat"
                                aria-label="Open customer support chat"
                                class="header-button text-gray-600 hover:text-primary hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 transition-all duration-200 relative">
@@ -805,7 +822,7 @@ switch($currentPage) {
                                     <i class="fas fa-headset text-lg" aria-hidden="true"></i>
                                 </div>
                                 <span class="absolute -top-1 -right-1 w-3 h-3 bg-green-400 border-2 border-white rounded-full animate-pulse" title="Chat support available"></span>
-                            </a>
+                            </button>
 
                             <!-- Chat Status Tooltip -->
                             <div x-show="chatOpen"
@@ -816,7 +833,7 @@ switch($currentPage) {
                                  x-transition:leave="transition ease-in duration-75"
                                  x-transition:leave-start="transform opacity-100 scale-100"
                                  x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 border border-gray-200 p-3 chat-dropdown">
+                                 class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 border border-gray-200 p-3 chat-dropdown" x-cloak>
                                 <div class="flex items-center space-x-2 mb-2">
                                     <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                                         <i class="fas fa-headset text-green-600 text-sm"></i>
@@ -833,7 +850,7 @@ switch($currentPage) {
                             </div>
                         </div>
 
-                        <!-- Notifications -->
+                        <!-- Notifications Dropdown -->
                         <div class="relative" x-data="{ notificationOpen: false }" x-init="notificationOpen = false">
                             <button @click="notificationOpen = !notificationOpen"
                                     title="View notifications and activity logs"
@@ -858,7 +875,7 @@ switch($currentPage) {
                                  x-transition:leave="transition ease-in duration-75"
                                  x-transition:leave-start="transform opacity-100 scale-100"
                                  x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50 border border-gray-200 advanced-dropdown notification-dropdown">
+                                 class="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50 border border-gray-200 advanced-dropdown notification-dropdown" x-cloak>
 
                                 <!-- Header with Summary -->
                                 <div class="p-4 border-b border-gray-200 bg-gradient-to-r from-primary/5 to-secondary/5">
@@ -1001,7 +1018,7 @@ switch($currentPage) {
                                  x-transition:leave="transition ease-in duration-75"
                                  x-transition:leave-start="transform opacity-100 scale-100"
                                  x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 border border-gray-200 advanced-dropdown profile-dropdown">
+                                 class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 border border-gray-200 advanced-dropdown profile-dropdown" x-cloak>
 
                                 <!-- User Info Header -->
                                 <div class="p-4 border-b border-gray-200">
@@ -1066,5 +1083,6 @@ switch($currentPage) {
             </div>
         </header>
 
-        <!-- Page Content -->
-        <div class="content-container">
+        <!-- Dynamic Page Content Starts Here -->
+        <main class="content-container p-6">
+            <!-- This is where the content of views like dashboard.php, ambassador.php will go -->
