@@ -1,4 +1,22 @@
-<?php include 'includes/header.php'; ?>
+<?php include 'includes/header.php';
+
+// Get approved reviews from database
+$reviews = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT customer_name, customer_title, rating, review_text, service_type, catering_event_type, occasion_details, review_date, created_at
+        FROM customer_reviews
+        WHERE status = 'approved' AND service_type != 'Catering'
+        ORDER BY created_at DESC
+        LIMIT 6
+    ");
+    $stmt->execute();
+    $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // If table doesn't exist or error occurs, use empty array
+    $reviews = [];
+}
+?>
 
     <!-- Additional Slideshow Styles -->
     <style>
@@ -294,68 +312,107 @@
             </div>
 
             <div class="grid md:grid-cols-3 gap-8">
-                <!-- Testimonial 1 -->
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <div class="flex items-center mb-4">
-                        <div class="text-2xl text-secondary mr-2">"</div>
-                        <p class="text-gray-600 italic">The food is absolutely delicious! I order every week and I'm never disappointed.</p>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-gray-300 rounded-full mr-4"></div>
-                        <div>
-                            <h4 class="font-bold">Sarah Johnson</h4>
-                            <div class="flex text-yellow-400">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
+                <?php if (!empty($reviews)): ?>
+                    <?php foreach (array_slice($reviews, 0, 3) as $review): ?>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <div class="flex items-start mb-4">
+                                <div class="text-2xl text-secondary mr-3">"</div>
+                                <p class="text-gray-600 italic flex-1"><?php echo htmlspecialchars(substr($review['review_text'], 0, 120) . (strlen($review['review_text']) > 120 ? '...' : '')); ?></p>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-12 h-12 bg-primary/10 rounded-full mr-4 flex items-center justify-center">
+                                    <span class="text-primary font-bold text-lg"><?php echo strtoupper(substr($review['customer_name'], 0, 1)); ?></span>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold"><?php echo htmlspecialchars($review['customer_name']); ?></h4>
+                                    <?php if (!empty($review['customer_title'])): ?>
+                                        <p class="text-primary text-sm font-medium"><?php echo htmlspecialchars($review['customer_title']); ?></p>
+                                    <?php endif; ?>
+                                    <div class="flex text-yellow-400">
+                                        <?php for ($i = 1; $i <= 5; $i++): ?>
+                                            <i class="fas fa-star <?php echo $i <= $review['rating'] ? '' : 'text-gray-300'; ?>"></i>
+                                        <?php endfor; ?>
+                                    </div>
+                                    <?php if (!empty($review['service_type']) && $review['service_type'] !== 'Catering'): ?>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            <?php echo htmlspecialchars($review['service_type']); ?>
+                                            <?php if (!empty($review['catering_event_type'])): ?>
+                                                • <?php echo htmlspecialchars($review['catering_event_type']); ?>
+                                            <?php endif; ?>
+                                            <?php if (!empty($review['occasion_details'])): ?>
+                                                • <?php echo htmlspecialchars($review['occasion_details']); ?>
+                                            <?php endif; ?>
+                                        </p>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <!-- Fallback testimonials if no reviews in database -->
+                    <!-- Testimonial 1 -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="flex items-center mb-4">
+                            <div class="text-2xl text-secondary mr-2">"</div>
+                            <p class="text-gray-600 italic">The food is absolutely delicious! I order every week and I'm never disappointed.</p>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 bg-gray-300 rounded-full mr-4"></div>
+                            <div>
+                                <h4 class="font-bold">Sarah Johnson</h4>
+                                <div class="flex text-yellow-400">
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Testimonial 2 -->
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <div class="flex items-center mb-4">
-                        <div class="text-2xl text-secondary mr-2">"</div>
-                        <p class="text-gray-600 italic">Perfect solution for our busy family. The kids love the meals too!</p>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-gray-300 rounded-full mr-4"></div>
-                        <div>
-                            <h4 class="font-bold">Michael Chen</h4>
-                            <div class="flex text-yellow-400">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star-half-alt"></i>
+                    <!-- Testimonial 2 -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="flex items-center mb-4">
+                            <div class="text-2xl text-secondary mr-2">"</div>
+                            <p class="text-gray-600 italic">Perfect solution for our busy family. The kids love the meals too!</p>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 bg-gray-300 rounded-full mr-4"></div>
+                            <div>
+                                <h4 class="font-bold">Michael Chen</h4>
+                                <div class="flex text-yellow-400">
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star-half-alt"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Testimonial 3 -->
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <div class="flex items-center mb-4">
-                        <div class="text-2xl text-secondary mr-2">"</div>
-                        <p class="text-gray-600 italic">Used their catering service for my daughter's birthday. The food was a hit with all the guests!</p>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-12 h-12 bg-gray-300 rounded-full mr-4"></div>
-                        <div>
-                            <h4 class="font-bold">Emily Rodriguez</h4>
-                            <div class="flex text-yellow-400">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
+                    <!-- Testimonial 3 -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="flex items-center mb-4">
+                            <div class="text-2xl text-secondary mr-2">"</div>
+                            <p class="text-gray-600 italic">Used their catering service for my daughter's birthday. The food was a hit with all the guests!</p>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 bg-gray-300 rounded-full mr-4"></div>
+                            <div>
+                                <h4 class="font-bold">Emily Rodriguez</h4>
+                                <div class="flex text-yellow-400">
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                <?php endif; ?>
             </div>
         </div>
     </section>

@@ -1,6 +1,23 @@
 <?php
 require_once 'includes/config.php';
 
+// Get catering testimonials from database
+$catering_reviews = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT customer_name, customer_title, rating, review_text, service_type, catering_event_type, occasion_details
+        FROM customer_reviews
+        WHERE status = 'approved' AND service_type = 'Catering'
+        ORDER BY created_at DESC
+        LIMIT 9
+    ");
+    $stmt->execute();
+    $catering_reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // If table doesn't exist or error occurs, use empty array
+    $catering_reviews = [];
+}
+
 $success = false;
 $error = '';
 
@@ -56,10 +73,9 @@ $page_title = "Catering Services - Addins Meals on Wheels";
 <section class="relative h-screen overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('assets/img/opening.png');">
         <!-- Enhanced overlay for better text visibility -->
-        <div class="absolute inset-0 bg-gradient-to-br from-black/90 via-black/80 to-black/85"></div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/60"></div>
+        <div class="absolute inset-0 bg-black/80"></div>
         <!-- Additional brand color overlay -->
-        <div class="absolute inset-0 bg-primary/10"></div>
+        <div class="absolute inset-0 bg-primary/5"></div>
     </div>
 
     <div class="relative z-10 h-full flex items-center">
@@ -154,7 +170,7 @@ $page_title = "Catering Services - Addins Meals on Wheels";
 </section>
 
 <!-- Catering Form Section -->
-<section id="contact-form" class="py-20 bg-gradient-to-br from-light via-white to-light relative overflow-hidden">
+<section id="contact-form" class="py-20 bg-light relative overflow-hidden">
     <!-- Background Elements -->
     <div class="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full -translate-y-48 translate-x-48"></div>
     <div class="absolute bottom-0 left-0 w-80 h-80 bg-accent/5 rounded-full translate-y-40 -translate-x-40"></div>
@@ -312,10 +328,10 @@ $page_title = "Catering Services - Addins Meals on Wheels";
 </section>
 
 <!-- Catering Services -->
-<section id="services" class="py-20 bg-gradient-to-br from-white via-light to-white relative">
+<section id="services" class="py-20 bg-white relative">
     <!-- Background Pattern -->
     <div class="absolute inset-0 opacity-5">
-        <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%23000000" fill-opacity="0.05"%3E%3Cpath d="M20 20c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10zm10 0c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10z"/%3E%3C/g%3E%3C/svg%3E')] bg-repeat"></div>
+        <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%23000000" fill-opacity="0.05"%3E%3Cpath d="M20 20c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10zm10 0c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] bg-repeat"></div>
     </div>
 
     <div class="container mx-auto px-4 relative">
@@ -334,7 +350,7 @@ $page_title = "Catering Services - Addins Meals on Wheels";
             <!-- Corporate Events -->
             <div class="group bg-white rounded-2xl shadow-lg hover:shadow-2xl p-8 border border-gray-100 hover:border-primary/20 transition-all duration-300 transform hover:-translate-y-2">
                 <div class="text-center mb-6">
-                    <div class="w-20 h-20 bg-gradient-to-br from-primary to-primary-dark rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <div class="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
                         <i class="fas fa-building text-white text-3xl"></i>
                     </div>
                     <h3 class="text-2xl font-bold mb-3 text-gray-800 group-hover:text-primary transition-colors">Corporate Events</h3>
@@ -365,7 +381,7 @@ $page_title = "Catering Services - Addins Meals on Wheels";
             <!-- Weddings & Receptions -->
             <div class="group bg-white rounded-2xl shadow-lg hover:shadow-2xl p-8 border border-gray-100 hover:border-accent/20 transition-all duration-300 transform hover:-translate-y-2">
                 <div class="text-center mb-6">
-                    <div class="w-20 h-20 bg-gradient-to-br from-accent to-accent-dark rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <div class="w-20 h-20 bg-accent rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
                         <i class="fas fa-heart text-white text-3xl"></i>
                     </div>
                     <h3 class="text-2xl font-bold mb-3 text-gray-800 group-hover:text-accent transition-colors">Weddings & Receptions</h3>
@@ -396,7 +412,7 @@ $page_title = "Catering Services - Addins Meals on Wheels";
             <!-- Private Parties -->
             <div class="group bg-white rounded-2xl shadow-lg hover:shadow-2xl p-8 border border-gray-100 hover:border-secondary/20 transition-all duration-300 transform hover:-translate-y-2">
                 <div class="text-center mb-6">
-                    <div class="w-20 h-20 bg-gradient-to-br from-secondary to-secondary-dark rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <div class="w-20 h-20 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
                         <i class="fas fa-birthday-cake text-white text-3xl"></i>
                     </div>
                     <h3 class="text-2xl font-bold mb-3 text-gray-800 group-hover:text-secondary transition-colors">Private Parties</h3>
@@ -463,7 +479,7 @@ $page_title = "Catering Services - Addins Meals on Wheels";
 </section>
 
 <!-- Testimonial -->
-<section class="py-20 bg-gradient-to-br from-light via-white to-light relative overflow-hidden">
+<section class="py-20 bg-light relative overflow-hidden">
     <!-- Background Elements -->
     <div class="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5"></div>
     <div class="absolute top-0 right-0 w-96 h-96 bg-secondary/5 rounded-full -translate-y-48 translate-x-48"></div>
@@ -483,98 +499,102 @@ $page_title = "Catering Services - Addins Meals on Wheels";
             </p>
         </div>
 
-        <div class="flex flex-col md:flex-row gap-8 p-8 bg-gradient-to-br from-white via-light/30 to-white rounded-3xl shadow-2xl border border-primary/10">
-            <!-- Testimonial 1 -->
-            <div class="bg-gradient-to-br from-white to-light/20 rounded-2xl p-8 border-2 border-primary/20 hover:border-primary/40 hover:shadow-2xl transition-all duration-300 shadow-lg transform hover:-translate-y-2">
-                <div class="flex items-center mb-6">
-                    <div class="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center mr-4 shadow-lg">
-                        <i class="fas fa-user text-white text-2xl"></i>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-dark text-xl">Sarah Johnson</h4>
-                        <p class="text-primary text-sm font-medium">Event Coordinator, TechCorp</p>
-                    </div>
-                </div>
-                <div class="mb-6">
-                    <div class="flex text-primary mb-3 text-lg">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                    <div class="w-16 h-1 bg-primary/40 rounded-full"></div>
-                </div>
-                <p class="text-gray-700 leading-relaxed text-lg mb-4">
-                    "Addins Meals on Wheels catered our company's annual gala, and the food was absolutely exceptional. Our guests couldn't stop raving about the delicious dishes and professional service."
-                </p>
-                <div class="mt-6 pt-4 border-t border-primary/20">
-                    <p class="text-primary text-sm font-medium">Corporate Event • 150 Guests</p>
+        <!-- Testimonials Carousel Container -->
+        <div class="relative">
+            <div class="testimonials-container overflow-hidden">
+                <div class="testimonials-wrapper flex transition-transform duration-500 ease-in-out" id="testimonials-wrapper">
+                    <?php if (!empty($catering_reviews)): ?>
+                        <?php
+                        // Group testimonials in sets of 3
+                        $testimonial_groups = array_chunk($catering_reviews, 3);
+                        foreach ($testimonial_groups as $group_index => $group):
+                        ?>
+                            <div class="testimonial-slide min-w-full flex-shrink-0 px-4">
+                                <div class="flex flex-col md:flex-row gap-6 justify-center items-stretch">
+                                    <?php foreach ($group as $review_index => $review): ?>
+                                        <div class="bg-white rounded-2xl p-8 border-2 border-primary/20 hover:border-primary/40 hover:shadow-2xl transition-all duration-300 shadow-lg w-80 h-96 flex flex-col">
+                                            <div class="flex items-center mb-6">
+                                                <div class="w-14 h-14 bg-primary rounded-full flex items-center justify-center mr-4 shadow-lg">
+                                                    <span class="text-white font-bold text-lg"><?php echo strtoupper(substr($review['customer_name'], 0, 1)); ?></span>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-bold text-dark text-lg"><?php echo htmlspecialchars($review['customer_name']); ?></h4>
+                                                    <?php if (!empty($review['customer_title'])): ?>
+                                                        <p class="text-primary text-sm font-medium"><?php echo htmlspecialchars($review['customer_title']); ?></p>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            <div class="mb-6 flex-grow">
+                                                <div class="flex text-primary mb-3 text-base">
+                                                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                        <i class="fas fa-star <?php echo $i <= $review['rating'] ? '' : 'text-gray-300'; ?>"></i>
+                                                    <?php endfor; ?>
+                                                </div>
+                                                <div class="w-16 h-1 bg-primary/40 rounded-full mb-4"></div>
+                                                <p class="text-gray-700 leading-relaxed text-sm">
+                                                    "<?php echo htmlspecialchars(substr($review['review_text'], 0, 180) . (strlen($review['review_text']) > 180 ? '...' : '')); ?>"
+                                                </p>
+                                            </div>
+                                            <div class="mt-auto pt-4 border-t border-primary/20">
+                                                <p class="text-primary text-sm font-medium">
+                                                    <?php
+                                                    echo htmlspecialchars($review['catering_event_type'] ?? 'Catering Event');
+                                                    if (!empty($review['occasion_details'])) {
+                                                        echo ' • ' . htmlspecialchars($review['occasion_details']);
+                                                    }
+                                                    ?>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <!-- Single slide for no testimonials message -->
+                        <div class="testimonial-slide min-w-full flex-shrink-0 px-4">
+                            <div class="max-w-md mx-auto text-center py-16 h-full flex items-center justify-center">
+                                <div class="bg-primary/5 rounded-2xl p-12">
+                                    <i class="fas fa-star text-primary text-5xl mb-6"></i>
+                                    <h3 class="text-2xl font-bold text-gray-800 mb-4">Be Our First Catering Success Story!</h3>
+                                    <p class="text-gray-600 text-lg leading-relaxed mb-6">
+                                        We're excited to showcase testimonials from our valued catering clients. Be among the first to share your exceptional catering experience with Addins Meals on Wheels!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <!-- Testimonial 2 -->
-            <div class="bg-gradient-to-br from-white to-light/20 rounded-2xl p-8 border-2 border-accent/20 hover:border-accent/40 hover:shadow-2xl transition-all duration-300 shadow-lg transform hover:-translate-y-2">
-                <div class="flex items-center mb-6">
-                    <div class="w-16 h-16 bg-gradient-to-br from-accent to-accent-dark rounded-full flex items-center justify-center mr-4 shadow-lg">
-                        <i class="fas fa-user text-white text-2xl"></i>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-dark text-xl">Michael Chen</h4>
-                        <p class="text-accent text-sm font-medium">Wedding Planner</p>
-                    </div>
+            <!-- Carousel Navigation -->
+            <?php if (!empty($catering_reviews) && count($catering_reviews) > 1): ?>
+                <!-- Dots Navigation -->
+                <div class="flex justify-center space-x-2 mt-8" id="testimonial-dots">
+                    <?php
+                    $total_groups = ceil(count($catering_reviews) / 3);
+                    for ($i = 0; $i < $total_groups; $i++):
+                    ?>
+                        <button class="testimonial-dot w-3 h-3 rounded-full transition-all duration-300 <?php echo $i === 0 ? 'bg-primary' : 'bg-gray-300'; ?>"
+                                onclick="currentTestimonialSlide(<?php echo $i + 1; ?>)"></button>
+                    <?php endfor; ?>
                 </div>
-                <div class="mb-6">
-                    <div class="flex text-accent mb-3 text-lg">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                    <div class="w-16 h-1 bg-accent/40 rounded-full"></div>
-                </div>
-                <p class="text-gray-700 leading-relaxed text-lg mb-4">
-                    "Working with Addins for wedding catering has been incredible. They understand the importance of presentation and timing, making every wedding reception memorable."
-                </p>
-                <div class="mt-6 pt-4 border-t border-accent/20">
-                    <p class="text-accent text-sm font-medium">Wedding Catering • Multiple Events</p>
-                </div>
-            </div>
 
-            <!-- Testimonial 3 -->
-            <div class="bg-gradient-to-br from-white to-light/20 rounded-2xl p-8 border-2 border-secondary/20 hover:border-secondary/40 hover:shadow-2xl transition-all duration-300 shadow-lg transform hover:-translate-y-2">
-                <div class="flex items-center mb-6">
-                    <div class="w-14 h-14 bg-gradient-to-br from-secondary to-secondary-dark rounded-full flex items-center justify-center mr-4 shadow-lg">
-                        <i class="fas fa-user text-white text-xl"></i>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-dark text-lg">Emily Rodriguez</h4>
-                        <p class="text-secondary text-sm font-medium">Private Event Host</p>
-                    </div>
-                </div>
-                <div class="mb-6">
-                    <div class="flex text-secondary mb-3">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                    <div class="w-12 h-1 bg-secondary/30 rounded-full"></div>
-                </div>
-                <p class="text-gray-700 leading-relaxed text-lg mb-4">
-                    "From my daughter's graduation party to our family reunion, Addins has never disappointed. The food is always fresh, beautifully presented, and absolutely delicious."
-                </p>
-                <div class="mt-6 pt-4 border-t border-secondary/20">
-                    <p class="text-secondary text-sm">Family Events • Multiple Occasions</p>
-                </div>
-            </div>
+                <!-- Arrow Navigation -->
+                <button class="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-4 bg-white hover:bg-primary text-primary hover:text-white p-3 rounded-full shadow-lg transition-all duration-300 z-10"
+                        onclick="changeTestimonialSlide(-1)">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button class="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-4 bg-white hover:bg-primary text-primary hover:text-white p-3 rounded-full shadow-lg transition-all duration-300 z-10"
+                        onclick="changeTestimonialSlide(1)">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            <?php endif; ?>
         </div>
 
         <!-- Call to Action -->
         <div class="text-center mt-16">
-            <div class="bg-gradient-to-br from-white via-light/30 to-white backdrop-blur-sm rounded-3xl p-10 border-2 border-primary/10 max-w-4xl mx-auto shadow-2xl hover:shadow-3xl transition-all duration-300">
+            <div class="bg-white backdrop-blur-sm rounded-3xl p-10 border-2 border-primary/10 max-w-4xl mx-auto shadow-2xl hover:shadow-3xl transition-all duration-300">
                 <div class="mb-6">
                     <i class="fas fa-calendar-plus text-primary text-4xl mb-4 animate-pulse"></i>
                 </div>
@@ -590,7 +610,7 @@ $page_title = "Catering Services - Addins Meals on Wheels";
 </section>
 
 <!-- CTA Section -->
-<section class="py-20 bg-gradient-to-br from-light via-white to-light relative overflow-hidden">
+<section class="py-20 bg-primary/5 relative overflow-hidden">
     <!-- Background Pattern -->
     <div class="absolute inset-0 opacity-10">
         <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.1"%3E%3Cpath d="M40 40c0-8.8-7.2-16-16-16s-16 7.2-16 16 7.2 16 16 16 16-7.2 16-16z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] bg-repeat"></div>
@@ -705,26 +725,52 @@ form.addEventListener('submit', function(e) {
         });
     });
 
+    if (!isValid) {
+        e.preventDefault(); // Stop form submission if validation fails
+    }
+}); // CLOSING BRACE WAS MISSING HERE!
+
+
 // Slideshow functionality
 let slideIndex = 1;
 let slideInterval;
+let slides; // Declare globally accessible variables
+let dots;
+let slideshowContainer;
 
 // Initialize slideshow when page loads
 document.addEventListener('DOMContentLoaded', function() {
     initializeSlideshow();
+
+    // Initialize testimonials carousel
+    showTestimonialSlide(1); // Show first slide
+    startTestimonialSlideshow(); // Start auto-slideshow
+
+    // Add hover effects for testimonials carousel
+    const testimonialContainer = document.querySelector('.testimonials-container');
+    if (testimonialContainer) {
+        testimonialContainer.addEventListener('mouseenter', stopTestimonialSlideshow);
+        testimonialContainer.addEventListener('mouseleave', startTestimonialSlideshow);
+    }
 });
 
-// Fallback initialization
+// Fallback initialization (not strictly necessary if DOMContentLoaded works, but good for robustness)
 window.addEventListener('load', function() {
-    if (!document.querySelector('.slide.opacity-100')) {
+    if (!slides || slides.length === 0 || !document.querySelector('.slide.opacity-100')) {
         initializeSlideshow();
+    }
+
+    // Initialize testimonials carousel as fallback
+    if (!document.querySelector('.testimonial-slide') || !document.getElementById('testimonials-wrapper')) {
+        showTestimonialSlide(1);
+        startTestimonialSlideshow();
     }
 });
 
 function initializeSlideshow() {
-    const slides = document.querySelectorAll('.slide');
-    const dots = document.querySelectorAll('.slide-dot');
-    const slideshowContainer = document.querySelector('.slideshow-container');
+    slides = document.querySelectorAll('.slide'); // Assign to global variable
+    dots = document.querySelectorAll('.slide-dot');    // Assign to global variable
+    slideshowContainer = document.querySelector('.slideshow-container'); // Assign to global variable
 
     if (slides.length === 0) {
         console.error('Slideshow elements not found');
@@ -732,7 +778,7 @@ function initializeSlideshow() {
     }
 
     // Set initial state
-    showSlide(1);
+    showSlide(slideIndex); // Use initial slideIndex
     startSlideshow();
 
     // Add event listeners
@@ -747,26 +793,44 @@ function initializeSlideshow() {
 
 function setupControls() {
     // Dots
-    document.querySelectorAll('.slide-dot').forEach((dot, index) => {
+    dots.forEach((dot, index) => { // Use global `dots`
         dot.addEventListener('click', () => currentSlide(index + 1));
     });
 
     // Arrows
-    if (slideshowContainer) {
+    if (slideshowContainer) { // Use global `slideshowContainer`
         const prevBtn = slideshowContainer.querySelector('.absolute.left-4');
         const nextBtn = slideshowContainer.querySelector('.absolute.right-4');
 
         if (prevBtn) prevBtn.addEventListener('click', () => changeSlide(-1));
         if (nextBtn) nextBtn.addEventListener('click', () => changeSlide(1));
     }
+
+    // Testimonials carousel controls
+    const testimonialDots = document.querySelectorAll('.testimonial-dot');
+    testimonialDots.forEach((dot, index) => {
+        dot.addEventListener('click', () => currentTestimonialSlide(index + 1));
+    });
+
+    const testimonialContainer = document.querySelector('.testimonials-container');
+    if (testimonialContainer) {
+        const prevBtn = testimonialContainer.parentElement.querySelector('.absolute.left-0');
+        const nextBtn = testimonialContainer.parentElement.querySelector('.absolute.right-0');
+
+        if (prevBtn) prevBtn.addEventListener('click', () => changeTestimonialSlide(-1));
+        if (nextBtn) nextBtn.addEventListener('click', () => changeTestimonialSlide(1));
+    }
 }
 
 function showSlide(n) {
-    const slides = document.querySelectorAll('.slide');
-    const dots = document.querySelectorAll('.slide-dot');
+    if (!slides || slides.length === 0 || !dots || dots.length === 0) {
+        console.error('Slideshow elements not initialized for showSlide.');
+        return;
+    }
 
     if (n > slides.length) slideIndex = 1;
-    if (n < 1) slideIndex = slides.length;
+    else if (n < 1) slideIndex = slides.length;
+    else slideIndex = n; // Update global slideIndex
 
     // Update slides
     slides.forEach((slide, index) => {
@@ -811,6 +875,63 @@ function stopSlideshow() {
     if (slideInterval) {
         clearInterval(slideInterval);
         slideInterval = null;
+    }
+}
+
+// Testimonials Carousel functionality
+let testimonialSlideIndex = 1;
+let testimonialInterval;
+
+function showTestimonialSlide(n) {
+    const wrapper = document.getElementById('testimonials-wrapper');
+    const slides = document.querySelectorAll('.testimonial-slide');
+
+    if (!wrapper || slides.length === 0) return;
+
+    if (n > slides.length) testimonialSlideIndex = 1;
+    else if (n < 1) testimonialSlideIndex = slides.length;
+    else testimonialSlideIndex = n;
+
+    // Move the wrapper to show the correct slide (each slide contains 3 testimonials)
+    const translateX = -(testimonialSlideIndex - 1) * 100;
+    wrapper.style.transform = `translateX(${translateX}%)`;
+
+    // Update dots
+    const dots = document.querySelectorAll('.testimonial-dot');
+    dots.forEach((dot, index) => {
+        if (index === testimonialSlideIndex - 1) {
+            dot.classList.remove('bg-gray-300');
+            dot.classList.add('bg-primary');
+        } else {
+            dot.classList.remove('bg-primary');
+            dot.classList.add('bg-gray-300');
+        }
+    });
+}
+
+function changeTestimonialSlide(n) {
+    showTestimonialSlide(testimonialSlideIndex + n);
+}
+
+function currentTestimonialSlide(n) {
+    showTestimonialSlide(n);
+}
+
+function startTestimonialSlideshow() {
+    const slides = document.querySelectorAll('.testimonial-slide');
+    if (slides.length <= 1) return; // Don't start auto-slideshow if only one slide (or no testimonials)
+
+    if (testimonialInterval) clearInterval(testimonialInterval);
+    testimonialInterval = setInterval(() => {
+        testimonialSlideIndex++;
+        showTestimonialSlide(testimonialSlideIndex);
+    }, 6000); // Change slide every 6 seconds
+}
+
+function stopTestimonialSlideshow() {
+    if (testimonialInterval) {
+        clearInterval(testimonialInterval);
+        testimonialInterval = null;
     }
 }
 </script>

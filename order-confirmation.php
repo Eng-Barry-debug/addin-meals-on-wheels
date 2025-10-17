@@ -173,6 +173,61 @@ try {
                         </div>
                     </div>
 
+                    <!-- Payment Information -->
+                    <div class="grid md:grid-cols-2 gap-8 mb-8">
+                        <div>
+                            <h3 class="text-lg font-bold text-dark mb-4 flex items-center">
+                                <i class="fas fa-credit-card mr-2 text-primary"></i>
+                                Payment Information
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center">
+                                    <i class="fas fa-wallet text-gray-400 mr-3 w-4"></i>
+                                    <span class="capitalize"><?php echo htmlspecialchars(str_replace('_', ' ', $order['payment_method'])); ?></span>
+                                </div>
+                                <?php if ($order['payment_method'] === 'mpesa'): ?>
+                                    <div class="ml-7 p-3 bg-blue-50 border-l-4 border-blue-400 rounded">
+                                        <p class="text-sm text-blue-800 font-medium mb-1">Payment Instructions:</p>
+                                        <p class="text-xs text-blue-700 mb-2">Complete your payment using M-Pesa with the details below:</p>
+                                        <div class="space-y-1 text-xs">
+                                            <p><strong>Business Number:</strong> 116519</p>
+                                            <p><strong>Account Number:</strong> 007160</p>
+                                            <p><strong>Amount:</strong> KES <?php echo number_format($order['total'], 2); ?></p>
+                                        </div>
+                                        <p class="text-xs text-blue-600 mt-2">
+                                            Go to M-Pesa → Lipa na M-Pesa → Pay Bill → Enter Business Number 116519 → Account Number 007160 → Amount KES <?php echo number_format($order['total'], 2); ?>
+                                        </p>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="text-lg font-bold text-dark mb-4 flex items-center">
+                                <i class="fas fa-info-circle mr-2 text-primary"></i>
+                                Order Status
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center">
+                                    <i class="fas fa-clock text-gray-400 mr-3 w-4"></i>
+                                    <span>Order placed on <?php echo date('M j, Y \a\t g:i A', strtotime($order['created_at'])); ?></span>
+                                </div>
+                                <div class="flex items-center">
+                                    <i class="fas fa-circle <?php
+                                        echo match($order['status']) {
+                                            'pending' => 'text-yellow-500',
+                                            'processing' => 'text-blue-500',
+                                            'confirmed' => 'text-green-500',
+                                            'delivered' => 'text-purple-500',
+                                            default => 'text-gray-500'
+                                        };
+                                    ?> mr-3 w-4"></i>
+                                    <span class="capitalize"><?php echo htmlspecialchars($order['status']); ?></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Order Items -->
                     <div class="border-t pt-6">
                         <h3 class="text-lg font-bold text-dark mb-4 flex items-center">

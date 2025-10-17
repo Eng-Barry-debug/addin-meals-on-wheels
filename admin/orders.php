@@ -37,7 +37,7 @@ if (isset($_GET['fetch_order_data']) && is_numeric($_GET['fetch_order_data'])) {
             // Convert monetary values to float to ensure correct JSON and JS handling
             $order_data['subtotal'] = (float)$order_data['subtotal'];
             $order_data['delivery_fee'] = (float)$order_data['delivery_fee'];
-            $order_data['total_amount'] = (float)$order_data['total_amount'];
+            $order_data['total'] = (float)$order_data['total'];
 
             header('Content-Type: application/json');
             echo json_encode($order_data);
@@ -96,7 +96,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Sanitize and validate inputs
         $order_id = (int)($_POST['order_id'] ?? 0);
         $status = trim($_POST['status'] ?? '');
-        $payment_status = trim($_POST['payment_status'] ?? '');
         $delivery_address = trim($_POST['delivery_address'] ?? '');
         $delivery_instructions = trim($_POST['delivery_instructions'] ?? '');
         $subtotal = (float)($_POST['subtotal'] ?? 0.0);
@@ -105,15 +104,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // $total_amount = (float)($_POST['total_amount'] ?? 0.0); // Not used directly for update query
 
         // Basic validation
-        if ($order_id <= 0 || empty($status) || empty($payment_status) || empty($delivery_address)) {
+        if ($order_id <= 0 || empty($status) || empty($delivery_address)) {
             $error_message = 'Invalid input for order update. Please fill all required fields.';
         } else {
             $calculated_total_amount = $subtotal + $delivery_fee; // Recalculate here
 
             try {
-                $stmt = $pdo->prepare("UPDATE orders SET status = ?, payment_status = ?, delivery_address = ?, delivery_instructions = ?, subtotal = ?, delivery_fee = ?, total_amount = ?, updated_at = NOW() WHERE id = ?");
+                $stmt = $pdo->prepare("UPDATE orders SET status = ?, delivery_address = ?, delivery_instructions = ?, subtotal = ?, delivery_fee = ?, total = ?, updated_at = NOW() WHERE id = ?");
                 $stmt->execute([
-                    $status, $payment_status, $delivery_address, $delivery_instructions,
+                    $status, $delivery_address, $delivery_instructions,
                     $subtotal, $delivery_fee, $calculated_total_amount, $order_id
                 ]);
                 $success_message = "Order #{$order_id} updated successfully.";
@@ -329,8 +328,8 @@ include 'includes/header.php';
 
 <!-- ============================================== HTML BEGINS HERER ============================================== -->
 
-<!-- Dashboard Header Section -->
-<div class="bg-gradient-to-br from-red-600 via-red-700 to-red-800 text-white mt-0">
+<!-- Dashboard Header -->
+<div class="bg-gradient-to-br from-primary via-primary-dark to-secondary text-white mt-0">
     <div class="container mx-auto px-6 py-8">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -760,7 +759,7 @@ include 'includes/header.php';
 <div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
     <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
         <!-- Modal Header -->
-        <div class="bg-gradient-to-r from-orange-500 to-orange-600 p-6 text-white rounded-t-2xl">
+        <div class="bg-gradient-to-r from-primary via-primary-dark to-secondary p-6 text-white rounded-t-2xl">
             <div class="flex items-center justify-between">
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
@@ -802,7 +801,7 @@ include 'includes/header.php';
 <div id="editOrderModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
         <!-- Modal Header -->
-        <div class="bg-gradient-to-r from-purple-600 to-purple-700 p-6 text-white rounded-t-2xl">
+        <div class="bg-gradient-to-r from-primary via-primary-dark to-secondary p-6 text-white rounded-t-2xl">
             <div class="flex items-center justify-between">
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-pencil-alt mr-2"></i>Edit Order <span id="editOrderNumber" class="font-mono text-purple-100 italic"></span>
@@ -872,7 +871,7 @@ include 'includes/header.php';
                     </div>
                      <div>
                         <label for="edit_total_amount" class="block text-sm font-semibold text-gray-700 mb-2">Total Amount (KES)</label>
-                        <input type="number" step="0.01" min="0" name="total_amount" id="edit_total_amount" readonly
+                        <input type="number" step="0.01" min="0" name="total" id="edit_total_amount" readonly
                                class="w-full px-4 py-3 border bg-gray-100 border-gray-300 rounded-lg cursor-not-allowed"
                                placeholder="0.00">
                         <p class="text-xs text-gray-500 mt-1">Automatically calculated</p>
@@ -902,7 +901,7 @@ include 'includes/header.php';
 <div id="addOrderModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
         <!-- Modal Header -->
-        <div class="bg-gradient-to-r from-green-600 to-green-700 p-6 text-white rounded-t-2xl">
+        <div class="bg-gradient-to-r from-primary via-primary-dark to-secondary p-6 text-white rounded-t-2xl">
             <div class="flex items-center justify-between">
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-cart-plus mr-2"></i>Add New Order
@@ -993,7 +992,7 @@ include 'includes/header.php';
                     </div>
                      <div>
                         <label for="add_total_amount" class="block text-sm font-semibold text-gray-700 mb-2">Total Amount (KES)</label>
-                        <input type="number" step="0.01" min="0" name="total_amount" id="add_total_amount" readonly
+                        <input type="number" step="0.01" min="0" name="total" id="add_total_amount" readonly
                                class="w-full px-4 py-3 border bg-gray-100 border-gray-300 rounded-lg cursor-not-allowed"
                                placeholder="0.00">
                         <p class="text-xs text-gray-500 mt-1">Automatically calculated</p>
@@ -1148,6 +1147,128 @@ function clearFilterInputs() {
     window.location.href = 'orders.php'; // Simply reload to clear all GET parameters
 }
 
+// Function to send invoice email to customer
+function sendInvoice(orderId, customerEmail) {
+    if (!customerEmail || customerEmail === '') {
+        Swal.fire('Error', 'Customer email not available for this order.', 'error');
+        return;
+    }
+
+    Swal.fire({
+        title: 'Send Invoice?',
+        text: `Are you sure you want to send an invoice email to ${customerEmail}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, send invoice!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Show loading state
+            const button = event.target.closest('button');
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin relative z-10"></i><span class="relative z-10 font-medium">Sending...</span>';
+            button.disabled = true;
+
+            // Send email via AJAX to send_email.php
+            fetch('send_email.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'action': 'send_invoice',
+                    'order_id': orderId,
+                    'customer_email': customerEmail
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Success!', 'Invoice sent successfully to customer!', 'success');
+                } else {
+                    Swal.fire('Error', 'Error sending invoice: ' + (data.message || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Email sending error:', error);
+                Swal.fire('Error', 'Error sending invoice: ' + error.message, 'error');
+            })
+            .finally(() => {
+                // Restore button state
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            });
+        }
+    });
+}
+
+// Function to send receipt email to customer
+function sendReceipt(orderId, customerEmail) {
+    if (!customerEmail || customerEmail === '') {
+        Swal.fire('Error', 'Customer email not available for this order.', 'error');
+        return;
+    }
+
+    Swal.fire({
+        title: 'Send Receipt?',
+        text: `Are you sure you want to send a receipt email to ${customerEmail}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#06b6d4',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, send receipt!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Show loading state
+            const button = event.target.closest('button');
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin relative z-10"></i><span class="relative z-10 font-medium">Sending...</span>';
+            button.disabled = true;
+
+            // Send email via AJAX to send_email.php
+            fetch('send_email.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'action': 'send_receipt',
+                    'order_id': orderId,
+                    'customer_email': customerEmail
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Success!', 'Receipt sent successfully to customer!', 'success');
+                } else {
+                    Swal.fire('Error', 'Error sending receipt: ' + (data.message || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Email sending error:', error);
+                Swal.fire('Error', 'Error sending receipt: ' + error.message, 'error');
+            })
+            .finally(() => {
+                // Restore button state
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            });
+        }
+    });
+}
+
 // Populates and displays the delete confirmation modal
 function confirmDelete(orderId, orderNumber) {
     document.getElementById('deleteOrderNumber').textContent = orderNumber;
@@ -1198,56 +1319,10 @@ function updateOrderStatus(orderId, newStatus) {
         .then(response => {
             if (!response.ok) { // Handle HTTP errors
                 // Attempt to parse JSON error message if provided
-                return response.json().then(errorData => Promise.reject(new Error(errorData.error || response.statusText)));
+                return response.json().then(errorData => Promise.reject(new Error(errorData?.error || response.statusText)));
             }
             return response.json(); // Parse the JSON response
         })
-        .then(orderData => {
-            if (orderData && orderData.id) { // Check if valid order data was returned
-                Swal.fire({
-                    title: `Change order status to ${newStatus}?`,
-                    text: `Are you sure you want to mark order #${orderData.order_number} as ${newStatus}? This will update its status.`,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Yes, update it!'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // Create a temporary hidden form to submit the update
-                        const form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = 'orders.php'; // Submit to this same page
-
-                        // Populate ALL fields that the PHP update handler expects.
-                        // It's crucial to send current values for fields not explicitly modified.
-                        const fields_to_send = [
-                            { name: 'order_id', value: orderData.id },
-                            { name: 'status', value: newStatus }, // The NEW status
-                            { name: 'payment_status', value: orderData.payment_status || 'pending' }, // Keep existing/default
-                            { name: 'delivery_address', value: orderData.delivery_address }, // Keep existing
-                            { name: 'delivery_instructions', value: orderData.delivery_instructions }, // Keep existing
-                            { name: 'subtotal', value: orderData.subtotal }, // Keep existing
-                            { name: 'delivery_fee', value: orderData.delivery_fee }, // Keep existing
-                            { name: 'total_amount', value: orderData.total_amount }, // Keep existing
-                            { name: 'update_order', value: '1' } // Trigger the update handler in PHP
-                        ];
-
-                        fields_to_send.forEach(field => {
-                            const input = document.createElement('input');
-                            input.type = 'hidden';
-                            input.name = field.name;
-                            input.value = field.value;
-                            form.appendChild(input);
-                        });
-
-                        document.body.appendChild(form); // Temporarily add form to DOM
-                        form.submit(); // Programmatically submit the form
-                    }
-                });
-            } else {
-                Swal.fire('Error', 'Could not fetch order data for status update. Order not found or invalid response.', 'error');
-            }
         })
         .catch(error => {
             console.error('Error in updateOrderStatus fetch:', error);

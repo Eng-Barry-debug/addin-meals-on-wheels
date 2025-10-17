@@ -1,279 +1,157 @@
 <?php
-session_start();
-require_once 'includes/config.php';
-require_once 'includes/Cart.php';
-
-// Set content type to JSON
+// Set content type to JSON first thing
 header('Content-Type: application/json');
 
-// Check if the request is AJAX
-$is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
-            strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
-
-// Initialize response array
-$response = [
-    'success' => false,
-    'message' => '',
-    'order_id' => null,
-    'redirect' => ''
-];
+// Start output buffering to catch any unexpected output
+ob_start();
 
 try {
+    session_start();
+    require_once 'includes/config.php';
+    require_once 'includes/functions.php';
+    
     // Check if user is logged in
     if (!isset($_SESSION['user_id'])) {
-        throw new Exception('Please log in to complete your order.');
+        throw new Exception('Please log in to place an order');
     }
-
-    // Get user ID from session
-    $user_id = $_SESSION['user_id'];
     
-    // Get cart instance
+    // Validate request method
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Invalid request method');
+    }
+    
+    // Get and validate form data
+    $required_fields = ['full_name', 'email', 'phone', 'address', 'payment_method'];
+    foreach ($required_fields as $field) {
+        if (empty($_POST[$field])) {
+            throw new Exception("Please fill in all required fields: " . implode(', ', $required_fields));
+        }
+    }
+    
+    $full_name = trim($_POST['full_name']);
+    $email = trim($_POST['email']);
+    $phone = trim($_POST['phone']);
+    $address = trim($_POST['address']);
+    $instructions = isset($_POST['instructions']) ? trim($_POST['instructions']) : '';
+    $payment_method = $_POST['payment_method'];
+    
+    // Validate email
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        throw new Exception('Please enter a valid email address');
+    }
+    
+    // Initialize cart and get items
+    require_once 'includes/Cart.php';
     $cart = new Cart($pdo);
     $cartItems = $cart->getItems();
     
-    // Check if cart is empty
     if (empty($cartItems)) {
-        throw new Exception('Your cart is empty. Please add items before checking out.');
+        throw new Exception('Your cart is empty');
     }
-
-    // Validate form data
-    $required_fields = ['full_name', 'email', 'phone', 'address'];
-    $missing_fields = [];
-    $order_data = [];
-
-    foreach ($required_fields as $field) {
-        if (empty(trim($_POST[$field] ?? ''))) {
-            $missing_fields[] = str_replace('_', ' ', ucfirst($field));
-        } else {
-            $order_data[$field] = trim($_POST[$field]);
-        }
-    }
-
-    if (!empty($missing_fields)) {
-        throw new Exception('Please fill in all required fields: ' . implode(', ', $missing_fields));
-    }
-
-    // Validate email
-    if (!filter_var($order_data['email'], FILTER_VALIDATE_EMAIL)) {
-        throw new Exception('Please enter a valid email address.');
-    }
-
-    // Get payment method
-    $payment_method = $_POST['payment_method'] ?? 'cash_on_delivery';
-    $valid_payment_methods = ['cash_on_delivery', 'mpesa'];
-    
-    if (!in_array($payment_method, $valid_payment_methods)) {
-        $payment_method = 'cash_on_delivery';
-    }
-
-    // Get delivery instructions
-    $delivery_instructions = trim($_POST['instructions'] ?? '');
     
     // Calculate totals
     $subtotal = 0;
-    $order_items = [];
-    
-    // Get menu items details
     $menuItemIds = array_column($cartItems, 'menu_item_id');
     $placeholders = rtrim(str_repeat('?,', count($menuItemIds)), ',');
-    $stmt = $pdo->prepare("SELECT * FROM menu_items WHERE id IN ($placeholders)");
+    
+    $stmt = $pdo->prepare("SELECT id, price FROM menu_items WHERE id IN ($placeholders)");
     $stmt->execute($menuItemIds);
     $menuItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Prepare order items and calculate subtotal
-    foreach ($cartItems as $item) {
+    foreach ($cartItems as $cartItem) {
         foreach ($menuItems as $menuItem) {
-            if ($menuItem['id'] == $item['menu_item_id']) {
-                $item_total = $menuItem['price'] * $item['quantity'];
-                $subtotal += $item_total;
-                
-                $order_items[] = [
-                    'menu_item_id' => $menuItem['id'],
-                    'name' => $menuItem['name'],
-                    'price' => $menuItem['price'],
-                    'quantity' => $item['quantity'],
-                    'total' => $item_total
-                ];
+            if ($menuItem['id'] == $cartItem['menu_item_id']) {
+                $subtotal += $menuItem['price'] * $cartItem['quantity'];
                 break;
             }
         }
     }
-
-    // Calculate delivery fee (free for orders over 1500)
+    
     $delivery_fee = $subtotal >= 1500 ? 0 : 200;
-    $total = $subtotal + $delivery_fee;
-
+    $grand_total = $subtotal + $delivery_fee;
+    
+    // Apply promo discount if available
+    $promo_discount = isset($_SESSION['promo_discount']) ? $_SESSION['promo_discount'] : 0;
+    $grand_total = max(0, $grand_total - $promo_discount);
+    
     // Start transaction
     $pdo->beginTransaction();
-
+    
     try {
         // Insert order
         $stmt = $pdo->prepare("
-            INSERT INTO orders (
-                user_id, 
-                order_number, 
-                customer_name, 
-                customer_email, 
-                customer_phone, 
-                delivery_address, 
-                delivery_instructions, 
-                subtotal, 
-                delivery_fee, 
-                total, 
-                payment_method, 
-                payment_status, 
-                status
-            ) VALUES (
-                :user_id, 
-                :order_number, 
-                :customer_name, 
-                :customer_email, 
-                :customer_phone, 
-                :delivery_address, 
-                :delivery_instructions, 
-                :subtotal, 
-                :delivery_fee, 
-                :total, 
-                :payment_method, 
-                :payment_status, 
-                'pending'
-            )
+            INSERT INTO orders (user_id, full_name, email, phone, address, instructions, subtotal, delivery_fee, discount, total_amount, payment_method, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
         ");
-
-        // Generate order number (format: ORD-YYYYMMDD-XXXX)
-        $order_number = 'ORD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
-        
-        // Determine initial payment status based on payment method
-        $initial_payment_status = 'pending';
-        if ($payment_method === 'mpesa') {
-            // For M-Pesa, we'll set to confirmed after successful payment processing
-            $initial_payment_status = 'confirmed';
-        } elseif ($payment_method === 'cash_on_delivery') {
-            // For cash on delivery, payment is pending until delivery and confirmation
-            $initial_payment_status = 'pending';
-        }
-        
         $stmt->execute([
-            ':user_id' => $user_id,
-            ':order_number' => $order_number,
-            ':customer_name' => $order_data['full_name'],
-            ':customer_email' => $order_data['email'],
-            ':customer_phone' => $order_data['phone'],
-            ':delivery_address' => $order_data['address'],
-            ':delivery_instructions' => $delivery_instructions,
-            ':subtotal' => $subtotal,
-            ':delivery_fee' => $delivery_fee,
-            ':total' => $total,
-            ':payment_method' => $payment_method,
-            ':payment_status' => $initial_payment_status
+            $_SESSION['user_id'],
+            $full_name,
+            $email,
+            $phone,
+            $address,
+            $instructions,
+            $subtotal,
+            $delivery_fee,
+            $promo_discount,
+            $grand_total,
+            $payment_method
         ]);
-
+        
         $order_id = $pdo->lastInsertId();
-
+        
         // Insert order items
         $stmt = $pdo->prepare("
-            INSERT INTO order_items (
-                order_id, 
-                menu_item_id, 
-                item_name, 
-                quantity, 
-                price, 
-                total
-            ) VALUES (
-                :order_id, 
-                :menu_item_id, 
-                :item_name, 
-                :quantity, 
-                :price, 
-                :total
-            )
+            INSERT INTO order_items (order_id, menu_item_id, quantity, price) 
+            VALUES (?, ?, ?, ?)
         ");
-
-        foreach ($order_items as $item) {
-            $stmt->execute([
-                ':order_id' => $order_id,
-                ':menu_item_id' => $item['menu_item_id'],
-                ':item_name' => $item['name'],
-                ':quantity' => $item['quantity'],
-                ':price' => $item['price'],
-                ':total' => $item['total']
-            ]);
-        }
-
-        // Clear the cart
-        $cart->clear();
-
-        // Commit transaction
-        $pdo->commit();
-
-        // Process payment if M-Pesa
-        if ($payment_method === 'mpesa') {
-            // TODO: Implement actual M-Pesa payment processing here
-            // For now, simulate successful payment processing
-            try {
-                // Simulate M-Pesa API call
-                // In real implementation, you would:
-                // 1. Call M-Pesa STK Push API
-                // 2. Wait for payment confirmation callback
-                // 3. Update payment status based on callback
-
-                // For demonstration, we'll assume payment is successful
-                $payment_successful = true; // This would come from M-Pesa API response
-
-                if ($payment_successful) {
-                    $stmt = $pdo->prepare("UPDATE orders SET status = 'processing', payment_status = 'confirmed' WHERE id = ?");
-                    $stmt->execute([$order_id]);
-                } else {
-                    $stmt = $pdo->prepare("UPDATE orders SET status = 'cancelled', payment_status = 'failed' WHERE id = ?");
-                    $stmt->execute([$order_id]);
-                    throw new Exception('M-Pesa payment failed. Please try again.');
+        
+        foreach ($cartItems as $cartItem) {
+            foreach ($menuItems as $menuItem) {
+                if ($menuItem['id'] == $cartItem['menu_item_id']) {
+                    $stmt->execute([
+                        $order_id,
+                        $menuItem['id'],
+                        $cartItem['quantity'],
+                        $menuItem['price']
+                    ]);
+                    break;
                 }
-            } catch (Exception $e) {
-                // If M-Pesa payment fails, cancel the order
-                $pdo->rollBack();
-                throw new Exception('Payment processing failed: ' . $e->getMessage());
             }
         }
-
-        // Set success response
-        $response = [
+        
+        // Clear cart
+        $cart->clear();
+        
+        // Clear promo discount if used
+        if (isset($_SESSION['promo_discount'])) {
+            unset($_SESSION['promo_discount']);
+        }
+        
+        // Commit transaction
+        $pdo->commit();
+        
+        // Clear any output buffer and return success
+        ob_clean();
+        echo json_encode([
             'success' => true,
-            'message' => 'Your order has been placed successfully!',
             'order_id' => $order_id,
-            'order_number' => $order_number,
-            'redirect' => 'order-confirmation.php?order_id=' . $order_id
-        ];
-
+            'message' => 'Order placed successfully'
+        ]);
+        exit;
+        
     } catch (Exception $e) {
-        // Rollback transaction on error
         $pdo->rollBack();
-        throw $e;
+        throw new Exception('Failed to create order: ' . $e->getMessage());
     }
-
-} catch (Exception $e) {
-    // Set error response
-    $response = [
-        'success' => false,
-        'message' => $e->getMessage(),
-        'order_id' => null,
-        'redirect' => ''
-    ];
     
-    // Log the error
-    error_log('Order processing error: ' . $e->getMessage());
-}
-
-// Return JSON response
-echo json_encode($response);
-
-// If this is not an AJAX request, redirect appropriately
-if (!$is_ajax) {
-    if ($response['success'] && !empty($response['redirect'])) {
-        header('Location: ' . $response['redirect']);
-    } else {
-        // Store error message in session and redirect back to checkout
-        $_SESSION['checkout_error'] = $response['message'];
-        header('Location: checkout.php');
-    }
+} catch (Exception $e) {
+    // Clear output buffer and return error
+    ob_clean();
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
     exit;
 }
+?>

@@ -204,11 +204,57 @@ switch ($action) {
                 'error' => $e->getMessage()
             ]);
         }
-        break;
+    case 'get_popular_items':
+        try {
+            // Get popular items based on multiple factors:
+            // 1. Items with most orders in the last 7 days
+            // 2. Items with highest average ratings
+            // 3. Featured items get bonus points
 
-    default:
-        echo json_encode([
-            'success' => false,
-            'error' => 'Invalid action'
-        ]);
+            $seven_days_ago = date('Y-m-d H:i:s', strtotime('-7 days'));
+
+            $stmt = $pdo->prepare("
+                SELECT
+                    m.id,
+                    m.name,
+                    m.price,
+                    m.image,
+                    m.description,
+                    COUNT(DISTINCT o.id) as order_count,
+                    AVG(r.rating) as avg_rating,
+                    (m.is_featured * 2) as featured_bonus
+                FROM menu_items m
+                LEFT JOIN orders o ON (
+                    (o.customer_id = ? OR o.customer_email LIKE ?)
+                    AND o.created_at > ?
+                    AND o.status IN ('delivered', 'completed')
+                )
+                LEFT JOIN reviews r ON m.id = r.menu_item_id AND r.status = 'approved'
+                WHERE m.status = 'active'
+                GROUP BY m.id
+                ORDER BY (
+                    (COUNT(DISTINCT o.id) * 3) +
+                    (AVG(r.rating) * 2) +
+                    (m.is_featured * 5) +
+                    featured_bonus
+                ) DESC, m.created_at DESC
+                LIMIT 6
+            ");
+
+            $user_email_pattern = $_SESSION['user_email'] ?? ($_SESSION['username'] ?? $_SESSION['user_name'] ?? 'customer') . '@%';
+            $stmt->execute([$_SESSION['user_id'], $user_email_pattern, $seven_days_ago]);
+            $popular_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode([
+                'success' => true,
+                'items' => $popular_items
+            ]);
+
+        } catch (PDOException $e) {
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+        break;
 }

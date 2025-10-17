@@ -76,12 +76,21 @@
                 <div>
                     <h3 class="text-lg font-bold mb-4 text-white border-b border-gray-600 pb-2">Newsletter</h3>
                     <p class="text-gray-300 mb-4">Subscribe to our newsletter for the latest updates and exclusive offers.</p>
-                    <form class="flex">
-                        <input type="email" placeholder="Your email address" class="px-4 py-2.5 w-full rounded-l-md focus:outline-none focus:ring-2 focus:ring-accent text-gray-800">
-                        <button type="submit" class="bg-accent text-secondary px-4 rounded-r-md hover:bg-primary hover:text-white transition-colors duration-200 flex items-center">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
+
+                    <!-- Newsletter Form -->
+                    <form id="newsletter-form" class="space-y-3">
+                        <div class="flex">
+                            <input type="email" id="newsletter-email" placeholder="Your email address"
+                                   class="px-4 py-2.5 w-full rounded-l-md focus:outline-none focus:ring-2 focus:ring-accent text-gray-800"
+                                   required>
+                            <button type="submit" id="newsletter-submit"
+                                    class="bg-accent text-secondary px-4 rounded-r-md hover:bg-primary hover:text-white transition-colors duration-200 flex items-center disabled:opacity-50">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div id="newsletter-message" class="text-sm hidden"></div>
                     </form>
+
                     <p class="text-xs text-gray-400 mt-2">We respect your privacy. Unsubscribe at any time.</p>
                 </div>
             </div>
@@ -95,5 +104,71 @@
                     <span class="text-gray-600">•</span>
                     <a href="/sitemap.php" class="text-gray-400 hover:text-accent transition-colors duration-200 text-sm">Sitemap</a>
                 </div>
-        </div>
-    </footer>
+    <!-- Newsletter Subscription JavaScript -->
+    <script>
+        document.getElementById('newsletter-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const emailInput = document.getElementById('newsletter-email');
+            const submitBtn = document.getElementById('newsletter-submit');
+            const messageDiv = document.getElementById('newsletter-message');
+
+            const email = emailInput.value.trim();
+
+            if (!email) {
+                showMessage('Please enter your email address.', 'error');
+                return;
+            }
+
+            if (!isValidEmail(email)) {
+                showMessage('Please enter a valid email address.', 'error');
+                return;
+            }
+
+            // Disable form during submission
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            try {
+                const response = await fetch('/includes/subscribe.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'email=' + encodeURIComponent(email) + '&ajax=1'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    emailInput.value = '';
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('Something went wrong. Please try again later.', 'error');
+            } finally {
+                // Re-enable form
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+            }
+        });
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('newsletter-message');
+            messageDiv.textContent = message;
+            messageDiv.className = `text-sm ${type === 'success' ? 'text-green-400' : 'text-red-400'}`;
+            messageDiv.classList.remove('hidden');
+
+            // Hide message after 5 seconds
+            setTimeout(() => {
+                messageDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+    </script>

@@ -68,7 +68,7 @@ class Cart {
         $this->cart_id = $this->db->lastInsertId();
     }
 
-    public function addItem($menu_item_id, $quantity = 1, $price = 0) {
+    public function addItem($menu_item_id, $quantity = 1, $price = 0, $replace_quantity = false) {
         // Check if item already exists in cart
         $stmt = $this->db->prepare("
             SELECT cart_item_id, quantity FROM cart_items
@@ -82,7 +82,11 @@ class Cart {
 
         if ($existing_item) {
             // Update quantity if item exists
-            $new_quantity = $existing_item['quantity'] + $quantity;
+            if ($replace_quantity) {
+                $new_quantity = $quantity; // Replace instead of adding
+            } else {
+                $new_quantity = $existing_item['quantity'] + $quantity; // Add to existing
+            }
             $stmt = $this->db->prepare("
                 UPDATE cart_items
                 SET quantity = :quantity, updated_at = NOW()

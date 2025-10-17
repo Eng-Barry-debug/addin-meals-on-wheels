@@ -69,7 +69,10 @@ include '../includes/header.php';
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-semibold text-dark">Recent Activity</h2>
-                <a href="/account/activity.php" class="text-primary hover:underline text-sm">View All</a>
+                <div class="flex space-x-4">
+                    <a href="/account/orders.php" class="text-primary hover:underline text-sm">View All Orders</a>
+                    <a href="/account/addresses.php" class="text-primary hover:underline text-sm">Manage Addresses</a>
+                </div>
             </div>
 
             <div id="recentActivity" class="space-y-4">
@@ -85,24 +88,111 @@ include '../includes/header.php';
             </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <a href="/menu.php" class="bg-white rounded-lg shadow p-4 text-center hover:shadow-md transition-shadow">
-                <div class="text-primary text-2xl mb-2"><i class="fas fa-utensils"></i></div>
-                <p class="text-sm font-medium">Order Food</p>
-            </a>
-            <a href="/account/orders.php" class="bg-white rounded-lg shadow p-4 text-center hover:shadow-md transition-shadow">
-                <div class="text-primary text-2xl mb-2"><i class="fas fa-history"></i></div>
-                <p class="text-sm font-medium">Order History</p>
-            </a>
-            <a href="/account/addresses.php" class="bg-white rounded-lg shadow p-4 text-center hover:shadow-md transition-shadow">
-                <div class="text-primary text-2xl mb-2"><i class="fas fa-map-marker-alt"></i></div>
-                <p class="text-sm font-medium">My Addresses</p>
-            </a>
-            <a href="/chat.php" class="bg-white rounded-lg shadow p-4 text-center hover:shadow-md transition-shadow">
-                <div class="text-primary text-2xl mb-2"><i class="fas fa-headset"></i></div>
-                <p class="text-sm font-medium">Support</p>
-            </a>
+        <!-- Quick Actions & Shortcuts -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Primary Actions -->
+            <div class="bg-gradient-to-br from-primary to-primary-dark rounded-xl shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Quick Order</h3>
+                    <i class="fas fa-utensils text-2xl opacity-80"></i>
+                </div>
+                <p class="text-primary-foreground/80 mb-4">Ready to order? Browse our menu and place your order in minutes.</p>
+                <a href="/menu.php" class="inline-flex items-center px-4 py-2 bg-white text-primary font-semibold rounded-lg hover:bg-gray-50 transition-colors">
+                    <i class="fas fa-arrow-right mr-2"></i>Browse Menu
+                </a>
+            </div>
+
+            <!-- Account Management -->
+            <div class="bg-gradient-to-br from-secondary to-secondary-dark rounded-xl shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Account Center</h3>
+                    <i class="fas fa-user-cog text-2xl opacity-80"></i>
+                </div>
+                <p class="text-secondary-foreground/80 mb-4">Manage your profile, addresses, and account settings.</p>
+                <div class="space-y-2">
+                    <a href="/account/addresses.php" class="block text-sm hover:underline">
+                        <i class="fas fa-map-marker-alt mr-2"></i>My Addresses
+                    </a>
+                    <a href="/account/orders.php" class="block text-sm hover:underline">
+                        <i class="fas fa-history mr-2"></i>Order History
+                    </a>
+                    <a href="/account/wishlist.php" class="block text-sm hover:underline">
+                        <i class="fas fa-heart mr-2"></i>Wishlist
+                    </a>
+                </div>
+            </div>
+
+            <!-- Support & Help -->
+            <div class="bg-gradient-to-br from-accent to-accent-dark rounded-xl shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Help & Support</h3>
+                    <i class="fas fa-headset text-2xl opacity-80"></i>
+                </div>
+                <p class="text-accent-foreground/80 mb-4">Need help? Get support or contact our team.</p>
+                <div class="space-y-2">
+                    <a href="/chat.php" class="block text-sm hover:underline">
+                        <i class="fas fa-comments mr-2"></i>Live Chat
+                    </a>
+                    <a href="/faq.php" class="block text-sm hover:underline">
+                        <i class="fas fa-question-circle mr-2"></i>FAQ
+                    </a>
+                    <a href="/contact.php" class="block text-sm hover:underline">
+                        <i class="fas fa-envelope mr-2"></i>Contact Us
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Featured & Recommendations -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Popular Items -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-fire text-orange-500 mr-2"></i>Popular This Week
+                </h3>
+                <div id="popularItemsContainer" class="space-y-3">
+                    <!-- Loading indicator -->
+                    <div id="popularItemsLoading" class="text-center py-8">
+                        <div class="inline-flex items-center">
+                            <i class="fas fa-spinner fa-spin text-primary mr-2"></i>
+                            <span class="text-gray-600">Loading popular items...</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="/menu.php" class="mt-4 inline-block text-primary hover:underline text-sm">
+                    View Full Menu →
+                </a>
+            </div>
+
+            <!-- Order Tips -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>Ordering Tips
+                </h3>
+                <div class="space-y-4 text-sm text-gray-600">
+                    <div class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mr-3 mt-0.5"></i>
+                        <div>
+                            <p class="font-medium text-gray-900">Save addresses for faster checkout</p>
+                            <p>Add your delivery addresses to skip address entry next time</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mr-3 mt-0.5"></i>
+                        <div>
+                            <p class="font-medium text-gray-900">Track your orders in real-time</p>
+                            <p>Use the order tracking page to see your delivery status</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-check-circle text-green-500 mr-3 mt-0.5"></i>
+                        <div>
+                            <p class="font-medium text-gray-900">Save favorites for quick reordering</p>
+                            <p>Add items to your wishlist for easy access later</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -145,6 +235,14 @@ async function loadDashboardData() {
             displayRecentActivity(activityData.activities);
         }
 
+        // Load popular items
+        const popularResponse = await fetch('/api/customerdashboard_api.php?action=get_popular_items');
+        const popularData = await popularResponse.json();
+
+        if (popularData.success) {
+            displayPopularItems(popularData.items);
+        }
+
     } catch (error) {
         console.error('Error loading dashboard data:', error);
     }
@@ -183,6 +281,58 @@ function displayRecentActivity(activities) {
     `).join('');
 
     container.innerHTML = activitiesHtml;
+}
+
+function displayPopularItems(items) {
+    const container = document.getElementById('popularItemsContainer');
+    const loadingIndicator = document.getElementById('popularItemsLoading');
+
+    // Remove loading indicator
+    if (loadingIndicator) {
+        loadingIndicator.remove();
+    }
+
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-chart-line text-4xl mb-4"></i>
+                <p>No popular items yet</p>
+                <p class="text-sm">Popular items will appear here once orders start coming in</p>
+            </div>
+        `;
+        return;
+    }
+
+    const itemsHtml = items.map(item => `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+             onclick="window.location.href='/menu-single.php?id=${item.id}'">
+            <div class="flex items-center">
+                <div class="w-12 h-12 ${item.image ? 'bg-gray-200' : 'bg-primary/10'} rounded-lg flex items-center justify-center mr-3 overflow-hidden">
+                    ${item.image ?
+                        `<img src="../uploads/menu/${item.image}" alt="${item.name}" class="w-full h-full object-cover">` :
+                        `<i class="fas fa-utensils text-primary"></i>`
+                    }
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-900">${item.name}</h4>
+                    <div class="flex items-center text-sm text-gray-600">
+                        ${item.avg_rating ? `
+                            <div class="flex items-center mr-3">
+                                <i class="fas fa-star text-yellow-400 text-xs mr-1"></i>
+                                <span>${parseFloat(item.avg_rating).toFixed(1)}</span>
+                            </div>
+                        ` : ''}
+                        ${item.order_count ? `
+                            <span>${item.order_count} orders</span>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            <span class="font-bold text-primary">KSh ${parseFloat(item.price).toFixed(2)}</span>
+        </div>
+    `).join('');
+
+    container.innerHTML = itemsHtml;
 }
 
 function getActivityColor(color) {

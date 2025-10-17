@@ -38,10 +38,10 @@ $wishlist_items = $wishlist->getWishlistItems();
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <?php foreach ($wishlist_items as $item): ?>
                     <div class="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                        <a href="menu-single.php?id=<?= $item['id'] ?>" class="block">
+                        <a href="../menu-single.php?id=<?= $item['id'] ?>" class="block">
                             <div class="h-48 bg-gray-100 overflow-hidden">
-                                <?php if (!empty($item['image'])): ?>
-                                    <img src="uploads/menu/<?= htmlspecialchars($item['image']) ?>" 
+                                <?php if (!empty($item['image']) && file_exists('../uploads/menu/' . $item['image'])): ?>
+                                    <img src="../uploads/menu/<?= htmlspecialchars($item['image']) ?>"
                                          alt="<?= htmlspecialchars($item['name']) ?>"
                                          class="w-full h-full object-cover">
                                 <?php else: ?>

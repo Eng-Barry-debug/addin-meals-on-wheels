@@ -57,15 +57,15 @@ include 'includes/header.php';
 ?>
 
 <!-- Dashboard Header -->
-<div class="bg-gradient-to-br from-red-600 via-red-700 to-red-800 text-white">
+<div class="bg-gradient-to-br from-primary via-primary-dark to-secondary text-white">
     <div class="container mx-auto px-6 py-8">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <nav class="flex items-center space-x-2 text-sm mb-4">
-                    <a href="orders.php" class="hover:text-red-200 transition-colors">
+                    <a href="orders.php" class="hover:text-primary transition-colors">
                         <i class="fas fa-arrow-left mr-1"></i> Back to Orders
                     </a>
-                    <span class="text-red-200">/</span>
+                    <span class="text-primary">/</span>
                     <span>Order #<?= htmlspecialchars($order['order_number']) ?></span>
                 </nav>
                 <h1 class="text-3xl md:text-4xl font-bold mb-2">Order Details</h1>
@@ -73,7 +73,7 @@ include 'includes/header.php';
             </div>
             <div class="mt-4 lg:mt-0 flex space-x-3">
                 <a href="order_edit.php?id=<?= $order['id'] ?>"
-                   class="bg-white text-red-600 hover:bg-gray-100 px-6 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center shadow-lg">
+                   class="bg-white text-primary hover:bg-gray-100 px-6 py-3 rounded-lg font-semibold transition-colors duration-200 flex items-center shadow-lg">
                     <i class="fas fa-edit mr-2"></i>
                     Edit Order
                 </a>
@@ -433,8 +433,8 @@ include 'includes/header.php';
 <div id="deleteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
     <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
         <div class="mt-3 text-center">
-            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 mb-4">
+                <i class="fas fa-exclamation-triangle text-orange-600 text-xl"></i>
             </div>
             <h3 class="text-lg font-medium text-gray-900 mb-2">Delete Order</h3>
             <div class="mt-2 px-7 py-3">
@@ -444,7 +444,7 @@ include 'includes/header.php';
                 </p>
             </div>
             <div class="items-center px-4 py-3 flex justify-center space-x-3">
-                <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300">
+                <button id="confirmDeleteBtn" class="px-4 py-2 bg-primary text-white text-base font-medium rounded-md shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary">
                     Delete Order
                 </button>
                 <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-300 text-gray-700 text-base font-medium rounded-md shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300">
@@ -879,7 +879,7 @@ document.getElementById('deleteModal').addEventListener('click', function(e) {
     }
 
     .bg-gradient-to-br {
-        background: #dc2626 !important;
+        background: linear-gradient(135deg, #fc7703 0%, #D4AF37 100%) !important;
         -webkit-print-color-adjust: exact;
     }
 }

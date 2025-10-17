@@ -10,7 +10,6 @@ date_default_timezone_set('Africa/Nairobi');
 /*
  * IMPORTANT: config.php MUST be included BEFORE header.php.
  * It's usually included by the main script (e.g., dashboard.php, ambassador.php)
- * before it includes the header. This ensures $pdo is ready.
  *
  * If you encounter errors like "Undefined variable $pdo", it means the main script
  * did not include config.php or included it AFTER header.php.
@@ -21,6 +20,9 @@ date_default_timezone_set('Africa/Nairobi');
 if (!isset($pdo) || !$pdo instanceof PDO) { // Only include if $pdo is not already a valid PDO object
     require_once dirname(__DIR__, 2) . '/includes/config.php';
 }
+
+// Include activity read manager
+require_once '../includes/activity_read_manager.php';
 
 // Ensure $pdo is global within this scope so functions like getCount can access it
 global $pdo;
@@ -66,7 +68,7 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role
 if (file_exists(dirname(__DIR__) . '/functions.php')) { // Check 'admin/functions.php'
     require_once dirname(__DIR__) . '/functions.php';
 } elseif (file_exists(dirname(__DIR__, 2) . '/includes/functions.php')) { // Check project_root/includes/functions.php
-     require_once dirname(__DIR__, 2) . '/includes/functions.php';
+      require_once dirname(__DIR__, 2) . '/includes/functions.php';
 } else {
     // Fallback if 'getCount' is critical and functions.php is not found
     if (!function_exists('getCount')) {
@@ -77,52 +79,68 @@ if (file_exists(dirname(__DIR__) . '/functions.php')) { // Check 'admin/function
             if (!empty($where_clause)) {
                 $sql .= " WHERE " . $where_clause;
             }
-            $stmt = $pdo->query($sql);
+            // Use prepared statement for safer query execution
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute();
             return $stmt->fetchColumn();
+        }
+    }
+
+    // Fallback for time_elapsed_string if functions.php was not included
+    if (!function_exists('time_elapsed_string')) {
+        function time_elapsed_string($datetime, $full = false) {
+            $now = new DateTime;
+            $ago = new DateTime($datetime);
+            $diff = $now->diff($ago);
+
+            $diff->w = floor($diff->d / 7);
+            $diff->d -= $diff->w * 7;
+
+            $string = array(
+                'y' => 'year',
+                'm' => 'month',
+                'w' => 'week',
+                'd' => 'day',
+                'h' => 'hour',
+                'i' => 'minute',
+                's' => 'second',
+            );
+            foreach ($string as $k => &$v) {
+                if ($diff->$k) {
+                    $v = $diff->$k . ' ' . $v . ($diff->$k > 1 ? 's' : '');
+                } else {
+                    unset($string[$k]);
+                }
+            }
+
+            if (!$full) $string = array_slice($string, 0, 1);
+            return $string ? implode(', ', $string) . ' ago' : 'just now';
         }
     }
 }
 
 
-// --- MODIFIED NOTIFICATION LOGIC START ---
+// --- ACTIVITY LOGS NOTIFICATION SYSTEM START ---
 
-// Get UNREAD notification count
+// Get UNREAD notification count using activity read manager
 try {
     global $pdo;
-    $notificationStmt = $pdo->prepare("
-        SELECT COUNT(*) as count
-        FROM activity_logs
-        WHERE is_read = 0 AND user_id != ? -- Exclude current user's own activities, but only unread ones
-    ");
-    $notificationStmt->execute([$_SESSION['user_id'] ?? 0]);
-    $notificationCount = $notificationStmt->fetch(PDO::FETCH_ASSOC)['count'];
-} catch (PDOException $e) {
+    $notificationCount = getUnreadActivityCount($_SESSION['user_id'] ?? 0);
+} catch (Exception $e) {
     error_log("Unread notification count error: " . $e->getMessage());
     $notificationCount = 0;
 }
 
-// Get recent notifications for dropdown (can still be time-based OR unread-based)
-// For the dropdown, it's often useful to see recent activity, even if read.
-// If you want ONLY unread here, change `WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)`
-// to `WHERE is_read = 0` AND maybe order by created_at DESC.
-// For now, I'll keep it time-based for context, but allow marking as read.
+// Get recent UNREAD activities for dropdown (last 24 hours, excluding current user)
 try {
     global $pdo;
-    $recentNotificationsStmt = $pdo->prepare("
-        SELECT al.*, u.name as user_name, al.is_read
-        FROM activity_logs al
-        LEFT JOIN users u ON al.user_id = u.id
-        WHERE al.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) -- Still showing recent activities
-        ORDER BY al.created_at DESC
-        LIMIT 10
-    ");
-    $recentNotificationsStmt->execute();
-    $recentNotifications = $recentNotificationsStmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
+    $recentNotifications = getUnreadActivities($_SESSION['user_id'] ?? 0, 10);
+} catch (Exception $e) {
     error_log("Recent notifications error: " . $e->getMessage());
     $recentNotifications = [];
 }
-// --- MODIFIED NOTIFICATION LOGIC END ---
+
+// --- ACTIVITY LOGS NOTIFICATION SYSTEM END ---
 
 
 // Get system status for header indicators
@@ -189,7 +207,7 @@ switch($currentPage) {
             ['name' => 'Ambassador Management', 'url' => 'ambassador.php', 'current' => true]
         ];
         break;
-     // Add cases for other admin pages as needed
+      // Add cases for other admin pages as needed
     default:
         $breadcrumbs = [
             ['name' => 'Dashboard', 'url' => 'dashboard.php', 'current' => false],
@@ -206,13 +224,18 @@ switch($currentPage) {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" xintegrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
         [x-cloak] { display: none !important; }
         body {
             margin: 0;
             padding: 0;
+        }
+
+        /* Prevent scrolling when sidebar is open on mobile */
+        body.noscroll {
+            overflow: hidden;
         }
 
         /* Sidebar styling */
@@ -224,7 +247,7 @@ switch($currentPage) {
             top: 0;
             z-index: 20; /* Ensure it's above content */
             transition: transform 0.3s ease-in-out;
-             /* Default for desktop */
+            /* Default for desktop */
             transform: translateX(0);
         }
 
@@ -409,12 +432,12 @@ switch($currentPage) {
 
         .breadcrumb-item:not(.current):hover {
             transform: translateY(-1px);
-            color: #C1272D;
+            color: #fc7703; /* Use primary color */
         }
 
         /* Search suggestions dropdown */
         .search-suggestions {
-            animation: fadeInScale 0.2s ease-out;
+            animation: dropdownFade 0.2s ease-out; /* Reusing dropdownFade for search */
             transform-origin: top center;
             z-index: 60;
         }
@@ -439,7 +462,7 @@ switch($currentPage) {
 
         /* Advanced dropdown animations */
         .advanced-dropdown {
-            animation: fadeInScale 0.15s ease-out;
+            animation: dropdownFade 0.15s ease-out;
             transform-origin: top right;
             z-index: 60;
         }
@@ -456,7 +479,7 @@ switch($currentPage) {
             z-index: 60 !important;
         }
 
-        /* ===== THEME SYSTEM ===== */
+        /* ===== THEME SYSTEM (Adjusted to use CSS variables throughout) ===== */
         :root {
             --bg-primary: #ffffff;
             --bg-secondary: #f8fafc;
@@ -469,6 +492,7 @@ switch($currentPage) {
             --card-bg: #ffffff;
             --input-bg: #ffffff;
             --sidebar-bg: #ffffff;
+            --primary-color: #fc7703;
         }
 
         /* Dark theme variables */
@@ -484,6 +508,7 @@ switch($currentPage) {
             --card-bg: #1e293b;
             --input-bg: #334155;
             --sidebar-bg: #1e293b;
+            --primary-color: #ff9239; /* Slightly lighter primary for dark mode visibility */
         }
 
         /* Apply theme variables to elements */
@@ -524,6 +549,16 @@ switch($currentPage) {
         .text-gray-500 {
             color: var(--text-muted) !important;
         }
+        
+        /* Direct use of primary color in Tailwind classes (requires JS config) or CSS */
+        .text-primary {
+            color: var(--primary-color) !important;
+        }
+        
+        .bg-primary {
+            background-color: var(--primary-color) !important;
+        }
+
 
         .border-gray-200 {
             border-color: var(--border-color) !important;
@@ -564,9 +599,38 @@ switch($currentPage) {
             transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
 
-        /* Alpine.js dropdown visibility (simplified) */
-        /* Removed explicit display: none for specific dropdowns.
-           Alpine's x-cloak and x-show handle this without conflict. */
+        /* Hamburger Icon Animation */
+        .hamburger-icon {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            z-index: 60;
+        }
+
+        .hamburger-icon span {
+            display: block;
+            width: 100%;
+            height: 2px;
+            background: currentColor;
+            border-radius: 9999px;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .hamburger-icon.open span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .hamburger-icon.open span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger-icon.open span:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -5px);
+        }
+
     </style>
     <script>
         // Moved confirmDelete function from <style> to <script>
@@ -578,7 +642,7 @@ switch($currentPage) {
                 text: `You are about to delete ${itemName}. This action cannot be undone!`,
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#C1272D', // This corresponds to 'primary' in tailwind.config
+                confirmButtonColor: '#fc7703', // This corresponds to 'primary' in tailwind.config
                 cancelButtonColor: '#6B7280',
                 confirmButtonText: 'Yes, delete it!'
             }).then((result) => {
@@ -665,48 +729,122 @@ switch($currentPage) {
             });
         }
 
+        // Notification management functions
+        function markActivityAsRead(activityId) {
+            // Make AJAX call to mark activity as read
+            fetch('../includes/mark_activity_read.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'activity_id=' + activityId
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove the notification from the dropdown
+                    const notificationElement = event.target.closest('.block');
+                    if (notificationElement) {
+                        notificationElement.remove();
+
+                        // Update notification count in UI
+                        const badge = document.querySelector('.notification-badge');
+                        if (badge) {
+                            const currentCount = parseInt(badge.textContent);
+                            if (currentCount > 1) {
+                                badge.textContent = currentCount - 1;
+                            } else {
+                                badge.remove();
+                            }
+                        }
+
+                        // Update the header count text
+                        const countElement = document.querySelector('.text-lg.font-semibold');
+                        if (countElement) {
+                            const currentText = countElement.textContent;
+                            const match = currentText.match(/\((\d+) Unread\)/);
+                            if (match) {
+                                const currentCount = parseInt(match[1]);
+                                if (currentCount > 1) {
+                                    countElement.textContent = currentText.replace(/\((\d+) Unread\)/, `(${currentCount - 1} Unread)`);
+                                } else {
+                                    countElement.textContent = 'Notifications (0 Unread)';
+                                }
+                            }
+                        }
+
+                        // Show success message
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'Marked as read',
+                            showConfirmButton: false,
+                            timer: 2000,
+                            timerProgressBar: true
+                        });
+                    }
+                } else {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'error',
+                        title: 'Error marking as read',
+                        showConfirmButton: false,
+                        timer: 2000,
+                        timerProgressBar: true
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error marking activity as read:', error);
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'error',
+                    title: 'Error marking as read',
+                    showConfirmButton: false,
+                    timer: 2000,
+                    timerProgressBar: true
+                });
+            });
+        }
+
         // Initialize theme on page load
         document.addEventListener('DOMContentLoaded', function() {
             // Ensure Alpine.store 'theme' is defined before trying to access it
-            if (typeof Alpine !== 'undefined' && !Alpine.store('theme')) {
-                Alpine.store('theme', localStorage.getItem('admin_theme') || 'light');
+            if (typeof Alpine !== 'undefined') {
+                if (!Alpine.store('theme')) {
+                    Alpine.store('theme', localStorage.getItem('admin_theme') || 'light');
+                }
             }
+
 
             const savedTheme = localStorage.getItem('admin_theme') || 'light';
             setTheme(savedTheme); // Initialize theme without showing notification
         });
     </script>
 </head>
-<body class="bg-gray-100" x-data="{ sidebarOpen: window.innerWidth >= 1024 }" @resize.window="sidebarOpen = window.innerWidth >= 1024">
-    <!-- Mobile sidebar backdrop -->
-    <div x-show="sidebarOpen && window.innerWidth < 1024"
-         @click="sidebarOpen = false"
-         class="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
+<body class="bg-gray-100" x-data="{ sidebarOpen: false }" :class="sidebarOpen ? 'noscroll' : ''">
+    <!-- Sidebar component -->
+    <aside class="sidebar bg-gray-800 text-white shadow-lg lg:z-10"
+           :class="{ 'open': sidebarOpen }"
+           x-bind:aria-expanded="sidebarOpen ? 'true' : 'false'">
+        <?php include 'sidebar.php'; // Include your actual sidebar content here ?>
+    </aside>
+
+    <!-- Sidebar Backdrop for mobile -->
+    <div x-show="sidebarOpen"
          x-transition:enter="transition-opacity ease-linear duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
          x-transition:leave="transition-opacity ease-linear duration-300"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
+         class="sidebar-backdrop lg:hidden"
+         @click="sidebarOpen = false"
          x-cloak>
     </div>
-
-    <!-- Sidebar component -->
-    <aside
-        class="sidebar bg-gray-800 text-white shadow-lg lg:z-10"
-        :class="{ 'open': sidebarOpen }"
-        x-cloak
-        x-show="sidebarOpen || window.innerWidth >= 1024"
-        {{-- X-transition ensures smooth slide in/out --}}
-        x-transition:enter="transition ease-out duration-300"
-        x-transition:enter-start="-translate-x-full"
-        x-transition:enter-end="translate-x-0"
-        x-transition:leave="transition ease-in duration-300"
-        x-transition:leave-start="translate-x-0"
-        x-transition:leave-end="-translate-x-full"
-    >
-        <?php include 'sidebar.php'; // Include your actual sidebar content here ?>
-    </aside>
 
     <!-- Main Content -->
     <div class="main-content">
@@ -714,17 +852,23 @@ switch($currentPage) {
         <header class="bg-dark shadow-sm header border-b border-gray-200 header-container">
             <div class="max-w-full px-4 py-3 sm:px-6 lg:px-8">
                 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-                    <!-- Top Row: Breadcrumbs and Mobile Menu Toggle -->
-                    <div class="flex items-center justify-between">
-                        <!-- Left side - Breadcrumbs and Mobile menu -->
+                    <!-- Top Row: Mobile Hamburger, Breadcrumbs and Page Title -->
+                    <div class="flex items-center justify-between w-full lg:w-auto">
+                        <!-- Mobile Hamburger Button -->
+                        <button type="button" class="lg:hidden p-2 rounded-md text-gray-700 hover:text-primary hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                                @click="sidebarOpen = !sidebarOpen"
+                                aria-controls="main-sidebar"
+                                :aria-expanded="sidebarOpen ? 'true' : 'false'">
+                            <span class="sr-only">Open main menu</span>
+                            <div class="hamburger-icon" :class="{ 'open': sidebarOpen }">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </button>
+                        
+                        <!-- Left side - Breadcrumbs / Mobile Page Title -->
                         <div class="flex items-center space-x-4">
-                            <button @click="sidebarOpen = !sidebarOpen"
-                                    title="Open navigation menu"
-                                    aria-label="Open navigation menu"
-                                    class="header-button text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 lg:hidden transition-all duration-200">
-                                <i class="fas fa-bars text-xl" aria-hidden="true"></i>
-                            </button>
-
                             <!-- Breadcrumb Navigation -->
                             <nav class="hidden sm:flex items-center space-x-2 text-sm">
                                 <?php foreach ($breadcrumbs as $index => $breadcrumb): ?>
@@ -742,30 +886,30 @@ switch($currentPage) {
                                 <?php endforeach; ?>
                             </nav>
 
-                            <!-- Mobile page title -->
-                            <div class="sm:hidden">
-                                <h1 class="text-lg font-semibold text-gray-900"><?php echo htmlspecialchars($page_title); ?></h1>
+                            <!-- Mobile page title (aligns right when hamburger present) -->
+                            <div class="sm:hidden" :class="sidebarOpen ? 'hidden' : 'block'">
+                                <h1 class="text-lg font-semibold text-gray-900 dark:text-white"><?php echo htmlspecialchars($page_title); ?></h1>
                             </div>
                         </div>
 
                         <!-- Quick Actions Bar (hidden on small screens, shown for larger) -->
                         <div class="hidden lg:flex items-center space-x-2">
                             <?php if ($currentPage === 'dashboard'): // Show specific actions on dashboard ?>
-                                <a href="orders.php" title="Create a new customer order" class="quick-action-btn bg-primary hover:bg-primary-dark text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
+                                <a href="orders.php" title="Create a new customer order" class="quick-action-btn bg-primary hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
                                     <i class="fas fa-plus text-xs"></i>
                                     <span>Create New Order</span>
                                 </a>
-                                <a href="customers.php" title="Add a new customer to the system" class="quick-action-btn bg-secondary hover:bg-secondary-dark text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
+                                <a href="customers.php" title="Add a new customer to the system" class="quick-action-btn bg-secondary hover:bg-yellow-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
                                     <i class="fas fa-user-plus text-xs"></i>
                                     <span>Add New Customer</span>
                                 </a>
                             <?php elseif ($currentPage === 'orders'): ?>
-                                <a href="order_add.php" title="Create a new order for a customer" class="quick-action-btn bg-primary hover:bg-primary-dark text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
+                                <a href="order_add.php" title="Create a new order for a customer" class="quick-action-btn bg-primary hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
                                     <i class="fas fa-plus text-xs"></i>
                                     <span>Add Order</span>
                                 </a>
                             <?php elseif ($currentPage === 'customers' || $currentPage === 'users'): ?>
-                                <a href="user_add.php" title="Register a new customer account" class="quick-action-btn bg-primary hover:bg-primary-dark text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
+                                <a href="user_add.php" title="Register a new customer account" class="quick-action-btn bg-primary hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2">
                                     <i class="fas fa-plus text-xs"></i>
                                     <span>Add New Customer</span>
                                 </a>
@@ -774,315 +918,196 @@ switch($currentPage) {
                     </div>
 
                     <!-- Bottom Row: Search, Status, Notifications, Profile -->
-                    <div class="flex items-center justify-between lg:justify-end space-x-3">
-                        <!-- System Status Indicators -->
+                    <div class="flex items-center justify-between lg:justify-end space-x-3 w-full lg:w-auto">
+                        <!-- Search Bar -->
+                        <div x-data="{ searchOpen: false, searchTerm: '' }" class="relative hidden sm:block">
+                            <input type="text"
+                                   x-model="searchTerm"
+                                   @focus="searchOpen = true"
+                                   @click.away="searchOpen = false"
+                                   placeholder="Search customers, orders, menu..."
+                                   class="w-full lg:w-64 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary transition duration-150 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            >
+                            <i class="fas fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+
+                            <!-- Search Suggestions Dropdown -->
+                            <div x-show="searchOpen && searchTerm.length > 2"
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="opacity-0 scale-95"
+                                 x-transition:enter-end="opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="opacity-100 scale-100"
+                                 x-transition:leave-end="opacity-0 scale-95"
+                                 class="search-suggestions absolute mt-2 w-full lg:w-80 bg-white glass-effect rounded-lg shadow-xl border border-gray-200 dark:bg-gray-800 dark:border-gray-700"
+                                 x-cloak
+                            >
+                                <div class="p-2 text-sm text-gray-700 dark:text-gray-200">
+                                    <p class="text-xs text-gray-500 p-2 border-b border-gray-100 dark:border-gray-600">Quick Actions</p>
+                                    <a href="order_add.php" @click="searchOpen = false" class="block p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                        <i class="fas fa-plus text-primary mr-2"></i> New Order
+                                    </a>
+                                    <a href="customers.php" @click="searchOpen = false" class="block p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                        <i class="fas fa-users text-accent mr-2"></i> All Customers
+                                    </a>
+                                    <!-- Add more search suggestions here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Status Indicators (Visible on large screens) -->
                         <div class="hidden lg:flex items-center space-x-3">
                             <!-- Database Status -->
-                            <div class="flex items-center space-x-2 px-3 py-2 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-2 px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                 <div class="w-2 h-2 rounded-full <?php echo $systemStatus['database'] ? 'bg-green-400' : 'bg-red-400'; ?> status-indicator <?php echo $systemStatus['database'] ? 'success' : ''; ?>"></div>
-                                <span class="text-xs font-medium text-gray-600">DB</span>
+                                <span class="text-xs font-medium text-gray-600 dark:text-gray-400">DB</span>
                             </div>
 
                             <!-- Orders Today -->
-                            <div class="flex items-center space-x-2 px-3 py-2 bg-blue-50 rounded-lg">
-                                <i class="fas fa-shopping-cart text-blue-500 text-sm"></i>
-                                <span class="text-xs font-medium text-blue-700"><?php echo $systemStatus['orders_today']; ?></span>
+                            <div class="flex items-center space-x-2 px-3 py-2 bg-blue-50 dark:bg-blue-900 rounded-lg">
+                                <i class="fas fa-check-circle text-blue-500 text-sm"></i>
+                                <span class="text-xs font-medium text-blue-700 dark:text-blue-300" title="Orders Completed Today"><?php echo $systemStatus['orders_today']; ?></span>
                             </div>
 
                             <!-- Pending Orders -->
-                            <div class="flex items-center space-x-2 px-3 py-2 bg-yellow-50 rounded-lg">
-                                <i class="fas fa-clock text-yellow-500 text-sm"></i>
-                                <span class="text-xs font-medium text-yellow-700"><?php echo $systemStatus['pending_orders']; ?></span>
-                            </div>
-                        </div>
-
-                        <!-- Theme Toggle (now a simple toggle button) -->
-                        <div class="relative" x-data="{ themeOpen: false }" x-init="setTheme(localStorage.getItem('admin_theme') || 'light');">
-                            <button @click="toggleTheme()"
-                                    title="Switch between light and dark theme"
-                                    aria-label="Toggle between light and dark theme modes"
-                                    :class="$store.theme === 'dark' ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'"
-                                    class="theme-toggle header-button focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 transition-all duration-300 relative">
-                                <div class="relative">
-                                    <div class="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold shadow-lg ring-2 ring-white">
-                                        <i class="fas text-lg" :class="$store.theme === 'dark' ? 'fa-sun' : 'fa-moon'" aria-hidden="true"></i>
-                                    </div>
-                                    <div :class="$store.theme === 'dark' ? 'bg-yellow-400' : 'bg-gray-300'" class="absolute -inset-1 rounded-full opacity-20 transition-all duration-300"></div>
-                                </div>
-                            </button>
-                        </div>
-
-                        <!-- Customer Support Dropdown -->
-                        <div class="relative" x-data="{ chatOpen: false }" x-init="chatOpen = false">
-                            <button @click="chatOpen = !chatOpen"
-                               title="Access customer support chat"
-                               aria-label="Open customer support chat"
-                               class="header-button text-gray-600 hover:text-primary hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 transition-all duration-200 relative">
-                                <div class="h-10 w-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-semibold shadow-lg ring-2 ring-white">
-                                    <i class="fas fa-headset text-lg" aria-hidden="true"></i>
-                                </div>
-                                <span class="absolute -top-1 -right-1 w-3 h-3 bg-green-400 border-2 border-white rounded-full animate-pulse" title="Chat support available"></span>
-                            </button>
-
-                            <!-- Chat Status Tooltip -->
-                            <div x-show="chatOpen"
-                                 @click.away="chatOpen = false"
-                                 x-transition:enter="transition ease-out duration-100"
-                                 x-transition:enter-start="transform opacity-0 scale-95"
-                                 x-transition:enter-end="transform opacity-100 scale-100"
-                                 x-transition:leave="transition ease-in duration-75"
-                                 x-transition:leave-start="transform opacity-100 scale-100"
-                                 x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 border border-gray-200 p-3 chat-dropdown" x-cloak>
-                                <div class="flex items-center space-x-2 mb-2">
-                                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                        <i class="fas fa-headset text-green-600 text-sm"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">Customer Support</h4>
-                                        <p class="text-xs text-green-600">● Online</p>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-gray-600 mb-3">Get instant help from our support team</p>
-                                <a href="../chat.php" class="w-full bg-primary text-white text-sm font-medium py-2 px-3 rounded-lg hover:bg-primary-dark transition-colors text-center block">
-                                    Start Chat
-                                </a>
+                            <div class="flex items-center space-x-2 px-3 py-2 bg-red-50 dark:bg-red-900 rounded-lg">
+                                <i class="fas fa-exclamation-triangle text-red-500 text-sm"></i>
+                                <span class="text-xs font-medium text-red-700 dark:text-red-300" title="Orders Pending"><?php echo $systemStatus['pending_orders']; ?></span>
                             </div>
                         </div>
 
                         <!-- Notifications Dropdown -->
-                        <div class="relative" x-data="{ notificationOpen: false }" x-init="notificationOpen = false">
+                        <div x-data="{ notificationOpen: false }" class="relative">
                             <button @click="notificationOpen = !notificationOpen"
-                                    title="View notifications and activity logs"
-                                    aria-label="View notifications and activity logs"
-                                    class="header-button text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 relative transition-all duration-200">
-                                <div class="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold shadow-lg ring-2 ring-white">
-                                    <i class="far fa-bell text-lg" aria-hidden="true"></i>
-                                </div>
+                                    title="View notifications"
+                                    aria-label="View notifications"
+                                    class="header-button relative text-gray-600 hover:text-primary hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 transition-all duration-200">
+                                <i class="fas fa-bell text-xl"></i>
                                 <?php if ($notificationCount > 0): ?>
-                                    <span title="<?php echo $notificationCount; ?> new notifications" class="notification-badge absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium animate-pulse">
-                                        <?php echo min($notificationCount, 99); ?>
+                                    <span class="notification-badge absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+                                        <?php echo $notificationCount > 9 ? '9+' : $notificationCount; ?>
                                     </span>
                                 <?php endif; ?>
                             </button>
 
-                            <!-- Enhanced Notifications Dropdown -->
-                            <div x-show="notificationOpen"
-                                 @click.away="notificationOpen = false"
+                            <!-- Notification Dropdown Menu -->
+                            <div x-show="notificationOpen" @click.away="notificationOpen = false"
                                  x-transition:enter="transition ease-out duration-100"
-                                 x-transition:enter-start="transform opacity-0 scale-95"
-                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:enter-start="opacity-0 scale-95"
+                                 x-transition:enter-end="opacity-100 scale-100"
                                  x-transition:leave="transition ease-in duration-75"
-                                 x-transition:leave-start="transform opacity-100 scale-100"
-                                 x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl z-50 border border-gray-200 advanced-dropdown notification-dropdown" x-cloak>
-
-                                <!-- Header with Summary -->
-                                <div class="p-4 border-b border-gray-200 bg-gradient-to-r from-primary/5 to-secondary/5">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                                            <i class="far fa-bell mr-2 text-primary"></i>
-                                            Notifications
-                                        </h3>
-                                        <div class="flex items-center space-x-2">
-                                            <span title="New notifications in the last 24 hours" class="px-3 py-1 text-xs font-medium rounded-full bg-primary text-white">
-                                                <?php echo $notificationCount; ?> new
-                                            </span>
-                                            <button title="Mark all as read" class="text-gray-400 hover:text-primary transition-colors">
-                                                <i class="fas fa-check-double text-sm"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center justify-between text-sm text-gray-600">
-                                        <span>Activity summary for today</span>
-                                        <span class="font-medium"><?php echo date('M j, Y'); ?></span>
-                                    </div>
+                                 x-transition:leave-start="opacity-100 scale-100"
+                                 x-transition:leave-end="opacity-0 scale-95"
+                                 class="advanced-dropdown absolute right-0 mt-2 w-80 bg-white glass-effect rounded-lg shadow-xl border border-gray-200 dark:bg-gray-800 dark:border-gray-700"
+                                 x-cloak>
+                                <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Notifications (<?php echo $notificationCount; ?> Unread)</h3>
                                 </div>
-
-                                <?php if (!empty($recentNotifications)): ?>
-                                    <div class="max-h-80 overflow-y-auto">
-                                        <?php
-                                        $groupedNotifications = [];
-                                        foreach ($recentNotifications as $notification) {
-                                            $type = $notification['activity_type'] ?? 'general';
-                                            if (!isset($groupedNotifications[$type])) {
-                                                $groupedNotifications[$type] = [];
-                                            }
-                                            $groupedNotifications[$type][] = $notification;
-                                        }
-                                        ?>
-
-                                        <?php foreach ($groupedNotifications as $type => $notifications): ?>
-                                            <?php
-                                            $typeIcon = $activityLogger->getActivityIcon($type, 'general');
-                                            $typeColor = $activityLogger->getActivityColor($type);
-                                            $typeLabel = ucfirst(str_replace('_', ' ', $type));
-                                            ?>
-                                            <!-- Notification Type Section -->
-                                            <div class="p-3 bg-gray-50 border-b border-gray-100">
-                                                <div class="flex items-center space-x-2 mb-2">
-                                                    <div class="w-6 h-6 bg-<?php echo $typeColor; ?>-100 rounded-full flex items-center justify-center">
-                                                        <i class="<?php echo $typeIcon; ?> text-<?php echo $typeColor; ?>-600 text-xs"></i>
-                                                    </div>
-                                                    <h4 class="text-sm font-medium text-gray-900"><?php echo $typeLabel; ?></h4>
-                                                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-<?php echo $typeColor; ?>-100 text-<?php echo $typeColor; ?>-700">
-                                                        <?php echo count($notifications); ?>
-                                                    </span>
-                                                </div>
-
-                                                <?php foreach ($notifications as $notification): ?>
-                                                    <div class="ml-8 mb-2 p-3 bg-white rounded-lg border border-gray-100 hover:shadow-sm transition-all duration-200">
-                                                        <div class="flex items-start justify-between">
-                                                            <div class="flex-1">
-                                                                <p class="text-sm font-medium text-gray-900 leading-relaxed">
-                                                                    <?php echo htmlspecialchars($notification['description']); ?>
-                                                                </p>
-                                                                <div class="flex items-center mt-2 space-x-3 text-xs text-gray-500">
-                                                                    <span class="flex items-center">
-                                                                        <i class="fas fa-clock mr-1"></i>
-                                                                        <?php echo date('M j, g:i A', strtotime($notification['created_at'])); ?>
-                                                                    </span>
-                                                                    <?php if (isset($notification['user_name'])): ?>
-                                                                        <span class="flex items-center">
-                                                                            <i class="fas fa-user mr-1"></i>
-                                                                            <?php echo htmlspecialchars($notification['user_name']); ?>
-                                                                        </span>
-                                                                    <?php endif; ?>
-                                                                </div>
-                                                            </div>
-                                                            <div class="ml-2">
-                                                                <button title="Mark as read" class="w-6 h-6 rounded-full bg-gray-100 hover:bg-primary hover:text-white flex items-center justify-center transition-colors">
-                                                                    <i class="fas fa-check text-xs"></i>
-                                                                </button>
-                                                            </div>
+                                <div class="max-h-80 overflow-y-auto">
+                                    <?php if (!empty($recentNotifications)): ?>
+                                        <?php foreach ($recentNotifications as $notification): ?>
+                                            <div class="block p-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-800 transition duration-150">
+                                                <div class="flex items-start justify-between">
+                                                    <div class="flex items-start flex-1">
+                                                        <i class="fas fa-circle text-xs mt-1 mr-3 text-primary"></i>
+                                                        <div class="flex-1">
+                                                            <p class="text-sm text-gray-900 dark:text-white">
+                                                                <?php echo htmlspecialchars($notification['description']); ?>
+                                                            </p>
+                                                            <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                                                <?php echo htmlspecialchars($notification['user_name'] ?? 'System'); ?> • <?php echo ucfirst($notification['activity_type']); ?>
+                                                            </p>
+                                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                                <?php
+                                                                if (function_exists('time_elapsed_string')) {
+                                                                    echo time_elapsed_string($notification['created_at']);
+                                                                } else {
+                                                                    echo date('M d, H:i', strtotime($notification['created_at']));
+                                                                }
+                                                                ?>
+                                                            </p>
                                                         </div>
                                                     </div>
-                                                <?php endforeach; ?>
+                                                    <button onclick="markActivityAsRead(<?php echo $notification['id']; ?>)"
+                                                            class="text-gray-400 hover:text-green-500 transition-colors duration-150 ml-2"
+                                                            title="Mark as read">
+                                                        <i class="fas fa-check text-sm"></i>
+                                                    </button>
+                                                </div>
                                             </div>
                                         <?php endforeach; ?>
-                                    </div>
-
-                                    <!-- Footer Actions -->
-                                    <div class="p-4 border-t border-gray-200 bg-gray-50">
-                                        <div class="flex items-center justify-between">
-                                            <button class="text-sm text-gray-600 hover:text-primary transition-colors flex items-center">
-                                                <i class="fas fa-sliders-h mr-2"></i>
-                                                Notification Settings
-                                            </button>
-                                            <a href="activity_logs.php"
-                                               title="View complete activity history and logs"
-                                               class="text-sm text-primary hover:text-primary-dark font-medium flex items-center transition-colors">
-                                                View All Activities
-                                                <i class="fas fa-arrow-right ml-2" aria-hidden="true"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                <?php else: ?>
-                                    <!-- Empty State -->
-                                    <div class="p-8 text-center">
-                                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <i class="fas fa-bell-slash text-2xl text-gray-400"></i>
-                                        </div>
-                                        <h4 class="text-lg font-medium text-gray-900 mb-2">No new notifications</h4>
-                                        <p class="text-sm text-gray-500 mb-4">You're all caught up! Check back later for updates.</p>
-                                        <a href="activity_logs.php" class="text-sm text-primary hover:text-primary-dark font-medium">
-                                            View Activity History
-                                        </a>
-                                    </div>
-                                <?php endif; ?>
+                                    <?php else: ?>
+                                        <p class="text-center p-4 text-gray-500 text-sm">No unread notifications.</p>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="p-2 border-t border-gray-200 dark:border-gray-700">
+                                    <a href="activity_logs.php" class="block w-full text-center text-primary text-sm font-medium py-1 hover:text-orange-600 transition duration-150">View All</a>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Enhanced User Profile -->
-                        <div class="relative" x-data="{ profileOpen: false }" x-init="profileOpen = false">
-                            <button @click="profileOpen = !profileOpen"
-                                    title="User menu and account options"
-                                    aria-label="Open user menu with profile, settings, and logout options"
-                                    class="header-button flex items-center space-x-3 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 hover:bg-gray-100 transition-all duration-200">
-                                <div class="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold shadow-lg ring-2 ring-white" role="img" aria-label="User avatar">
-                                    <?php echo strtoupper(substr($_SESSION['username'] ?? $_SESSION['user_name'] ?? 'A', 0, 1)); ?>
-                                </div>
-                                <div class="hidden md:block text-left">
-                                    <div class="text-sm font-medium text-gray-900"><?php echo $_SESSION['username'] ?? $_SESSION['user_name'] ?? 'Admin'; ?></div>
-                                    <div class="text-xs text-gray-500"><?php echo ucfirst($_SESSION['user_role'] ?? 'admin'); ?> Account</div>
-                                </div>
-                                <i class="fas fa-chevron-down text-xs text-gray-500 hidden md:inline transition-transform duration-200" :class="{ 'rotate-180': profileOpen }" aria-hidden="true"></i>
-                            </button>
+                        <!-- Theme Toggle Button -->
+                        <button @click="toggleTheme()"
+                                title="Toggle Dark/Light Mode"
+                                aria-label="Toggle Dark/Light Mode"
+                                class="header-button text-gray-600 hover:text-primary hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 transition-all duration-200 theme-toggle">
+                            <i class="fas" :class="$store.theme === 'dark' ? 'fa-sun' : 'fa-moon'" x-cloak></i>
+                        </button>
 
-                            <!-- Enhanced Profile Dropdown -->
-                            <div x-show="profileOpen"
-                                 @click.away="profileOpen = false"
+                        <!-- Profile Dropdown -->
+                        <div x-data="{ profileOpen: false }" class="relative ml-3">
+                            <div>
+                                <button type="button" @click="profileOpen = !profileOpen"
+                                        class="max-w-xs bg-gray-800 rounded-full flex items-center text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 lg:p-1 lg:hover:bg-gray-700 transition duration-150 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                        id="user-menu-button" aria-expanded="false" aria-haspopup="true">
+                                    <span class="sr-only">Open user menu</span>
+                                    <span class="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-sm">
+                                        <?php echo strtoupper(substr($_SESSION['name'] ?? 'A', 0, 1)); ?>
+                                    </span>
+                                </button>
+                            </div>
+
+                            <!-- Profile Dropdown Menu -->
+                            <div x-show="profileOpen" @click.away="profileOpen = false"
                                  x-transition:enter="transition ease-out duration-100"
-                                 x-transition:enter-start="transform opacity-0 scale-95"
-                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:enter-start="opacity-0 scale-95"
+                                 x-transition:enter-end="opacity-100 scale-100"
                                  x-transition:leave="transition ease-in duration-75"
-                                 x-transition:leave-start="transform opacity-100 scale-100"
-                                 x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 border border-gray-200 advanced-dropdown profile-dropdown" x-cloak>
-
-                                <!-- User Info Header -->
-                                <div class="p-4 border-b border-gray-200">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold text-lg shadow-lg">
-                                            <?php echo strtoupper(substr($_SESSION['username'] ?? $_SESSION['user_name'] ?? 'A', 0, 1)); ?>
-                                        </div>
-                                        <div>
-                                            <div class="text-sm font-medium text-gray-900"><?php echo $_SESSION['username'] ?? $_SESSION['user_name'] ?? 'Admin'; ?></div>
-                                            <div class="text-xs text-gray-500"><?php echo $_SESSION['user_email'] ?? ''; ?></div>
-                                            <div class="text-xs text-primary font-medium mt-1"><?php echo ucfirst($_SESSION['user_role'] ?? 'admin'); ?></div>
-                                        </div>
-                                    </div>
+                                 x-transition:leave-start="opacity-100 scale-100"
+                                 x-transition:leave-end="opacity-0 scale-95"
+                                 class="dropdown-menu absolute right-0 mt-2 w-48 bg-white glass-effect rounded-lg shadow-xl border border-gray-200 dark:bg-gray-800 dark:border-gray-700"
+                                 x-cloak>
+                                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars($_SESSION['name'] ?? 'Admin User'); ?></p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5"><?php echo htmlspecialchars($_SESSION['email'] ?? 'admin@example.com'); ?></p>
                                 </div>
-
-                                <!-- Quick Stats -->
-                                <div class="p-4 bg-gray-50">
-                                    <div class="grid grid-cols-2 gap-4 text-center">
-                                        <div>
-                                            <div class="text-lg font-bold text-primary"><?php echo $systemStatus['orders_today']; ?></div>
-                                            <div class="text-xs text-gray-600">Orders Today</div>
-                                        </div>
-                                        <div>
-                                            <div class="text-lg font-bold text-secondary"><?php echo $systemStatus['pending_orders']; ?></div>
-                                            <div class="text-xs text-gray-600">Pending</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Menu Items -->
-                                <div class="py-2">
-                                    <a href="profile.php" title="View and edit your profile information" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200">
-                                        <i class="fas fa-user-circle mr-3 text-gray-400" aria-hidden="true"></i>
-                                        View Profile
+                                <div class="py-1">
+                                    <a href="../account/profile.php" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-150">
+                                        <i class="fas fa-user-circle w-5 mr-2"></i> Your Profile
                                     </a>
-                                    <a href="settings.php" title="Configure your account settings and preferences" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200">
-                                        <i class="fas fa-cog mr-3 text-gray-400" aria-hidden="true"></i>
-                                        Account Settings
+                                    <a href="settings.php" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-150">
+                                        <i class="fas fa-cog w-5 mr-2"></i> Settings
                                     </a>
-                                    <a href="activity_logs.php" title="Review your recent account activity and system logs" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200">
-                                        <i class="fas fa-history mr-3 text-gray-400" aria-hidden="true"></i>
-                                        Activity History
-                                    </a>
-                                </div>
-
-                                <!-- Divider -->
-                                <div class="border-t border-gray-200"></div>
-
-                                <!-- Logout -->
-                                <div class="py-2">
-                                    <a href="../auth/logout.php"
-                                       title="Sign out of your account and end session"
-                                       class="flex items-center px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200">
-                                        <i class="fas fa-sign-out-alt mr-3" aria-hidden="true"></i>
-                                        Sign Out
+                                    <a href="../logout.php" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-gray-700 transition duration-150" role="menuitem">
+                                        <i class="fas fa-sign-out-alt w-5 mr-2"></i> Sign out
                                     </a>
                                 </div>
                             </div>
                         </div>
+
                     </div>
                 </div>
             </div>
         </header>
 
-        <!-- Dynamic Page Content Starts Here -->
-        <main class="content-container p-6">
-            <!-- This is where the content of views like dashboard.php, ambassador.php will go -->
+        <!-- Page Content Wrapper -->
+        <div class="content-container">
+            <div class="p-4 sm:p-6 lg:p-8">
+                <!-- Content starts here (Dashboard, Orders, etc.) -->
+                <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-6 hidden sm:block">
+                    <?php echo htmlspecialchars($page_title); ?>
+                </h1>
+                <!-- The rest of the page content will follow this file -->
+
+                <!-- BEGIN main page content (where dashboard.php, orders.php content will go) -->
+
+<!-- IMPORTANT: The file including this header.php must close the remaining <div> tags: </div></div></main></body></html> -->

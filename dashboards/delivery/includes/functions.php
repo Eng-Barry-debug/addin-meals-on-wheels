@@ -1,6 +1,6 @@
 <?php
 // Include database connection
-require_once '../../includes/config.php';
+require_once '../../admin/includes/config.php';
 
 /**
  * Get count of records from a table with optional WHERE clause

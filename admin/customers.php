@@ -28,14 +28,57 @@ $success = '';
 require_once '../includes/ActivityLogger.php';
 $activityLogger = new ActivityLogger($pdo);
 
-// Handle form submissions
+// --- AJAX / API Endpoints ---
+// These specific handlers return JSON and exit to prevent full page rendering.
+
+// AJAX Request to Delete User
+if (isset($_POST['delete_user_ajax'])) {
+    $id = (int)$_POST['user_id'];
+    $username_to_delete = '';
+
+    ob_clean(); // Ensure no prior output
+    header('Content-Type: application/json'); // Respond with JSON
+
+    try {
+        // Prevent deleting own account
+        if ($id == $_SESSION['user_id']) {
+            echo json_encode(['status' => 'error', 'message' => 'You cannot delete your own account.']);
+            exit();
+        }
+
+        // Get user name before deleting for activity log
+        $stmt = $pdo->prepare("SELECT name FROM users WHERE id = ?");
+        $stmt->execute([$id]);
+        $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($user_info) {
+            $username_to_delete = $user_info['name'];
+        }
+
+        $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+        $stmt->execute([$id]);
+        
+        // Log activity
+        $activityLogger->logActivity("User '{$username_to_delete}' (ID: {$id}) deleted.", $_SESSION['user_id'], 'user_delete');
+
+        echo json_encode(['status' => 'success', 'message' => "User '{$username_to_delete}' (ID: {$id}) deleted successfully"]);
+
+    } catch (PDOException $e) {
+        error_log("Error deleting user (AJAX, ID: $id): " . $e->getMessage());
+        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit(); // Crucial: Exit after AJAX response
+}
+
+
+// --- Traditional Form Submissions ---
+// These handlers typically redirect after processing.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['update_user'])) {
         // Update user details
         $id = (int)$_POST['user_id'];
         $name = trim($_POST['name']);
         $email = trim($_POST['email']);
-        $role = $_POST['role'];
+        $role = $_POST['role'] ?? 'customer';
         $status = $_POST['status'];
 
         try {
@@ -49,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log("Error updating user (ID: $id): " . $e->getMessage());
         }
     } elseif (isset($_POST['delete_user'])) {
-        // Delete user
+        // Delete user (This is the old, non-AJAX handler. The new AJAX handler will be used instead)
         $id = (int)$_POST['user_id'];
         $username_to_delete = '';
 
@@ -81,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim($_POST['name']);
         $email = trim($_POST['email']);
         $password = password_hash(trim($_POST['password']), PASSWORD_DEFAULT); // Hash password
-        $role = $_POST['role'];
+        $role = $_POST['role'] ?? 'customer';
         $status = $_POST['status'];
 
         try {
@@ -138,10 +181,11 @@ foreach ($users as $user) {
 $page_title = 'Manage Customers';
 ?>
 
+<!-- Add Animate.css for modal animations -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
 <!-- Your HTML starts here, which will be within the <body> of header.php -->
 
 <!-- Dashboard Header -->
-{{-- Added mt-0 to ensure no top margin pushes it down, as content-container already provides padding --}}
 <div class="bg-gradient-to-br from-primary via-primary-dark to-secondary text-white mt-0">
     <div class="container mx-auto px-6 py-8">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
@@ -390,7 +434,7 @@ $page_title = 'Manage Customers';
                                         </button>
                                         <?php if ($user['id'] != $_SESSION['user_id']): // Prevent admin from deleting their own account ?>
                                             <form action="" method="POST" class="inline"
-                                                  onsubmit="return confirm('Are you sure you want to delete this customer? This action cannot be undone.');">
+                                                onsubmit="return confirm('Are you sure you want to delete this customer? This action cannot be undone.');">
                                                 <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
                                                 <button type="submit" name="delete_user"
                                                         class="group relative bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-red-400/20">
@@ -569,7 +613,133 @@ $page_title = 'Manage Customers';
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-orange-500 to-orange-600 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 id="deleteModalTitle" class="text-xl font-bold">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
+                </h3>
+                <button type="button" onclick="closeModal('deleteConfirmationModal')" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 text-gray-700">
+            <p class="text-lg font-medium mb-3">Are you sure you want to delete customer <span id="customerNameToDelete" class="font-bold text-red-600"></span>?</p>
+            <p>This action cannot be undone. All associated data will be permanently removed.</p>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <button type="button" onclick="closeModal('deleteConfirmationModal')"
+                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <span class="relative z-10 font-medium">Cancel</span>
+            </button>
+            <form method="POST" class="inline" id="deleteCustomerForm">
+                <input type="hidden" name="user_id" id="deleteCustomerId">
+                <button type="submit" name="delete_user_ajax"
+                        class="group relative bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                    <i class="fas fa-trash mr-2 relative z-10"></i>
+                    <span class="relative z-10 font-medium">Delete</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+// --- Global Functions for Modals (consistent with ambassador.php/orders.php) ---
+function closeModal(modalId) {
+    if (!modalId || typeof modalId !== 'string') {
+        console.warn('closeModal: Invalid modal ID provided');
+        return;
+    }
+
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+        console.warn(`closeModal: Modal with ID "${modalId}" not found`);
+        return;
+    }
+
+    modal.classList.add('animate__fadeOut');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('animate__fadeOut', 'animate__animated', 'animate__fadeIn');
+        document.body.classList.remove('overflow-y-hidden');
+    }, 300);
+
+    // Clear content of AJAX-loaded modals if any, or reset form fields
+    if (modalId === 'editUserModal') {
+        document.getElementById('editUserForm').reset(); // Reset edit form
+    } else if (modalId === 'addUserModal') {
+        document.getElementById('addUserForm').reset(); // Reset add form
+    } else if (modalId === 'deleteConfirmationModal') {
+        document.getElementById('customerNameToDelete').textContent = ''; // Clear name in delete modal
+    }
+}
+
+function openModal(modalId) {
+    if (!modalId || typeof modalId !== 'string') {
+        console.warn('openModal: Invalid modal ID provided');
+        return;
+    }
+
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+        console.warn(`openModal: Modal with ID "${modalId}" not found`);
+        return;
+    }
+
+    // Hide all other modals first (optional, but good for single modal display)
+    const allModals = document.querySelectorAll('.fixed.inset-0.modal-backdrop');
+    allModals.forEach(m => {
+        if (m.id !== modalId) {
+            m.classList.add('hidden');
+            m.classList.remove('animate__fadeIn', 'animate__zoomIn');
+        }
+    });
+
+    modal.classList.remove('hidden');
+    modal.classList.add('animate__animated', 'animate__fadeIn');
+    document.body.classList.add('overflow-y-hidden');
+}
+
+
+// Close modal when clicking outside (on the black overlay)
+window.addEventListener('click', function(event) {
+    const modalIds = ['editUserModal', 'addUserModal', 'deleteConfirmationModal'];
+    modalIds.forEach(id => {
+        const modal = document.getElementById(id);
+        if (modal && !modal.classList.contains('hidden')) {
+            if (event.target === modal) {
+                closeModal(id);
+            }
+        }
+    });
+});
+
+// Keyboard navigation for modals (Escape key)
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modalIds = ['editUserModal', 'addUserModal', 'deleteConfirmationModal'];
+        for (const id of modalIds) {
+            const modal = document.getElementById(id);
+            if (modal && !modal.classList.contains('hidden')) {
+                closeModal(id);
+                break;
+            }
+        }
+    }
+});
+
+
 // Global functions for customer management
 function editUser(user) {
     document.getElementById('edit_userId').value = user.id;
@@ -578,8 +748,8 @@ function editUser(user) {
     document.getElementById('edit_role').value = user.role;
     document.getElementById('edit_status').value = user.status;
 
-    // Show modal
-    document.getElementById('editUserModal').classList.remove('hidden');
+    // Show modal using the new openModal function
+    openModal('editUserModal');
 }
 
 function addUser() {
@@ -591,26 +761,15 @@ function addUser() {
     // Ensure password field is visible/active (if it was hidden for edit)
     document.getElementById('add_password').required = true;
 
-
-    // Show modal
-    document.getElementById('addUserModal').classList.remove('hidden');
+    // Show modal using the new openModal function
+    openModal('addUserModal');
 }
 
-function closeModal(modalId) {
-    document.getElementById(modalId).classList.add('hidden');
-}
-
-// Close modal when clicking outside
-window.onclick = function(event) {
-    const editModal = document.getElementById('editUserModal');
-    const addModal = document.getElementById('addUserModal');
-    // Ensure the click target IS a modal and NOT inside a modal's content
-    if (event.target === editModal) {
-        closeModal('editUserModal');
-    }
-    if (event.target === addModal) {
-        closeModal('addUserModal');
-    }
+// Function to open the delete confirmation modal
+function confirmDeleteUser(userId, userName) {
+    document.getElementById('deleteCustomerId').value = userId;
+    document.getElementById('customerNameToDelete').textContent = userName;
+    openModal('deleteConfirmationModal');
 }
 
 
@@ -732,7 +891,52 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial filter application on page load to set up "All" correctly
     filterCustomers();
 
-    // Modern button styling - Already present and correct in your previous code
+    // Attach event listener for delete form submission
+    const deleteCustomerForm = document.getElementById('deleteCustomerForm');
+    if (deleteCustomerForm) {
+        deleteCustomerForm.addEventListener('submit', async function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const form = event.target;
+            const submitButton = form.querySelector('button[type="submit"][name="delete_user_ajax"]');
+            const originalButtonHtml = submitButton ? submitButton.innerHTML : '';
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Deleting...';
+            }
+
+            const formData = new FormData(form);
+            // The PHP handler will look for 'delete_user_ajax'
+
+            try {
+                const response = await fetch('customer.php', { // Ensure this URL is correct for customer.php
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    Swal.fire('Deleted!', result.message, 'success').then(() => {
+                        closeModal('deleteConfirmationModal');
+                        location.reload(); // Reload the page to show changes
+                    });
+                } else {
+                    Swal.fire('Error!', result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire('Error!', 'An unexpected error occurred during deletion.', 'error');
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonHtml; // Restore button text
+                }
+            }
+        });
+    }
+
 });
 </script>
 

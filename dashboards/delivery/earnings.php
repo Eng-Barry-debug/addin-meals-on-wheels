@@ -5,10 +5,10 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Include database connection and functions
-require_once '../../includes/config.php';
+require_once '../../admin/includes/config.php';
 
 // Check if user is logged in and is delivery personnel
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'delivery') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['user_role'] !== 'delivery' && $_SESSION['user_role'] !== 'driver')) {
     header('Location: ../../auth/login.php');
     exit();
 }
@@ -132,7 +132,7 @@ require_once 'includes/header.php';
 ?>
 
 <!-- Page Header -->
-<div class="bg-gradient-to-br from-secondary via-yellow-500 to-yellow-600 text-white">
+<div class="bg-gradient-to-br from-primary via-primary-dark to-green-700 text-white">
     <div class="px-6 py-8">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div>

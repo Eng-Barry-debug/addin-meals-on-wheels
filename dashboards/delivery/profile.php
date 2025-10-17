@@ -5,10 +5,10 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Include database connection and functions
-require_once '../../includes/config.php';
+require_once '../../admin/includes/config.php';
 
 // Check if user is logged in and is delivery personnel
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'delivery') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['user_role'] !== 'delivery' && $_SESSION['user_role'] !== 'driver')) {
     header('Location: ../../auth/login.php');
     exit();
 }

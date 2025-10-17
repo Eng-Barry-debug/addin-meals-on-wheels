@@ -636,11 +636,11 @@ $page_title = "Addins Ambassador Program - Join Our Community";
 </section>
 
 <!-- CTA Section -->
-<section class="py-16 bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white">
+<section class="py-16 bg-gradient-to-br from-primary via-primary-dark to-secondary text-white">
     <div class="container mx-auto px-4 text-center">
         <div class="max-w-4xl mx-auto">
             <h2 class="text-3xl md:text-4xl font-bold mb-6">Questions About the Program?</h2>
-            <p class="text-xl mb-8 text-blue-100">Our ambassador support team is here to help you succeed. Get in touch for more information or assistance.</p>
+            <p class="text-xl mb-8 text-white/90">Our ambassador support team is here to help you succeed. Get in touch for more information or assistance.</p>
 
             <div class="grid md:grid-cols-3 gap-8 mb-12">
                 <div class="flex flex-col items-center">
@@ -648,8 +648,8 @@ $page_title = "Addins Ambassador Program - Join Our Community";
                         <i class="fas fa-envelope text-2xl text-white"></i>
                     </div>
                     <h3 class="font-bold mb-2">Email Support</h3>
-                    <p class="text-blue-200 mb-2">ambassadors@addinsmeals.com</p>
-                    <p class="text-sm text-blue-300">Response within 24 hours</p>
+                    <p class="text-white/80 mb-2">ambassadors@addinsmeals.com</p>
+                    <p class="text-sm text-white/60">Response within 24 hours</p>
                 </div>
 
                 <div class="flex flex-col items-center">
@@ -657,8 +657,8 @@ $page_title = "Addins Ambassador Program - Join Our Community";
                         <i class="fas fa-phone text-2xl text-white"></i>
                     </div>
                     <h3 class="font-bold mb-2">Phone Support</h3>
-                    <p class="text-blue-200 mb-2">+254 700 123 456</p>
-                    <p class="text-sm text-blue-300">Mon-Fri, 9AM-6PM</p>
+                    <p class="text-white/80 mb-2">+254 700 123 456</p>
+                    <p class="text-sm text-white/60">Mon-Fri, 9AM-6PM</p>
                 </div>
 
                 <div class="flex flex-col items-center">
@@ -666,12 +666,12 @@ $page_title = "Addins Ambassador Program - Join Our Community";
                         <i class="fas fa-comments text-2xl text-white"></i>
                     </div>
                     <h3 class="font-bold mb-2">Live Chat</h3>
-                    <p class="text-blue-200 mb-2">Available on website</p>
-                    <p class="text-sm text-blue-300">Instant response</p>
+                    <p class="text-white/80 mb-2">Available on website</p>
+                    <p class="text-sm text-white/60">Instant response</p>
                 </div>
             </div>
 
-            <a href="/contact.php" class="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg transition-colors duration-300 text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+            <a href="/contact.php" class="inline-flex items-center bg-primary hover:bg-primary-dark text-white font-bold py-4 px-8 rounded-lg transition-colors duration-300 text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1">
                 <i class="fas fa-comments mr-2"></i>
                 Contact Ambassador Support
             </a>

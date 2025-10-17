@@ -1,0 +1,13 @@
+{
+    "name": "addins/meals-on-wheels",
+    "description": "Meals on Wheels delivery system",
+    "type": "project",
+    "require": {
+        "phpmailer/phpmailer": "^6.11"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "includes/"
+        }
+    }
+}

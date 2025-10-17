@@ -132,6 +132,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     elseif (isset($_POST['add_menu_item'])) {
         $name = trim($_POST['name'] ?? '');
         $description = trim($_POST['description'] ?? '');
+        $ingredients = trim($_POST['ingredients'] ?? '');
+        $allergens = trim($_POST['allergens'] ?? '');
+        $nutrition_info = trim($_POST['nutrition_info'] ?? '');
         $price = (float)($_POST['price'] ?? 0);
         $category_id = (int)($_POST['category_id'] ?? 0);
         $status = trim($_POST['status'] ?? 'inactive');
@@ -165,8 +168,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($errors)) {
             try {
-                $stmt = $pdo->prepare("INSERT INTO menu_items (name, description, price, category_id, status, is_featured, image, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
-                $stmt->execute([$name, $description, $price, $category_id, $status, $is_featured, $image_name]);
+                $stmt = $pdo->prepare("INSERT INTO menu_items (name, description, ingredients, allergens, nutrition_info, price, category_id, status, is_featured, image, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+                $stmt->execute([$name, $description, $ingredients, $allergens, $nutrition_info, $price, $category_id, $status, $is_featured, $image_name]);
                 $new_item_id = $pdo->lastInsertId();
                 $_SESSION['message'] = ['type' => 'success', 'text' => "New menu item '{$name}' added successfully."];
                 $activityLogger->logActivity("New menu item '{$name}' (ID: {$new_item_id}) added.", $_SESSION['user_id'] ?? null, 'menu_add');
@@ -186,6 +189,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int)$_POST['id'];
         $name = trim($_POST['name'] ?? '');
         $description = trim($_POST['description'] ?? '');
+        $ingredients = trim($_POST['ingredients'] ?? '');
+        $allergens = trim($_POST['allergens'] ?? '');
+        $nutrition_info = trim($_POST['nutrition_info'] ?? '');
         $price = (float)($_POST['price'] ?? 0);
         $category_id = (int)($_POST['category_id'] ?? 0);
         $status = trim($_POST['status'] ?? 'inactive');
@@ -233,8 +239,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($errors)) {
             try {
-                $stmt = $pdo->prepare("UPDATE menu_items SET name = ?, description = ?, price = ?, category_id = ?, status = ?, is_featured = ?, image = ?, updated_at = NOW() WHERE id = ?");
-                $stmt->execute([$name, $description, $price, $category_id, $status, $is_featured, $image_name, $id]);
+                $stmt = $pdo->prepare("UPDATE menu_items SET name = ?, description = ?, ingredients = ?, allergens = ?, nutrition_info = ?, price = ?, category_id = ?, status = ?, is_featured = ?, image = ?, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$name, $description, $ingredients, $allergens, $nutrition_info, $price, $category_id, $status, $is_featured, $image_name, $id]);
                 $_SESSION['message'] = ['type' => 'success', 'text' => "Menu item '{$name}' (ID: {$id}) updated successfully."];
                 $activityLogger->logActivity("Menu item '{$item_name_for_log}' (ID: {$id}) updated.", $_SESSION['user_id'] ?? null, 'menu_update');
             } catch (PDOException $e) {
@@ -786,7 +792,7 @@ include 'includes/header.php';
 <div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <!-- Modal Header -->
-        <div class="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white rounded-t-2xl">
+        <div class="bg-gradient-to-r from-primary via-primary-dark to-secondary p-6 text-white rounded-t-2xl">
             <div class="flex items-center justify-between">
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
@@ -828,7 +834,7 @@ include 'includes/header.php';
 <div id="editItemModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <!-- Modal Header -->
-        <div class="bg-gradient-to-r from-purple-600 to-purple-700 p-6 text-white rounded-t-2xl">
+        <div class="bg-gradient-to-r from-primary via-primary-dark to-secondary p-6 text-white rounded-t-2xl">
             <div class="flex items-center justify-between">
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-pencil-alt mr-2"></i>Edit Menu Item <span id="editItemNameDisplay" class="font-mono text-purple-100 italic"></span>
@@ -904,6 +910,42 @@ include 'includes/header.php';
                     </div>
                 </div>
 
+                <!-- Ingredients -->
+                <div>
+                    <label for="edit_ingredients" class="block text-sm font-semibold text-gray-700 mb-2">
+                        <i class="fas fa-list mr-2 text-green-600"></i>
+                        Ingredients
+                    </label>
+                    <textarea name="ingredients" id="edit_ingredients" rows="3"
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-colors"
+                              placeholder="List all ingredients used in this menu item"><?php echo htmlspecialchars($itemData['ingredients'] ?? ''); ?></textarea>
+                    <p class="text-xs text-gray-500 mt-1">Detailed list of ingredients for dietary information</p>
+                </div>
+
+                <!-- Allergens -->
+                <div>
+                    <label for="edit_allergens" class="block text-sm font-semibold text-gray-700 mb-2">
+                        <i class="fas fa-exclamation-triangle mr-2 text-orange-600"></i>
+                        Allergen Information
+                    </label>
+                    <textarea name="allergens" id="edit_allergens" rows="3"
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-colors"
+                              placeholder="List potential allergens (nuts, dairy, gluten, etc.)"><?php echo htmlspecialchars($itemData['allergens'] ?? ''); ?></textarea>
+                    <p class="text-xs text-gray-500 mt-1">Important allergen information for customer safety</p>
+                </div>
+
+                <!-- Nutrition Information -->
+                <div>
+                    <label for="edit_nutrition_info" class="block text-sm font-semibold text-gray-700 mb-2">
+                        <i class="fas fa-chart-line mr-2 text-blue-600"></i>
+                        Nutrition Information
+                    </label>
+                    <textarea name="nutrition_info" id="edit_nutrition_info" rows="4"
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-colors"
+                              placeholder="Calories, protein, carbs, fat content, etc."><?php echo htmlspecialchars($itemData['nutrition_info'] ?? ''); ?></textarea>
+                    <p class="text-xs text-gray-500 mt-1">Nutritional data (calories, macros, vitamins, etc.)</p>
+                </div>
+
                 <!-- Is Featured Toggle -->
                 <div class="flex items-center space-x-2">
                     <input type="checkbox" name="is_featured" id="edit_is_featured" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
@@ -920,7 +962,7 @@ include 'includes/header.php';
                 <span class="relative z-10 font-medium">Cancel</span>
             </button>
              <button type="submit" form="editItemForm"
-                    class="group relative bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    class="group relative bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                 <i class="fas fa-save mr-2 relative z-10"></i>
                 <span class="relative z-10 font-medium">Save Changes</span>
@@ -1001,6 +1043,42 @@ include 'includes/header.php';
                     <input type="file" name="image" id="add_image" accept="image/*"
                            class="w-full text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
                     <p class="text-xs text-gray-500 mt-1">Max 2MB, JPG/PNG. Required for new items.</p>
+                </div>
+
+                <!-- Ingredients -->
+                <div>
+                    <label for="add_ingredients" class="block text-sm font-semibold text-gray-700 mb-2">
+                        <i class="fas fa-list mr-2 text-green-600"></i>
+                        Ingredients
+                    </label>
+                    <textarea name="ingredients" id="add_ingredients" rows="3"
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-colors"
+                              placeholder="List all ingredients used in this menu item"></textarea>
+                    <p class="text-xs text-gray-500 mt-1">Detailed list of ingredients for dietary information</p>
+                </div>
+
+                <!-- Allergens -->
+                <div>
+                    <label for="add_allergens" class="block text-sm font-semibold text-gray-700 mb-2">
+                        <i class="fas fa-exclamation-triangle mr-2 text-orange-600"></i>
+                        Allergen Information
+                    </label>
+                    <textarea name="allergens" id="add_allergens" rows="3"
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600 focus:border-transparent transition-colors"
+                              placeholder="List potential allergens (nuts, dairy, gluten, etc.)"></textarea>
+                    <p class="text-xs text-gray-500 mt-1">Important allergen information for customer safety</p>
+                </div>
+
+                <!-- Nutrition Information -->
+                <div>
+                    <label for="add_nutrition_info" class="block text-sm font-semibold text-gray-700 mb-2">
+                        <i class="fas fa-chart-line mr-2 text-blue-600"></i>
+                        Nutrition Information
+                    </label>
+                    <textarea name="nutrition_info" id="add_nutrition_info" rows="4"
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-colors"
+                              placeholder="Calories, protein, carbs, fat content, etc."></textarea>
+                    <p class="text-xs text-gray-500 mt-1">Nutritional data (calories, macros, vitamins, etc.)</p>
                 </div>
 
                 <!-- Is Featured Toggle -->
@@ -1150,6 +1228,9 @@ async function openEditItemModal(itemId) {
         document.getElementById('edit_name').value = itemData.name;
         document.getElementById('edit_price').value = parseFloat(itemData.price).toFixed(2);
         document.getElementById('edit_description').value = itemData.description || '';
+        document.getElementById('edit_ingredients').value = itemData.ingredients || '';
+        document.getElementById('edit_allergens').value = itemData.allergens || '';
+        document.getElementById('edit_nutrition_info').value = itemData.nutrition_info || '';
         document.getElementById('edit_category_id').value = itemData.category_id;
         document.getElementById('edit_status').value = itemData.status;
         document.getElementById('edit_is_featured').checked = itemData.is_featured; // Boolean from API
@@ -1185,6 +1266,9 @@ function openAddItemModal() {
     document.getElementById('add_name').value = '';
     document.getElementById('add_price').value = '0.00';
     document.getElementById('add_description').value = '';
+    document.getElementById('add_ingredients').value = '';
+    document.getElementById('add_allergens').value = '';
+    document.getElementById('add_nutrition_info').value = '';
     document.getElementById('add_category_id').value = ''; // Ensure no category pre-selected
     document.getElementById('add_status').value = 'active';
     document.getElementById('add_is_featured').checked = false; // Default to not featured

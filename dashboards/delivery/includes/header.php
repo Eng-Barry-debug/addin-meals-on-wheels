@@ -9,13 +9,13 @@ date_default_timezone_set('Africa/Nairobi');
 
 // Ensure PDO connection is available
 if (!isset($pdo) || !$pdo instanceof PDO) {
-    require_once dirname(__DIR__, 2) . '/includes/config.php';
+    require_once dirname(__DIR__, 2) . '/admin/includes/config.php';
 }
 
 global $pdo;
 
 // Check if user is logged in and is delivery personnel
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'delivery') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['user_role'] !== 'delivery' && $_SESSION['user_role'] !== 'driver')) {
     header('Location: ../auth/login.php');
     exit();
 }
@@ -25,6 +25,7 @@ $page_title = $page_title ?? 'Delivery Dashboard';
 
 // Include activity logger for notifications
 require_once dirname(__DIR__, 3) . '/includes/ActivityLogger.php';
+require_once 'functions.php';
 $activityLogger = new ActivityLogger($pdo);
 
 // Get delivery-specific data for header
@@ -32,7 +33,7 @@ try {
     global $pdo;
 
     // Get pending deliveries count
-    $pendingDeliveries = getCount($pdo, 'orders', 'status = "out_for_delivery"');
+    $headerPendingDeliveries = getCount($pdo, 'orders', 'status = "out_for_delivery"');
 
     // Get completed deliveries today
     $completedToday = getCount($pdo, 'orders', 'status = "delivered" AND DATE(updated_at) = CURDATE()');
@@ -64,7 +65,7 @@ try {
 
 } catch (PDOException $e) {
     error_log("Delivery header data error: " . $e->getMessage());
-    $pendingDeliveries = 0;
+    $headerPendingDeliveries = 0;
     $completedToday = 0;
     $notificationCount = 0;
     $recentActivities = [];
@@ -353,8 +354,8 @@ switch($currentPage) {
                 <a href="deliveries.php" class="flex items-center px-3 py-2 text-white hover:bg-white/20 rounded-lg transition-colors <?php echo $currentPage === 'deliveries' ? 'bg-white/20' : ''; ?>">
                     <i class="fas fa-box mr-3"></i>
                     My Deliveries
-                    <?php if ($pendingDeliveries > 0): ?>
-                        <span class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full"><?php echo $pendingDeliveries; ?></span>
+                    <?php if ($headerPendingDeliveries > 0): ?>
+                        <span class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full"><?php echo $headerPendingDeliveries; ?></span>
                     <?php endif; ?>
                 </a>
 
@@ -375,7 +376,7 @@ switch($currentPage) {
                     My Profile
                 </a>
 
-                <a href="../chat.php" class="flex items-center px-3 py-2 text-white hover:bg-white/20 rounded-lg transition-colors">
+                <a href="help.php" class="flex items-center px-3 py-2 text-white hover:bg-white/20 rounded-lg transition-colors">
                     <i class="fas fa-headset mr-3"></i>
                     Support
                 </a>

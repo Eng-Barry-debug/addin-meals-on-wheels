@@ -1,5 +1,23 @@
 <?php
 $page_title = "About Us - Addins Meals on Wheels";
+require_once 'includes/config.php';
+
+// Get team members from database
+$team_members = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT name, position, bio, image
+        FROM team_members
+        WHERE is_active = 1
+        ORDER BY sort_order ASC, id ASC
+    ");
+    $stmt->execute();
+    $team_members = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // If table doesn't exist or error occurs, use empty array
+    $team_members = [];
+}
+
 include 'includes/header.php';
 ?>
 
@@ -89,7 +107,7 @@ include 'includes/header.php';
     <div class="container mx-auto px-4">
         <div class="flex flex-col md:flex-row items-center">
             <div class="md:w-1/2 mb-8 md:mb-0 md:pr-8">
-                <img src="assets/img/story.png" alt="Our Story" class="rounded-lg shadow-lg w-full h-auto">
+                <img src="assets/img/story.jpg" alt="Our Story" class="rounded-lg shadow-lg w-full h-80 md:h-96 object-cover">
             </div>
             <div class="md:w-1/2">
                 <h2 class="text-3xl font-bold text-[#1A1A1A] mb-6">Our Story</h2>
@@ -236,103 +254,79 @@ include 'includes/header.php';
         </div>
         
         <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <!-- Team Member 1 -->
-            <div class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-                <div class="h-64 bg-gray-200 flex items-center justify-center">
-                    <i class="fas fa-user text-6xl text-gray-400"></i>
+            <?php if (!empty($team_members)): ?>
+                <?php foreach ($team_members as $member): ?>
+                    <div class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                        <div class="h-64 flex items-center justify-center">
+                            <?php if (!empty($member['image']) && file_exists('uploads/team/' . $member['image'])): ?>
+                                <img src="uploads/team/<?php echo htmlspecialchars($member['image']); ?>"
+                                     alt="<?php echo htmlspecialchars($member['name']); ?>"
+                                     class="w-full h-full object-cover">
+                            <?php else: ?>
+                                <i class="fas fa-user text-6xl text-gray-400"></i>
+                            <?php endif; ?>
+                        </div>
+                        <div class="p-6 text-center">
+                            <h3 class="text-xl font-bold text-[#1A1A1A] mb-1"><?php echo htmlspecialchars($member['name']); ?></h3>
+                            <p class="text-[#C1272D] font-medium mb-3"><?php echo htmlspecialchars($member['position']); ?></p>
+                            <p class="text-[#212121] text-sm"><?php echo htmlspecialchars(substr($member['bio'], 0, 150) . (strlen($member['bio']) > 150 ? '...' : '')); ?></p>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <!-- Fallback team members if no data in database -->
+                <!-- Team Member 1 -->
+                <div class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                    <div class="h-64 bg-gray-200 flex items-center justify-center">
+                        <i class="fas fa-user text-6xl text-gray-400"></i>
+                    </div>
+                    <div class="p-6 text-center">
+                        <h3 class="text-xl font-bold text-[#1A1A1A] mb-1">Sarah Johnson</h3>
+                        <p class="text-[#C1272D] font-medium mb-3">Head Chef</p>
+                        <p class="text-[#212121] text-sm">With 15+ years of culinary experience, Sarah brings creativity and passion to every dish.</p>
+                    </div>
                 </div>
-                <div class="p-6 text-center">
-                    <h3 class="text-xl font-bold text-[#1A1A1A] mb-1">Sarah Johnson</h3>
-                    <p class="text-[#C1272D] font-medium mb-3">Head Chef</p>
-                    <p class="text-[#212121] text-sm">With 15+ years of culinary experience, Sarah brings creativity and passion to every dish.</p>
+
+                <!-- Team Member 2 -->
+                <div class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                    <div class="h-64 bg-gray-200 flex items-center justify-center">
+                        <i class="fas fa-user text-6xl text-gray-400"></i>
+                    </div>
+                    <div class="p-6 text-center">
+                        <h3 class="text-xl font-bold text-[#1A1A1A] mb-1">Michael Chen</h3>
+                        <p class="text-[#C1272D] font-medium mb-3">Operations Manager</p>
+                        <p class="text-[#212121] text-sm">Ensuring smooth operations and exceptional customer service.</p>
+                    </div>
                 </div>
-            </div>
-            
-            <!-- Team Member 2 -->
-            <div class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-                <div class="h-64 bg-gray-200 flex items-center justify-center">
-                    <i class="fas fa-user text-6xl text-gray-400"></i>
+
+                <!-- Team Member 3 -->
+                <div class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                    <div class="h-64 bg-gray-200 flex items-center justify-center">
+                        <i class="fas fa-user text-6xl text-gray-400"></i>
+                    </div>
+                    <div class="p-6 text-center">
+                        <h3 class="text-xl font-bold text-[#1A1A1A] mb-1">Elena Rodriguez</h3>
+                        <p class="text-[#C1272D] font-medium mb-3">Pastry Chef</p>
+                        <p class="text-[#212121] text-sm">Creates delightful desserts that keep our customers coming back for more.</p>
+                    </div>
                 </div>
-                <div class="p-6 text-center">
-                    <h3 class="text-xl font-bold text-[#1A1A1A] mb-1">Michael Chen</h3>
-                    <p class="text-[#C1272D] font-medium mb-3">Operations Manager</p>
-                    <p class="text-[#212121] text-sm">Ensuring smooth operations and exceptional customer service.</p>
+
+                <!-- Team Member 4 -->
+                <div class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                    <div class="h-64 bg-gray-200 flex items-center justify-center">
+                        <i class="fas fa-user text-6xl text-gray-400"></i>
+                    </div>
+                    <div class="p-6 text-center">
+                        <h3 class="text-xl font-bold text-[#1A1A1A] mb-1">David Kim</h3>
+                        <p class="text-[#C1272D] font-medium mb-3">Youth Program Director</p>
+                        <p class="text-[#212121] text-sm">Leads our initiative to empower at-risk youth through culinary training.</p>
+                    </div>
                 </div>
-            </div>
-            
-            <!-- Team Member 3 -->
-            <div class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-                <div class="h-64 bg-gray-200 flex items-center justify-center">
-                    <i class="fas fa-user text-6xl text-gray-400"></i>
-                </div>
-                <div class="p-6 text-center">
-                    <h3 class="text-xl font-bold text-[#1A1A1A] mb-1">Elena Rodriguez</h3>
-                    <p class="text-[#C1272D] font-medium mb-3">Pastry Chef</p>
-                    <p class="text-[#212121] text-sm">Creates delightful desserts that keep our customers coming back for more.</p>
-                </div>
-            </div>
-            
-            <!-- Team Member 4 -->
-            <div class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-                <div class="h-64 bg-gray-200 flex items-center justify-center">
-                    <i class="fas fa-user text-6xl text-gray-400"></i>
-                </div>
-                <div class="p-6 text-center">
-                    <h3 class="text-xl font-bold text-[#1A1A1A] mb-1">David Kim</h3>
-                    <p class="text-[#C1272D] font-medium mb-3">Youth Program Director</p>
-                    <p class="text-[#212121] text-sm">Leads our initiative to empower at-risk youth through culinary training.</p>
-                </div>
-            </div>
+            <?php endif; ?>
         </div>
     </div>
 </section>
 
-<!-- 5. Why Choose Us -->
-<section class="py-16 bg-[#F5E6D3]">
-    <div class="container mx-auto px-4">
-        <div class="text-center mb-12">
-            <h2 class="text-3xl font-bold text-[#1A1A1A] mb-4">Our Products & Services</h2>
-            <div class="w-20 h-1 bg-[#C1272D] mx-auto"></div>
-        </div>
-        
-        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <!-- Pizza -->
-            <div class="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-transform hover:-translate-y-1">
-                <div class="w-16 h-16 bg-[#C1272D] rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-pizza-slice text-white text-2xl"></i>
-                </div>
-                <h3 class="text-xl font-bold text-[#1A1A1A] mb-2">Pizza</h3>
-                <p class="text-[#212121]">Unique recipes made with homemade cheese and fresh ingredients.</p>
-            </div>
-            
-            <!-- Cookies & Cupcakes -->
-            <div class="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-transform hover:-translate-y-1">
-                <div class="w-16 h-16 bg-[#D4AF37] rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-cookie-bite text-white text-2xl"></i>
-                </div>
-                <h3 class="text-xl font-bold text-[#1A1A1A] mb-2">Cookies & Cupcakes</h3>
-                <p class="text-[#212121]">Our current best-sellers in the local market, baked with love.</p>
-            </div>
-            
-            <!-- Catering -->
-            <div class="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-transform hover:-translate-y-1">
-                <div class="w-16 h-16 bg-[#2E5E3A] rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-utensils text-white text-2xl"></i>
-                </div>
-                <h3 class="text-xl font-bold text-[#1A1A1A] mb-2">Catering Services</h3>
-                <p class="text-[#212121]">Full-service catering for events, parties, and corporate functions.</p>
-            </div>
-            
-            <!-- Future Plans -->
-            <div class="bg-white p-6 rounded-lg shadow-md text-center hover:shadow-lg transition-transform hover:-translate-y-1">
-                <div class="w-16 h-16 bg-[#1A1A1A] rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-robot text-white text-2xl"></i>
-                </div>
-                <h3 class="text-xl font-bold text-[#1A1A1A] mb-2">AI-Powered Future</h3>
-                <p class="text-[#212121]">Training schools, children's homes, and AI-driven kitchen innovations.</p>
-            </div>
-        </div>
-    </div>
 </section>
 
 <!-- 6. Growth Outlook -->

@@ -1,0 +1,178 @@
+<?php
+/**
+ * initiate_stk_push.php - Initiate M-Pesa STK Push
+ * 
+ * This script handles M-Pesa STK push requests, processes payments,
+ * and updates the database with transaction details.
+ */
+
+// Clear any previous output
+ob_clean();
+
+// Set content type to JSON immediately
+header('Content-Type: application/json');
+
+// Only accept POST requests
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+    exit;
+}
+
+try {
+    // Include required files
+    require_once 'includes/config.php';
+    require_once 'includes/MpesaService.php';
+
+    // Check if M-Pesa is properly configured
+    if (!isMpesaConfigured()) {
+        throw new Exception('M-Pesa payment is not properly configured. Please check your configuration.');
+    }
+
+    // Get and validate JSON input
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+
+    if (!$data) {
+        throw new Exception('Invalid JSON input received');
+    }
+
+    // Validate required fields
+    $required_fields = ['order_id', 'phone', 'amount'];
+    $missing_fields = [];
+    foreach ($required_fields as $field) {
+        if (empty($data[$field])) {
+            $missing_fields[] = $field;
+        }
+    }
+
+    if (!empty($missing_fields)) {
+        throw new Exception('Missing required fields: ' . implode(', ', $missing_fields));
+    }
+
+    // Sanitize input
+    $order_id = filter_var($data['order_id'], FILTER_SANITIZE_NUMBER_INT);
+    $phone = preg_replace('/[^0-9]/', '', $data['phone']);
+    $amount = filter_var($data['amount'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
+
+    // Validate amount
+    if ($amount <= 0) {
+        throw new Exception('Invalid amount specified');
+    }
+
+    // Initialize M-Pesa service
+    $mpesa = new MpesaService();
+    
+    // Check if the order exists and is pending payment
+    $stmt = $pdo->prepare("SELECT id, total_amount, payment_status FROM orders WHERE id = ?");
+    $stmt->execute([$order_id]);
+    $order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$order) {
+        throw new Exception('Order not found');
+    }
+
+    if ($order['payment_status'] === 'completed') {
+        throw new Exception('This order has already been paid');
+    }
+
+    // Generate a unique reference for this transaction
+    $account_reference = 'ORDER-' . $order_id . '-' . time();
+    $transaction_desc = 'Payment for Order #' . $order_id;
+
+    // Initiate STK Push
+    $result = $mpesa->initiateSTKPush(
+        $phone,
+        $amount,
+        $account_reference,
+        $transaction_desc
+    );
+
+    if (!$result['success']) {
+        throw new Exception('Failed to initiate payment: ' . ($result['message'] ?? 'Unknown error'));
+    }
+
+    // Save transaction details to database
+    try {
+        // Start transaction
+        $pdo->beginTransaction();
+
+        // Ensure payments table exists
+        $pdo->exec("CREATE TABLE IF NOT EXISTS payments (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            order_id INT NOT NULL,
+            transaction_id VARCHAR(100) NOT NULL,
+            amount DECIMAL(10,2) NOT NULL,
+            phone_number VARCHAR(20) NOT NULL,
+            status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+            payment_method VARCHAR(50) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_order_id (order_id),
+            INDEX idx_transaction_id (transaction_id),
+            INDEX idx_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
+        // Update order with payment reference
+        $stmt = $pdo->prepare("
+            UPDATE orders 
+            SET 
+                payment_reference = ?,
+                payment_method = 'mpesa',
+                payment_status = 'pending',
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+        $stmt->execute([$result['checkout_request_id'], $order_id]);
+
+        // Insert payment record
+        $stmt = $pdo->prepare("
+            INSERT INTO payments (
+                order_id, 
+                transaction_id, 
+                amount, 
+                phone_number, 
+                status, 
+                payment_method
+            ) VALUES (?, ?, ?, ?, 'pending', 'mpesa')
+        ");
+        $stmt->execute([
+            $order_id,
+            $result['checkout_request_id'],
+            $amount,
+            $phone
+        ]);
+
+        $pdo->commit();
+
+        // Return success response with payment instructions
+        echo json_encode([
+            'success' => true,
+            'message' => 'Payment request sent successfully',
+            'data' => [
+                'checkout_request_id' => $result['checkout_request_id'],
+                'amount' => $amount,
+                'phone' => $phone,
+                'order_id' => $order_id,
+                'instructions' => 'Please check your phone to complete the payment',
+                'next_step' => 'poll_payment_status',
+                'poll_url' => '/check_payment_status.php?checkout_request_id=' . $result['checkout_request_id']
+            ]
+        ]);
+
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw new Exception('Failed to save payment details: ' . $e->getMessage());
+    }
+
+} catch (Exception $e) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage(),
+        'error_code' => $e->getCode()
+    ]);
+    exit;
+}

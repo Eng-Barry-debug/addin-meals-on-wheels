@@ -15,6 +15,10 @@ require_once 'includes/Cart.php'; // <--- THIS IS THE CRUCIAL ADDITION
 
 // Fetch menu items from database
 try {
+    // Get all active categories first
+    $stmt = $pdo->query("SELECT * FROM categories WHERE is_active = 1 ORDER BY name");
+    $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     // Get all active menu items
     $stmt = $pdo->query("
         SELECT mi.*, c.name as category_name
@@ -25,14 +29,15 @@ try {
     ");
     $menu_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Get featured items
+    // Get featured items and specials
     $stmt = $pdo->query("
-        SELECT mi.*, c.name as category_name
+        SELECT DISTINCT mi.*, c.name as category_name
         FROM menu_items mi
         LEFT JOIN categories c ON mi.category_id = c.id
-        WHERE mi.status = 'active' AND mi.is_featured = 1
-        ORDER BY mi.created_at DESC
-        LIMIT 6
+        WHERE mi.status = 'active'
+        AND (mi.is_featured = 1 OR LOWER(c.name) = 'specials')
+        ORDER BY mi.is_featured DESC, mi.created_at DESC
+        LIMIT 12
     ");
     $featured_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -66,6 +71,9 @@ try {
     // Log error and show user-friendly message
     error_log("Database error: " . $e->getMessage());
     $error_message = "We're having trouble loading our menu. Please try again later.";
+    $categories = []; // Initialize empty array for categories
+    $menu_items = []; // Initialize empty array for menu items
+    $featured_items = []; // Initialize empty array for featured items
 }
 
 // Handle add to cart action
@@ -167,8 +175,8 @@ $page_title = "Our Menu - Addins Meals on Wheels";
 <section class="relative h-screen overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('assets/img/freshfoods.png');">
         <!-- Enhanced overlay for better text visibility -->
-        <div class="absolute inset-0 bg-gradient-to-br from-black/90 via-black/80 to-black/85"></div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/60"></div>
+        <div class="absolute inset-0 bg-black/85"></div>
+        <div class="absolute inset-0 bg-black/60"></div>
         <!-- Additional brand color overlay -->
         <div class="absolute inset-0 bg-primary/10"></div>
     </div>
@@ -225,14 +233,73 @@ $page_title = "Our Menu - Addins Meals on Wheels";
 </section>
 
 <!-- Menu Filter -->
-<section class="py-8 bg-light">
+<section class="py-12 bg-gradient-to-br from-gray-50 to-gray-100 border-b border-gray-200">
     <div class="container mx-auto px-4">
-        <div class="flex flex-wrap justify-center gap-4">
-            <button class="filter-btn active" data-category="all">All Items</button>
-            <button class="filter-btn" data-category="main">Main Courses</button>
-            <button class="filter-btn" data-category="appetizer">Appetizers</button>
-            <button class="filter-btn" data-category="dessert">Desserts</button>
-            <button class="filter-btn" data-category="beverage">Beverages</button>
+        <div class="max-w-4xl mx-auto">
+            <!-- Filter Header -->
+            <div class="text-center mb-8">
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">Browse Our Menu</h3>
+                <p class="text-gray-600">Choose a category to find exactly what you're craving</p>
+                <div class="w-16 h-1 bg-primary mx-auto mt-3"></div>
+            </div>
+
+            <!-- Filter Buttons Container -->
+            <div class="flex flex-wrap justify-center gap-3 md:gap-4">
+                <!-- All Items Button -->
+                <button class="filter-btn active group" data-category="all">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-th-large text-sm"></i>
+                        <span>All Items</span>
+                        <span class="bg-white text-primary text-xs font-bold px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <?php echo count($menu_items); ?>
+                        </span>
+                    </div>
+                </button>
+
+                <!-- Category Buttons -->
+                <?php foreach ($categories as $category): ?>
+                    <?php
+                    $categoryLower = strtolower($category['name']);
+                    $categoryCount = 0;
+                    foreach ($menu_items as $item) {
+                        if (strtolower($item['category']) === $categoryLower) {
+                            $categoryCount++;
+                        }
+                    }
+                    ?>
+                    <button class="filter-btn group" data-category="<?php echo htmlspecialchars($categoryLower); ?>">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas <?php
+                                echo match($categoryLower) {
+                                    'breakfast' => 'fa-coffee',
+                                    'lunch' => 'fa-utensils',
+                                    'dinner' => 'fa-moon',
+                                    'appetizers', 'appetizers 2.1' => 'fa-seedling',
+                                    'desserts' => 'fa-ice-cream',
+                                    'beverages', 'beverages 1' => 'fa-mug-hot',
+                                    'specials' => 'fa-star',
+                                    default => 'fa-utensils'
+                                };
+                            ?> text-sm"></i>
+                            <span><?php echo htmlspecialchars($category['name']); ?></span>
+                            <?php if ($categoryCount > 0): ?>
+                                <span class="bg-white text-primary text-xs font-bold px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <?php echo $categoryCount; ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    </button>
+                <?php endforeach; ?>
+            </div>
+
+            <!-- Active Filter Info -->
+            <div class="text-center mt-6">
+                <div class="inline-flex items-center bg-white rounded-full px-4 py-2 shadow-sm border border-gray-200">
+                    <span class="text-sm text-gray-600">Showing:</span>
+                    <span class="text-sm font-semibold text-primary ml-2" id="active-filter-text">All Items</span>
+                    <span class="text-sm text-gray-600 ml-2" id="active-filter-count">• <?php echo count($menu_items); ?> items</span>
+                </div>
+            </div>
         </div>
     </div>
 </section>
@@ -325,7 +392,7 @@ $page_title = "Our Menu - Addins Meals on Wheels";
                             <img src="<?= htmlspecialchars($item['image']) ?>" 
                                  alt="<?= htmlspecialchars($item['name']) ?>" 
                                  class="w-full h-full object-cover">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                            <div class="absolute inset-0 bg-black/70"></div>
                             <div class="absolute bottom-0 left-0 p-4 text-white">
                                 <span class="bg-primary text-xs font-semibold px-2 py-1 rounded">Featured</span>
                                 <h3 class="text-xl font-bold mt-2"><?= htmlspecialchars($item['name']) ?></h3>
@@ -367,8 +434,8 @@ $page_title = "Our Menu - Addins Meals on Wheels";
 </section>
 
 <!-- Add to Cart Modal -->
-<div id="cartModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform scale-95 opacity-0 transition-all duration-300">
+<div id="cartModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl p-8 max-w-2xl w-full mx-auto shadow-2xl transform scale-95 opacity-0 transition-all duration-300 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-6">
             <h3 class="text-2xl font-bold text-gray-800 flex items-center">
                 <i class="fas fa-shopping-cart text-primary mr-3"></i> Add to Cart
@@ -395,22 +462,54 @@ $page_title = "Our Menu - Addins Meals on Wheels";
 // Filter menu items
 const filterBtns = document.querySelectorAll('.filter-btn');
 const menuItems = document.querySelectorAll('.menu-item');
+const activeFilterText = document.getElementById('active-filter-text');
+const activeFilterCount = document.getElementById('active-filter-count');
 
 filterBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         // Update active button
-        filterBtns.forEach(b => b.classList.remove('active'));
+        filterBtns.forEach(b => {
+            b.classList.remove('active');
+            // Remove the ::after pseudo-element indicator
+            b.style.setProperty('--active-indicator', 'none');
+        });
         btn.classList.add('active');
-        
+
         const category = btn.dataset.category;
-        
+        const categoryName = btn.querySelector('span').textContent;
+
+        // Update active filter display
+        if (activeFilterText) {
+            activeFilterText.textContent = categoryName;
+        }
+
         // Filter items
+        let visibleCount = 0;
         menuItems.forEach(item => {
             if (category === 'all' || item.dataset.category === category) {
                 item.style.display = 'block';
+                visibleCount++;
             } else {
                 item.style.display = 'none';
             }
+        });
+
+        // Update count display
+        if (activeFilterCount) {
+            activeFilterCount.textContent = `• ${visibleCount} item${visibleCount !== 1 ? 's' : ''}`;
+        }
+
+        // Add smooth transition effect
+        menuItems.forEach(item => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(20px)';
+
+            setTimeout(() => {
+                if (category === 'all' || item.dataset.category === category) {
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateY(0)';
+                }
+            }, 100);
         });
     });
 });
@@ -428,43 +527,49 @@ document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
 
         // Update modal content with enhanced design
         document.getElementById('modalContent').innerHTML = `
-            <div class="text-center mb-6">
-                <div class="w-20 h-20 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                    <i class="fas fa-utensils text-3xl text-white"></i>
+            <div class="text-center mb-8">
+                <div class="w-24 h-24 bg-primary rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                    <i class="fas fa-utensils text-4xl text-white"></i>
                 </div>
-                <h4 class="text-xl font-bold text-gray-800 mb-2">Add to Cart</h4>
-                <p class="text-gray-600">How many <span class="font-semibold text-primary">${name}</span> would you like?</p>
+                <h4 class="text-2xl font-bold text-gray-800 mb-3">Add to Cart</h4>
+                <p class="text-gray-600 text-lg">How many <span class="font-semibold text-primary">${name}</span> would you like?</p>
             </div>
 
-            <div class="bg-gray-50 rounded-xl p-6 mb-6">
-                <div class="flex items-center justify-between mb-4">
-                    <label class="text-sm font-medium text-gray-700">Quantity:</label>
-                    <span class="text-sm text-gray-500">Max 99 items</span>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="bg-gray-50 rounded-xl p-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <label class="text-lg font-medium text-gray-700">Quantity:</label>
+                        <span class="text-sm text-gray-500 bg-white px-3 py-1 rounded-full">Max 99 items</span>
+                    </div>
+                    <div class="flex items-center justify-center bg-white rounded-lg border-2 border-gray-200 hover:border-primary transition-colors shadow-sm">
+                        <button type="button" class="quantity-btn px-6 py-4 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-all duration-200 rounded-l-lg text-lg" onclick="updateQuantity(-1, ${price})" title="Decrease quantity">
+                            <i class="fas fa-minus text-xl"></i>
+                        </button>
+                        <input type="number" id="quantity" value="1" min="1" max="99" class="w-20 text-center py-4 border-0 focus:ring-0 focus:outline-none text-2xl font-semibold">
+                        <button type="button" class="quantity-btn px-6 py-4 hover:bg-green-50 text-gray-600 hover:text-green-600 transition-all duration-200 rounded-r-lg text-lg" onclick="updateQuantity(1, ${price})" title="Increase quantity">
+                            <i class="fas fa-plus text-xl"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="flex items-center justify-center bg-white rounded-lg border-2 border-gray-200 hover:border-primary transition-colors">
-                    <button type="button" class="quantity-btn px-4 py-3 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-all duration-200 rounded-l-lg" onclick="updateQuantity(-1, ${price})" title="Decrease quantity">
-                        <i class="fas fa-minus"></i>
-                    </button>
-                    <input type="number" id="quantity" value="1" min="1" max="99" class="w-16 text-center py-3 border-0 focus:ring-0 focus:outline-none text-lg font-semibold">
-                    <button type="button" class="quantity-btn px-4 py-3 hover:bg-green-50 text-gray-600 hover:text-green-600 transition-all duration-200 rounded-r-lg" onclick="updateQuantity(1, ${price})" title="Increase quantity">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-            </div>
 
-            <div class="bg-primary/5 rounded-xl p-4 mb-6 border border-primary/20">
-                <div class="flex justify-between items-center text-lg">
-                    <span class="font-medium">Total:</span>
-                    <span id="itemTotal" class="font-bold text-primary text-xl">KES ${parseFloat(price).toFixed(2)}</span>
-                </div>
-                <div class="text-sm text-gray-600 mt-1">
-                    <i class="fas fa-info-circle mr-1"></i> Price may vary based on customizations
+                <div class="bg-primary/5 rounded-xl p-8 border border-primary/20">
+                    <div class="text-center mb-6">
+                        <h5 class="text-lg font-semibold text-gray-800 mb-2">Order Summary</h5>
+                        <div class="w-16 h-1 bg-primary mx-auto"></div>
+                    </div>
+                    <div class="flex justify-between items-center text-2xl mb-4">
+                        <span class="font-medium">Total:</span>
+                        <span id="itemTotal" class="font-bold text-primary">KES ${parseFloat(price).toFixed(2)}</span>
+                    </div>
+                    <div class="text-sm text-gray-600 bg-white/50 rounded-lg p-3">
+                        <i class="fas fa-info-circle mr-2 text-primary"></i> Price may vary based on customizations
+                    </div>
                 </div>
             </div>
 
             <div class="flex gap-3">
                 <button type="button" onclick="addToCart(${id}, '${name.replace(/'/g, "\\'")}', ${price})"
-                        class="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 px-6 rounded-xl font-bold hover:opacity-90 transition-all transform hover:-translate-y-0.5 shadow-lg hover:shadow-xl group">
+                        class="flex-1 bg-primary text-white py-4 px-6 rounded-xl font-bold hover:opacity-90 transition-all transform hover:-translate-y-0.5 shadow-lg hover:shadow-xl group">
                     <i class="fas fa-shopping-cart mr-2 group-hover:scale-110 transition-transform"></i>
                     Add to Cart
                 </button>
@@ -664,30 +769,63 @@ function showNotification(type, message) {
 </script>
 
 <style>
+/* Professional Filter Button Styles */
 .filter-btn {
-    @apply px-4 py-2 rounded-full bg-white text-dark font-medium transition-colors duration-200;
+    @apply relative px-5 py-3 rounded-full font-medium text-sm transition-all duration-300 ease-out;
+    @apply bg-white text-gray-700 border-2 border-gray-200 shadow-sm;
+    @apply hover:bg-primary hover:text-white hover:border-primary hover:shadow-lg;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50;
+    @apply transform hover:scale-105 active:scale-95;
 }
 
-.filter-btn:hover, .filter-btn.active {
-    @apply bg-primary text-white;
+.filter-btn:hover {
+    @apply shadow-xl;
 }
 
-.menu-item {
-    transition: all 0.3s ease;
+.filter-btn.active {
+    @apply bg-primary text-white border-primary shadow-lg;
+    @apply transform scale-105;
 }
 
-.menu-item:hover {
-    transform: translateY(-5px);
+.filter-btn.active::after {
+    content: '';
+    @apply absolute -bottom-1 left-1/2 transform -translate-x-1/2;
+    @apply w-2 h-2 bg-primary rounded-full;
 }
 
-#quantity {
-    -moz-appearance: textfield;
+/* Enhanced hover effects for filter buttons */
+.filter-btn .bg-white {
+    @apply transition-opacity duration-200;
 }
 
-#quantity::-webkit-outer-spin-button,
-#quantity::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
+/* Responsive filter buttons */
+@media (max-width: 640px) {
+    .filter-btn {
+        @apply px-4 py-2 text-sm;
+    }
+
+    .filter-btn span:not(.bg-white) {
+        @apply text-xs;
+    }
+}
+
+/* Animation for filter count badges */
+@keyframes pulse-count {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.filter-btn:hover .bg-white {
+    animation: pulse-count 0.6s ease-in-out;
+}
+
+/* Enhanced active filter info styling */
+#active-filter-text {
+    @apply transition-colors duration-300;
+}
+
+.filter-btn.active ~ #active-filter-text {
+    @apply text-primary;
 }
 </style>
 

@@ -19,6 +19,7 @@ if (isset($_SESSION['user_id'])) {
 // Initialize variables
 $email = '';
 $error = '';
+$redirect_url = $_GET['redirect'] ?? '';
 
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -73,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $stmt->execute();
                         }
 
-                        // Redirect based on role
+                        // Redirect based on role or redirect parameter
                         if ($user['role'] === 'admin') {
                             header('Location: /admin/dashboard.php');
                             exit();
@@ -84,8 +85,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             header('Location: /dashboards/ambassador/index.php');
                             exit();
                         } else {
-                            header('Location: /account/customerdashboard.php');
-                            exit();
+                            // Check if user came from checkout and should be redirected back there
+                            if (!empty($redirect_url) && $redirect_url === 'checkout.php') {
+                                header('Location: /checkout.php');
+                                exit();
+                            } else {
+                                header('Location: /account/customerdashboard.php');
+                                exit();
+                            }
                         }
                     } else {
                         $error = 'Invalid email or password.';

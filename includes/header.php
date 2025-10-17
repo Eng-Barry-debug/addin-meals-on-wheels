@@ -30,9 +30,29 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
         }
         .ease-out { transition-timing-function: cubic-bezier(0, 0, 0.2, 1); }
         .ease-in { transition-timing-function: cubic-bezier(0.4, 0, 1, 1); }
+
+        /* Custom styles for mobile menu backdrop */
+        .mobile-menu-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5); /* Dark overlay */
+            z-index: 40; /* Below the menu (z-index 9999) but above content */
+        }
+        /* Lock body scrolling when mobile menu is open */
+        body.no-scroll {
+            overflow: hidden;
+        }
     </style>
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/uploads/menu/Addin-logo.jpeg">
+
+    <!-- Google Fonts for Enhanced Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&family=Fira+Code:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Tailwind CSS CDN for faster loading -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -188,27 +208,31 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
             }
         });
 
-        // Handle mobile navigation (different container)
-        const mobileNavLinks = document.querySelectorAll('[x-show="mobileMenuOpen"] a[href]');
-        mobileNavLinks.forEach(link => {
-            const href = link.getAttribute('href');
-            if (href) {
-                const isActive = (
-                    currentPath === href ||
-                    currentPath.endsWith(href) ||
-                    (href === '/index.php' && (currentPath === '/' || currentFile === 'index.php')) ||
-                    (href !== '/' && currentPath.includes(href.replace(/^\//, '')))
-                );
+        // Loop over mobileNavLinks only if mobileMenuOpen is true
+        const mobileMenuElement = document.querySelector('[x-show="mobileMenuOpen"]');
+        if (mobileMenuElement) {
+            const mobileNavLinks = mobileMenuElement.querySelectorAll('a[href]');
+            mobileNavLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href) {
+                    const isActive = (
+                        currentPath === href ||
+                        currentPath.endsWith(href) ||
+                        (href === '/index.php' && (currentPath === '/' || currentFile === 'index.php')) ||
+                        (href !== '/' && currentPath.includes(href.replace(/^\//, '')))
+                    );
 
-                if (isActive) {
-                    link.classList.add('bg-white', 'text-primary', 'font-semibold');
-                    link.classList.remove('hover:bg-primary', 'hover:text-white', 'text-white');
-                } else {
-                    link.classList.remove('bg-white', 'text-primary', 'font-semibold');
-                    link.classList.add('hover:bg-primary', 'hover:text-white', 'text-white');
+                    // These classes need to be relative to the mobile menu's new dark background
+                    if (isActive) {
+                        link.classList.add('bg-primary', 'text-white', 'font-semibold');
+                        link.classList.remove('hover:bg-primary', 'hover:text-light', 'text-light'); /* Adjusted for dark bg */
+                    } else {
+                        link.classList.remove('bg-primary', 'text-white', 'font-semibold');
+                        link.classList.add('hover:bg-primary', 'hover:text-light', 'text-light'); /* Adjusted for dark bg */
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     // Update cart count when the page loads
@@ -236,7 +260,7 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
 </head>
 <body class="bg-light">
     <!-- Navigation -->
-    <nav class="bg-dark text-white shadow-md sticky top-0 z-50 relative">
+    <nav class="bg-dark text-white shadow-md sticky top-0 z-50 relative" x-data="{ mobileMenuOpen: false }" @keydown.escape="mobileMenuOpen = false" x-init="$watch('mobileMenuOpen', value => { document.body.classList.toggle('no-scroll', value) })">
         <div class="container mx-auto px-4 py-3">
             <div class="flex justify-between items-center">
                 <!-- Logo -->
@@ -252,6 +276,7 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
                     <a href="/catering.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'catering.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">Catering</a>
                     <a href="/blog.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'blog.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">Blog</a>
                     <a href="/about.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'about.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">About Us</a>
+                    <a href="/testimonials.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'testimonials.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">Reviews</a>
                     <a href="/contact.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium <?php echo basename($_SERVER['PHP_SELF']) == 'contact.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">Contact</a>
                     <a href="/ambassador.php" class="px-4 py-2 rounded-md hover:bg-primary hover:text-white transition-colors duration-200 font-medium ml-2 <?php echo basename($_SERVER['PHP_SELF']) == 'ambassador.php' ? 'bg-white text-primary font-semibold shadow-md' : 'text-white'; ?>">Ambassador</a>
                     <a href="/cart.php" class="relative p-2 rounded-full hover:bg-primary hover:text-white transition-colors duration-200 ml-2 <?php echo basename($_SERVER['PHP_SELF']) == 'cart.php' ? 'bg-white text-primary shadow-md' : 'text-white'; ?>">
@@ -306,9 +331,9 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
                 </div>
 
                 <!-- Mobile menu button -->
-                <div class="md:hidden" x-data="{ mobileMenuOpen: false }" x-effect="console.log('Mobile menu state:', mobileMenuOpen)">
+                <div class="md:hidden">
                     <button
-                        @click="mobileMenuOpen = !mobileMenuOpen; console.log('Hamburger clicked, menu open:', mobileMenuOpen)"
+                        @click="mobileMenuOpen = !mobileMenuOpen"
                         :aria-expanded="mobileMenuOpen"
                         type="button"
                         class="text-white focus:outline-none focus:ring-2 focus:ring-white/30 p-3 hover:bg-primary rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -331,36 +356,38 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
                 x-transition:leave-end="opacity-0 transform -translate-y-4 scale-95"
                 @click.away="mobileMenuOpen = false"
                 x-cloak
-                class="md:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md shadow-2xl border-t border-gray-200"
+                class="md:hidden absolute top-full left-0 right-0 bg-dark shadow-2xl border-t border-gray-700"
                 style="z-index: 9999;"
-                x-effect="console.log('Mobile menu visibility:', mobileMenuOpen)"
             >
-                <div class="container mx-auto px-4 py-6 space-y-2">
-                    <a href="/index.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
+                <div class="container mx-auto px-4 py-4 space-y-1"> <!-- Adjusted py and space-y -->
+                    <a href="/index.php" @click="mobileMenuOpen = false" class="block py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 font-medium text-lg text-light"> <!-- Adjusted py and text color -->
                         <i class="fas fa-home mr-3"></i>Home
                     </a>
-                    <a href="/menu.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
+                    <a href="/menu.php" @click="mobileMenuOpen = false" class="block py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 font-medium text-lg text-light"> <!-- Adjusted py and text color -->
                         <i class="fas fa-utensils mr-3"></i>Menu
                     </a>
-                    <a href="/catering.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
+                    <a href="/catering.php" @click="mobileMenuOpen = false" class="block py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 font-medium text-lg text-light"> <!-- Adjusted py and text color -->
                         <i class="fas fa-concierge-bell mr-3"></i>Catering
                     </a>
-                    <a href="/blog.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
+                    <a href="/blog.php" @click="mobileMenuOpen = false" class="block py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 font-medium text-lg text-light"> <!-- Adjusted py and text color -->
                         <i class="fas fa-blog mr-3"></i>Blog
                     </a>
-                    <a href="/about.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
+                    <a href="/about.php" @click="mobileMenuOpen = false" class="block py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 font-medium text-lg text-light"> <!-- Adjusted py and text color -->
                         <i class="fas fa-info-circle mr-3"></i>About Us
                     </a>
-                    <a href="/contact.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
+                    <a href="/testimonials.php" @click="mobileMenuOpen = false" class="block py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 font-medium text-lg text-light"> <!-- Adjusted py and text color -->
+                        <i class="fas fa-star mr-3"></i>Reviews
+                    </a>
+                    <a href="/contact.php" @click="mobileMenuOpen = false" class="block py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 font-medium text-lg text-light"> <!-- Adjusted py and text color -->
                         <i class="fas fa-phone mr-3"></i>Contact
                     </a>
-                    <a href="/ambassador.php" class="block py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 font-medium text-lg text-gray-800">
+                    <a href="/ambassador.php" @click="mobileMenuOpen = false" class="block py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 font-medium text-lg text-light"> <!-- Adjusted py and text color -->
                         <i class="fas fa-crown mr-3"></i>Become an Ambassador
                     </a>
 
                     <!-- Cart Link for Mobile -->
-                    <div class="border-t border-gray-200 my-3"></div>
-                    <a href="/cart.php" class="flex items-center py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 text-lg <?php echo basename($_SERVER['PHP_SELF']) == 'cart.php' ? 'bg-primary text-white font-semibold' : 'text-gray-800'; ?>">
+                    <div class="border-t border-gray-700 my-2"></div> <!-- Adjusted border-t and my -->
+                    <a href="/cart.php" @click="mobileMenuOpen = false" class="flex items-center py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 text-lg <?php echo basename($_SERVER['PHP_SELF']) == 'cart.php' ? 'bg-primary text-white font-semibold' : 'text-light'; ?>"> <!-- Adjusted py and text color -->
                         <i class="fas fa-shopping-cart mr-3"></i>
                         <span>Cart</span>
                         <span class="cart-count-mobile ml-auto bg-accent text-secondary text-sm font-bold rounded-full h-6 w-6 flex items-center justify-center">0</span>
@@ -368,7 +395,7 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
 
                     <?php if (isset($_SESSION['user_id'])): ?>
                     <!-- Notifications for Mobile -->
-                    <a href="/chat.php" class="flex items-center py-4 px-4 rounded-xl hover:bg-gray-100 hover:text-primary transition-all duration-200 text-lg <?php echo basename($_SERVER['PHP_SELF']) == 'chat.php' ? 'bg-primary text-white font-semibold' : 'text-gray-800'; ?>">
+                    <a href="/chat.php" @click="mobileMenuOpen = false" class="flex items-center py-2 px-4 rounded-lg hover:bg-primary hover:text-white transition-all duration-200 text-lg <?php echo basename($_SERVER['PHP_SELF']) == 'chat.php' ? 'bg-primary text-white font-semibold' : 'text-light'; ?>"> <!-- Adjusted py and text color -->
                         <i class="fas fa-bell mr-3"></i>
                         <span>Notifications</span>
                         <span class="notification-count-mobile ml-auto bg-red-500 text-white text-sm font-bold rounded-full h-6 w-6 flex items-center justify-center hidden" id="notificationBadgeMobile">0</span>
@@ -377,24 +404,24 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
 
                     <?php if (isset($_SESSION['user_id'])): ?>
                     <!-- User Menu for Mobile -->
-                    <div class="border-t border-gray-200 my-3"></div>
-                    <div class="space-y-2">
-                        <a href="/account/customerdashboard.php" class="block py-3 px-4 text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-200 text-lg">
+                    <div class="border-t border-gray-700 my-2"></div> <!-- Adjusted border-t and my -->
+                    <div class="space-y-1"> <!-- Adjusted space-y -->
+                        <a href="/account/customerdashboard.php" @click="mobileMenuOpen = false" class="block py-2 px-4 text-light hover:bg-gray-700 rounded-lg transition-all duration-200 text-lg"> <!-- Adjusted py and text color -->
                             <i class="fas fa-user-circle mr-3"></i>My Account
                         </a>
-                        <a href="/account/orders.php" class="block py-3 px-4 text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-200 text-lg">
+                        <a href="/account/orders.php" @click="mobileMenuOpen = false" class="block py-2 px-4 text-light hover:bg-gray-700 rounded-lg transition-all duration-200 text-lg"> <!-- Adjusted py and text color -->
                             <i class="fas fa-shopping-bag mr-3"></i>My Orders
                         </a>
-                        <a href="/chat.php" class="block py-3 px-4 text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-200 text-lg">
+                        <a href="/chat.php" @click="mobileMenuOpen = false" class="block py-2 px-4 text-light hover:bg-gray-700 rounded-lg transition-all duration-200 text-lg"> <!-- Adjusted py and text color -->
                             <i class="fas fa-comments mr-3"></i>Chat Support
                         </a>
-                        <a href="/auth/logout.php" class="block py-3 px-4 text-red-600 hover:bg-gray-100 rounded-xl transition-all duration-200 text-lg">
+                        <a href="/auth/logout.php" @click="mobileMenuOpen = false" class="block py-2 px-4 text-red-400 hover:bg-gray-700 rounded-lg transition-all duration-200 text-lg"> <!-- Adjusted py and text color -->
                             <i class="fas fa-sign-out-alt mr-3"></i>Logout
                         </a>
                     </div>
                     <?php else: ?>
-                    <div class="border-t border-gray-200 my-3"></div>
-                    <a href="/auth/login.php" class="block py-4 px-4 bg-primary text-white text-center rounded-xl hover:bg-opacity-90 transition-all duration-200 font-medium text-lg">
+                    <div class="border-t border-gray-700 my-2"></div> <!-- Adjusted border-t and my -->
+                    <a href="/auth/login.php" @click="mobileMenuOpen = false" class="block py-3 px-4 bg-primary text-white text-center rounded-xl hover:bg-opacity-90 transition-all duration-200 font-medium text-lg"> <!-- Adjusted py -->
                         <i class="fas fa-sign-in-alt mr-3"></i>Login
                     </a>
                     <?php endif; ?>
@@ -402,5 +429,18 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
             </div>
         </div>
     </nav>
+    <!-- Mobile Menu Backdrop -->
+    <div
+        x-show="mobileMenuOpen"
+        x-transition:enter="transition-opacity ease-linear duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition-opacity ease-linear duration-300"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        @click="mobileMenuOpen = false"
+        class="mobile-menu-backdrop md:hidden"
+        x-cloak>
+    </div>
 
     <main>
