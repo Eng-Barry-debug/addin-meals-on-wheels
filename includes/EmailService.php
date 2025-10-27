@@ -19,13 +19,14 @@ class EmailService {
     private $from_name;
 
     public function __construct() {
-        // Configure SMTP settings - these should be moved to config or environment variables in production
-        $this->smtp_host = 'smtp.gmail.com'; // Change to your SMTP server
-        $this->smtp_port = 587;
-        $this->smtp_username = 'your-email@gmail.com'; // Replace with actual email
-        $this->smtp_password = 'your-app-password'; // Replace with actual password
-        $this->from_email = 'noreply@addinsmeals.com';
-        $this->from_name = 'Addins Meals on Wheels';
+        // Load SMTP settings from config.php
+        global $smtp_config;
+        $this->smtp_host = $smtp_config['host'] ?? 'smtp.gmail.com';
+        $this->smtp_port = $smtp_config['port'] ?? 587;
+        $this->smtp_username = $smtp_config['username'] ?? 'your-email@gmail.com';
+        $this->smtp_password = $smtp_config['password'] ?? 'your-app-password';
+        $this->from_email = $smtp_config['from_email'] ?? 'noreply@addinsmeals.com';
+        $this->from_name = $smtp_config['from_name'] ?? 'Addins Meals on Wheels';
     }
 
     /**

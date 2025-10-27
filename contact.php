@@ -59,10 +59,8 @@ $page_title = "Contact Us - Addins Meals on Wheels";
 <section class="relative h-96 overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('assets/img/delivery.png');">
         <!-- Enhanced overlay for better text visibility -->
-        <div class="absolute inset-0 bg-gradient-to-br from-black/90 via-black/80 to-black/85"></div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/60"></div>
-        <!-- Additional brand color overlay -->
-        <div class="absolute inset-0 bg-primary/10"></div>
+        <div class="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/70"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/40"></div>
     </div>
 
     <div class="relative z-10 h-full flex items-center justify-center">
@@ -201,17 +199,21 @@ $page_title = "Contact Us - Addins Meals on Wheels";
                         <div class="mt-8">
                             <h3 class="text-lg font-medium text-gray-900 mb-4">Follow Us</h3>
                             <div class="flex space-x-4">
-                                <a href="https://www.instagram.com/adinns_meals_on_wheels?igsh=MXBmdnBkNjBrYnJieQ==" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-accent transition-colors" title="Follow us on Instagram">
+                                <a href="https://www.instagram.com/adinns_meals_on_wheels?igsh=MXBmdnBkNjBrYnJieQ==" target="_blank" rel="noopener noreferrer" class="instagram-icon hover:opacity-80 transition-opacity" title="Follow us on Instagram">
                                     <i class="fab fa-instagram text-2xl"></i>
                                     <span class="sr-only">Instagram</span>
                                 </a>
-                                <a href="https://www.facebook.com/share/17Y42uWZG4/" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-accent transition-colors" title="Like us on Facebook">
+                                <a href="https://www.facebook.com/share/17Y42uWZG4/" target="_blank" rel="noopener noreferrer" class="facebook-icon hover:opacity-80 transition-opacity" title="Like us on Facebook">
                                     <i class="fab fa-facebook-f text-2xl"></i>
                                     <span class="sr-only">Facebook</span>
                                 </a>
-                                <a href="https://www.tiktok.com/@adinns_meals_on_wheels?_t=ZM-8zyKYPHl740&_r=1" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-accent transition-colors" title="Follow us on TikTok">
+                                <a href="https://www.tiktok.com/@adinns_meals_on_wheels?_t=ZM-8zyKYPHl740&_r=1" target="_blank" rel="noopener noreferrer" class="tiktok-icon hover:opacity-80 transition-opacity" title="Follow us on TikTok">
                                     <i class="fab fa-tiktok text-2xl"></i>
                                     <span class="sr-only">TikTok</span>
+                                </a>
+                                <a href="https://wa.me/254112855900" target="_blank" rel="noopener noreferrer" class="whatsapp-icon hover:opacity-80 transition-opacity" title="Chat with us on WhatsApp">
+                                    <i class="fab fa-whatsapp text-2xl"></i>
+                                    <span class="sr-only">WhatsApp</span>
                                 </a>
                             </div>
                         </div>
@@ -281,3 +283,49 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<style>
+/* Social Media Brand Colors */
+.instagram-icon .fab.fa-instagram {
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.facebook-icon .fab.fa-facebook-f {
+    color: #1877f2; /* Facebook Blue */
+}
+
+.tiktok-icon .fab.fa-tiktok {
+    background: linear-gradient(45deg, #000000 0%, #fe2c55 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.whatsapp-icon .fab.fa-whatsapp {
+    color: #25d366; /* WhatsApp Green */
+}
+
+/* Hover effects for social icons */
+.instagram-icon:hover .fab.fa-instagram {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+
+.facebook-icon:hover .fab.fa-facebook-f {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+
+.tiktok-icon:hover .fab.fa-tiktok {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+
+.whatsapp-icon:hover .fab.fa-whatsapp {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+</style>

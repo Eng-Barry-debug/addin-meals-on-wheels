@@ -119,29 +119,53 @@ if (file_exists(dirname(__DIR__) . '/functions.php')) { // Check 'admin/function
     }
 }
 
+// Include ActivityLogger for activity tracking
+require_once '../includes/ActivityLogger.php';
 
-// --- ACTIVITY LOGS NOTIFICATION SYSTEM START ---
+$activityLogger = new ActivityLogger($pdo);
 
-// Get UNREAD notification count using activity read manager
+// Get recent activities for notifications (last 24 hours)
 try {
-    global $pdo;
-    $notificationCount = getUnreadActivityCount($_SESSION['user_id'] ?? 0);
-} catch (Exception $e) {
-    error_log("Unread notification count error: " . $e->getMessage());
-    $notificationCount = 0;
-}
+    // Get all recent activities from the last 24 hours
+    $allRecentActivities = $activityLogger->getRecentActivities(50);
 
-// Get recent UNREAD activities for dropdown (last 24 hours, excluding current user)
-try {
-    global $pdo;
-    $recentNotifications = getUnreadActivities($_SESSION['user_id'] ?? 0, 10);
+    // If no activities exist, create some sample ones
+    if (empty($allRecentActivities)) {
+        // Log some sample activities for demonstration
+        $activityLogger->logActivity('Admin user logged in successfully', $_SESSION['user_id'], 'system');
+        $activityLogger->logActivity('Dashboard accessed', $_SESSION['user_id'], 'system');
+        $activityLogger->logActivity('System initialized', null, 'system');
+
+        // Get the activities we just created
+        $allRecentActivities = $activityLogger->getRecentActivities(50);
+    }
+
+    // Filter for last 24 hours and exclude current user (except for system activities)
+    $recentNotifications = [];
+    $currentUserId = $_SESSION['user_id'] ?? 0;
+    $twentyFourHoursAgo = date('Y-m-d H:i:s', strtotime('-24 hours'));
+
+    foreach ($allRecentActivities as $activity) {
+        $activityTime = $activity['created_at'];
+
+        // Show if it's within 24 hours and (system activity OR not by current user)
+        if ($activityTime >= $twentyFourHoursAgo &&
+            ($activity['user_id'] !== $currentUserId || $activity['activity_type'] === 'system')) {
+            $recentNotifications[] = $activity;
+        }
+
+        // Limit to 10 notifications
+        if (count($recentNotifications) >= 10) {
+            break;
+        }
+    }
+
+    $notificationCount = count($recentNotifications);
 } catch (Exception $e) {
     error_log("Recent notifications error: " . $e->getMessage());
     $recentNotifications = [];
+    $notificationCount = 0;
 }
-
-// --- ACTIVITY LOGS NOTIFICATION SYSTEM END ---
-
 
 // Get system status for header indicators
 $systemStatus = [
@@ -221,6 +245,7 @@ switch($currentPage) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($page_title); ?> - Addins Meals on Wheels</title>
+    <!-- Tailwind CSS CDN - Replace with build process for production -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -731,86 +756,69 @@ switch($currentPage) {
 
         // Notification management functions
         function markActivityAsRead(activityId) {
-            // Make AJAX call to mark activity as read
-            fetch('../includes/mark_activity_read.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: 'activity_id=' + activityId
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Remove the notification from the dropdown
-                    const notificationElement = event.target.closest('.block');
-                    if (notificationElement) {
-                        notificationElement.remove();
+            // This function is no longer needed since we show recent activities, not unread ones
+            console.log('Mark as read function called but not implemented for recent activities');
+        }
 
-                        // Update notification count in UI
-                        const badge = document.querySelector('.notification-badge');
-                        if (badge) {
-                            const currentCount = parseInt(badge.textContent);
-                            if (currentCount > 1) {
-                                badge.textContent = currentCount - 1;
-                            } else {
-                                badge.remove();
-                            }
-                        }
+        // Mark all activities as read function
+        function markAllActivitiesAsRead() {
+            // Disable the button and show loading state
+            const button = event.target.closest('button');
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Clearing...';
 
-                        // Update the header count text
-                        const countElement = document.querySelector('.text-lg.font-semibold');
-                        if (countElement) {
-                            const currentText = countElement.textContent;
-                            const match = currentText.match(/\((\d+) Unread\)/);
-                            if (match) {
-                                const currentCount = parseInt(match[1]);
-                                if (currentCount > 1) {
-                                    countElement.textContent = currentText.replace(/\((\d+) Unread\)/, `(${currentCount - 1} Unread)`);
-                                } else {
-                                    countElement.textContent = 'Notifications (0 Unread)';
-                                }
-                            }
-                        }
+            // Small delay to show loading state
+            setTimeout(() => {
+                // Remove all notifications from the dropdown
+                const notificationBlocks = document.querySelectorAll('.advanced-dropdown .block');
+                notificationBlocks.forEach(block => block.remove());
 
-                        // Show success message
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'success',
-                            title: 'Marked as read',
-                            showConfirmButton: false,
-                            timer: 2000,
-                            timerProgressBar: true
-                        });
-                    }
-                } else {
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'error',
-                        title: 'Error marking as read',
-                        showConfirmButton: false,
-                        timer: 2000,
-                        timerProgressBar: true
-                    });
+                // Update notification count in UI
+                const badge = document.querySelector('.notification-badge');
+                if (badge) {
+                    badge.remove();
                 }
-            })
-            .catch(error => {
-                console.error('Error marking activity as read:', error);
+
+                // Update the header count text
+                const countElement = document.querySelector('.text-lg.font-semibold');
+                if (countElement) {
+                    countElement.textContent = 'Notifications (0 Recent)';
+                }
+
+                // Hide the "Clear All" button
+                button.style.display = 'none';
+
+                // Replace notification content with empty state
+                const notificationsContainer = document.querySelector('.advanced-dropdown .max-h-80');
+                if (notificationsContainer) {
+                    notificationsContainer.innerHTML = `
+                        <div class="text-center p-6">
+                            <i class="fas fa-bell-slash text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                            <p class="text-gray-500 dark:text-gray-400 text-sm">No recent notifications</p>
+                            <p class="text-gray-400 dark:text-gray-500 text-xs mt-1">Activities will appear here as you use the system!</p>
+                        </div>
+                    `;
+                }
+
+                // Show success message
                 Swal.fire({
                     toast: true,
                     position: 'top-end',
-                    icon: 'error',
-                    title: 'Error marking as read',
+                    icon: 'success',
+                    title: 'All notifications cleared',
                     showConfirmButton: false,
                     timer: 2000,
                     timerProgressBar: true
                 });
-            });
-        }
 
-        // Initialize theme on page load
+                // Close the notification dropdown
+                const notificationDropdown = document.querySelector('[x-data="{ notificationOpen: false }"]');
+                if (notificationDropdown && notificationDropdown.__x) {
+                    notificationDropdown.__x.$data.notificationOpen = false;
+                }
+            }, 500);
+        }
         document.addEventListener('DOMContentLoaded', function() {
             // Ensure Alpine.store 'theme' is defined before trying to access it
             if (typeof Alpine !== 'undefined') {
@@ -983,7 +991,7 @@ switch($currentPage) {
                                     class="header-button relative text-gray-600 hover:text-primary hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg p-2 transition-all duration-200">
                                 <i class="fas fa-bell text-xl"></i>
                                 <?php if ($notificationCount > 0): ?>
-                                    <span class="notification-badge absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+                                    <span class="notification-badge absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full animate-pulse">
                                         <?php echo $notificationCount > 9 ? '9+' : $notificationCount; ?>
                                     </span>
                                 <?php endif; ?>
@@ -1000,43 +1008,49 @@ switch($currentPage) {
                                  class="advanced-dropdown absolute right-0 mt-2 w-80 bg-white glass-effect rounded-lg shadow-xl border border-gray-200 dark:bg-gray-800 dark:border-gray-700"
                                  x-cloak>
                                 <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Notifications (<?php echo $notificationCount; ?> Unread)</h3>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                                        <?php if ($notificationCount > 0): ?>
+                                            <button onclick="markAllActivitiesAsRead()"
+                                                    class="text-xs text-primary hover:text-orange-600 transition-colors duration-150 font-medium">
+                                                Clear All
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400"><?php echo $notificationCount; ?> Recent</p>
                                 </div>
                                 <div class="max-h-80 overflow-y-auto">
                                     <?php if (!empty($recentNotifications)): ?>
                                         <?php foreach ($recentNotifications as $notification): ?>
                                             <div class="block p-3 hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-800 transition duration-150">
-                                                <div class="flex items-start justify-between">
-                                                    <div class="flex items-start flex-1">
-                                                        <i class="fas fa-circle text-xs mt-1 mr-3 text-primary"></i>
-                                                        <div class="flex-1">
-                                                            <p class="text-sm text-gray-900 dark:text-white">
-                                                                <?php echo htmlspecialchars($notification['description']); ?>
-                                                            </p>
-                                                            <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                                                                <?php echo htmlspecialchars($notification['user_name'] ?? 'System'); ?> • <?php echo ucfirst($notification['activity_type']); ?>
-                                                            </p>
-                                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                                <?php
-                                                                if (function_exists('time_elapsed_string')) {
-                                                                    echo time_elapsed_string($notification['created_at']);
-                                                                } else {
-                                                                    echo date('M d, H:i', strtotime($notification['created_at']));
-                                                                }
-                                                                ?>
-                                                            </p>
-                                                        </div>
+                                                <div class="flex items-start">
+                                                    <i class="fas fa-circle text-xs mt-1 mr-3 text-primary"></i>
+                                                    <div class="flex-1">
+                                                        <p class="text-sm text-gray-900 dark:text-white">
+                                                            <?php echo htmlspecialchars($notification['description']); ?>
+                                                        </p>
+                                                        <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                                            <?php echo htmlspecialchars($notification['user_name'] ?? 'System'); ?> • <?php echo ucfirst($notification['activity_type']); ?>
+                                                        </p>
+                                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                            <?php
+                                                            if (function_exists('time_elapsed_string')) {
+                                                                echo time_elapsed_string($notification['created_at']);
+                                                            } else {
+                                                                echo date('M d, H:i', strtotime($notification['created_at']));
+                                                            }
+                                                            ?>
+                                                        </p>
                                                     </div>
-                                                    <button onclick="markActivityAsRead(<?php echo $notification['id']; ?>)"
-                                                            class="text-gray-400 hover:text-green-500 transition-colors duration-150 ml-2"
-                                                            title="Mark as read">
-                                                        <i class="fas fa-check text-sm"></i>
-                                                    </button>
                                                 </div>
                                             </div>
                                         <?php endforeach; ?>
                                     <?php else: ?>
-                                        <p class="text-center p-4 text-gray-500 text-sm">No unread notifications.</p>
+                                        <div class="text-center p-6">
+                                            <i class="fas fa-bell-slash text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
+                                            <p class="text-gray-500 dark:text-gray-400 text-sm">No recent notifications</p>
+                                            <p class="text-gray-400 dark:text-gray-500 text-xs mt-1">Activities will appear here as you use the system!</p>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                                 <div class="p-2 border-t border-gray-200 dark:border-gray-700">

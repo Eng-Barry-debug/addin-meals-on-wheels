@@ -4,6 +4,22 @@ require_once 'includes/config.php';
 $success = false;
 $error = '';
 
+// Fetch success stories from database
+$success_stories = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT name, role, story, image, rating
+        FROM success_stories
+        WHERE is_active = 1
+        ORDER BY sort_order ASC, id ASC
+    ");
+    $stmt->execute();
+    $success_stories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // If table doesn't exist or error occurs, use empty array
+    $success_stories = [];
+}
+
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -139,10 +155,8 @@ $page_title = "Addins Ambassador Program - Join Our Community";
 <section class="relative h-screen overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('assets/img/Addinhotel.png');">
         <!-- Enhanced overlay for better text visibility -->
-        <div class="absolute inset-0 bg-gradient-to-br from-black/90 via-black/80 to-black/85"></div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/60"></div>
-        <!-- Additional brand color overlay -->
-        <div class="absolute inset-0 bg-primary/10"></div>
+        <div class="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/70"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/40"></div>
     </div>
 
     <div class="relative z-10 h-full flex items-center">
@@ -509,127 +523,94 @@ $page_title = "Addins Ambassador Program - Join Our Community";
             </div>
 
             <div class="grid md:grid-cols-3 gap-8">
-                <div class="bg-white rounded-xl shadow-lg p-8">
-                    <div class="flex items-center mb-4">
-                        <img src="/assets/img/ambassador-1.jpg" alt="Sarah Johnson" class="w-16 h-16 rounded-full object-cover mr-4">
-                        <div>
-                            <h4 class="font-bold text-lg">Sarah Johnson</h4>
-                            <p class="text-gray-600">University Student</p>
+                <?php if (!empty($success_stories)): ?>
+                    <?php foreach ($success_stories as $story): ?>
+                        <div class="bg-white rounded-xl shadow-lg p-8">
+                            <div class="flex items-center mb-4">
+                                <?php if (!empty($story['image']) && file_exists('uploads/success_stories/' . $story['image'])): ?>
+                                    <img src="uploads/success_stories/<?php echo htmlspecialchars($story['image']); ?>"
+                                         alt="<?php echo htmlspecialchars($story['name']); ?>"
+                                         class="w-16 h-16 rounded-full object-cover mr-4">
+                                <?php else: ?>
+                                    <div class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center mr-4">
+                                        <i class="fas fa-user text-2xl text-gray-400"></i>
+                                    </div>
+                                <?php endif; ?>
+                                <div>
+                                    <h4 class="font-bold text-lg"><?php echo htmlspecialchars($story['name']); ?></h4>
+                                    <p class="text-gray-600"><?php echo htmlspecialchars($story['role']); ?></p>
+                                </div>
+                            </div>
+                            <p class="text-gray-700 mb-4">"<?php echo htmlspecialchars($story['story']); ?>"</p>
+                            <div class="flex text-yellow-400">
+                                <?php for ($i = 0; $i < 5; $i++): ?>
+                                    <i class="fas fa-star<?php echo $i < ($story['rating'] ?? 5) ? '' : '-o'; ?>"></i>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <!-- Fallback stories if no data in database -->
+                    <div class="bg-white rounded-xl shadow-lg p-8">
+                        <div class="flex items-center mb-4">
+                            <div class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center mr-4">
+                                <i class="fas fa-user text-2xl text-gray-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-lg">Sarah Johnson</h4>
+                                <p class="text-gray-600">University Student</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-700 mb-4">"Being an Addins ambassador helped me develop my communication skills and earn extra income during my studies. I've made KSh 45,000 in commissions this semester!"</p>
+                        <div class="flex text-yellow-400">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
                         </div>
                     </div>
-                    <p class="text-gray-700 mb-4">"Being an Addins ambassador helped me develop my communication skills and earn extra income during my studies. I've made KSh 45,000 in commissions this semester!"</p>
-                    <div class="flex text-yellow-400">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                </div>
 
-                <div class="bg-white rounded-xl shadow-lg p-8">
-                    <div class="flex items-center mb-4">
-                        <img src="/assets/img/ambassador-2.jpg" alt="Michael Chen" class="w-16 h-16 rounded-full object-cover mr-4">
-                        <div>
-                            <h4 class="font-bold text-lg">Michael Chen</h4>
-                            <p class="text-gray-600">Young Entrepreneur</p>
+                    <div class="bg-white rounded-xl shadow-lg p-8">
+                        <div class="flex items-center mb-4">
+                            <div class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center mr-4">
+                                <i class="fas fa-user text-2xl text-gray-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-lg">Michael Chen</h4>
+                                <p class="text-gray-600">Young Entrepreneur</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-700 mb-4">"The ambassador program gave me the confidence to start my own food delivery service. The training and network I gained were invaluable."</p>
+                        <div class="flex text-yellow-400">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
                         </div>
                     </div>
-                    <p class="text-gray-700 mb-4">"The ambassador program gave me the confidence to start my own food delivery service. The training and network I gained were invaluable."</p>
-                    <div class="flex text-yellow-400">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                </div>
 
-                <div class="bg-white rounded-xl shadow-lg p-8">
-                    <div class="flex items-center mb-4">
-                        <img src="/assets/img/ambassador-3.jpg" alt="Grace Wanjiku" class="w-16 h-16 rounded-full object-cover mr-4">
-                        <div>
-                            <h4 class="font-bold text-lg">Grace Wanjiku</h4>
-                            <p class="text-gray-600">Community Leader</p>
+                    <div class="bg-white rounded-xl shadow-lg p-8">
+                        <div class="flex items-center mb-4">
+                            <div class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center mr-4">
+                                <i class="fas fa-user text-2xl text-gray-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-lg">Grace Wanjiku</h4>
+                                <p class="text-gray-600">Community Leader</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-700 mb-4">"Through this program, I've been able to support local events with catering while building lasting relationships in my community. Truly rewarding!"</p>
+                        <div class="flex text-yellow-400">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
                         </div>
                     </div>
-                    <p class="text-gray-700 mb-4">"Through this program, I've been able to support local events with catering while building lasting relationships in my community. Truly rewarding!"</p>
-                    <div class="flex text-yellow-400">
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                        <i class="fas fa-star"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Resource Center -->
-<section class="py-16 bg-white">
-    <div class="container mx-auto px-4">
-        <div class="max-w-6xl mx-auto">
-            <div class="text-center mb-12">
-                <h2 class="text-3xl md:text-4xl font-bold text-dark mb-4">Ambassador Resource Center</h2>
-                <p class="text-xl text-gray-600">Everything you need to succeed as an Addins ambassador</p>
-            </div>
-
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div class="bg-light rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
-                    <div class="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4">
-                        <i class="fas fa-play-circle text-white text-xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-dark mb-3">Training Videos</h3>
-                    <p class="text-gray-600 mb-4">Step-by-step video guides on marketing strategies, customer engagement, and sales techniques.</p>
-                    <a href="#" class="text-primary font-semibold hover:text-primary-dark">Watch Now →</a>
-                </div>
-
-                <div class="bg-light rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
-                    <div class="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center mb-4">
-                        <i class="fas fa-file-alt text-white text-xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-dark mb-3">Marketing Materials</h3>
-                    <p class="text-gray-600 mb-4">Ready-to-use social media posts, flyers, and promotional materials for your campaigns.</p>
-                    <a href="#" class="text-primary font-semibold hover:text-primary-dark">Download →</a>
-                </div>
-
-                <div class="bg-light rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
-                    <div class="w-12 h-12 bg-accent rounded-lg flex items-center justify-center mb-4">
-                        <i class="fas fa-chart-bar text-white text-xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-dark mb-3">Performance Dashboard</h3>
-                    <p class="text-gray-600 mb-4">Track your referrals, commissions, and performance metrics in real-time.</p>
-                    <a href="#" class="text-primary font-semibold hover:text-primary-dark">View Dashboard →</a>
-                </div>
-
-                <div class="bg-light rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
-                    <div class="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4">
-                        <i class="fas fa-users text-white text-xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-dark mb-3">Community Forum</h3>
-                    <p class="text-gray-600 mb-4">Connect with other ambassadors, share strategies, and get support from our team.</p>
-                    <a href="#" class="text-primary font-semibold hover:text-primary-dark">Join Discussion →</a>
-                </div>
-
-                <div class="bg-light rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
-                    <div class="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center mb-4">
-                        <i class="fas fa-calendar-alt text-white text-xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-dark mb-3">Event Calendar</h3>
-                    <p class="text-gray-600 mb-4">Stay updated on ambassador meetups, training sessions, and promotional events.</p>
-                    <a href="#" class="text-primary font-semibold hover:text-primary-dark">View Events →</a>
-                </div>
-
-                <div class="bg-light rounded-xl p-6 hover:shadow-lg transition-shadow duration-300">
-                    <div class="w-12 h-12 bg-accent rounded-lg flex items-center justify-center mb-4">
-                        <i class="fas fa-question-circle text-white text-xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-dark mb-3">Support Center</h3>
-                    <p class="text-gray-600 mb-4">Get help with questions, technical issues, and guidance from our ambassador support team.</p>
-                    <a href="#" class="text-primary font-semibold hover:text-primary-dark">Get Help →</a>
-                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>

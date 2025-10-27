@@ -3,7 +3,7 @@ session_start();
 require_once '../includes/config.php';
 
 // Check if user is logged in and is admin
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();
@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'], $_GET['status']))
     $status = $_GET['status'];
 
     // Validate status
-    $valid_statuses = ['processing', 'confirmed', 'delivered', 'cancelled'];
+    $valid_statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
     if (!in_array($status, $valid_statuses)) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Invalid status']);
@@ -31,20 +31,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'], $_GET['status']))
             // Log activity
             error_log("Order #$id status changed to $status by admin");
 
-            // Redirect back to orders page with success message
-            $_SESSION['message'] = ['type' => 'success', 'text' => "Order status updated to " . ucfirst($status)];
-            header('Location: orders.php');
-            exit();
+            // Check if this is an AJAX request
+            $isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest';
+
+            if ($isAjax) {
+                // Return JSON for AJAX requests
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true, 'message' => "Order status updated to " . ucfirst($status)]);
+                exit();
+            } else {
+                // Redirect back to orders page with success message for direct browser requests
+                $_SESSION['message'] = ['type' => 'success', 'text' => "Order status updated to " . ucfirst($status)];
+                header('Location: orders.php');
+                exit();
+            }
         } else {
-            $_SESSION['message'] = ['type' => 'error', 'text' => 'Failed to update order status'];
-            header('Location: orders.php');
-            exit();
+            // Check if this is an AJAX request
+            $isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest';
+
+            if ($isAjax) {
+                // Return JSON error for AJAX requests
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Failed to update order status']);
+                exit();
+            } else {
+                // Redirect with error for direct browser requests
+                $_SESSION['message'] = ['type' => 'error', 'text' => 'Failed to update order status'];
+                header('Location: orders.php');
+                exit();
+            }
         }
     } catch (PDOException $e) {
         error_log("Error updating order status: " . $e->getMessage());
-        $_SESSION['message'] = ['type' => 'error', 'text' => 'Database error occurred'];
-        header('Location: orders.php');
-        exit();
+
+        // Check if this is an AJAX request
+        $isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest';
+
+        if ($isAjax) {
+            // Return JSON error for AJAX requests
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Database error occurred']);
+            exit();
+        } else {
+            // Redirect with error for direct browser requests
+            $_SESSION['message'] = ['type' => 'error', 'text' => 'Database error occurred'];
+            header('Location: orders.php');
+            exit();
+        }
     }
 }
 

@@ -764,7 +764,7 @@ include 'includes/header.php';
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
                 </h3>
-                <button type="button" onclick="closeModal('deleteModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -778,11 +778,11 @@ include 'includes/header.php';
 
         <!-- Modal Footer -->
         <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
-            <button type="button" onclick="closeModal('deleteModal')"
-                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
-                <span class="relative z-10 font-medium">Cancel</span>
-            </button>
+                <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
+                        class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                    <span class="relative z-10 font-medium">Cancel</span>
+                </button>
             <form action="" method="POST" class="inline-block" id="deleteOrderForm">
                 <input type="hidden" name="_method" value="DELETE">
                 <input type="hidden" name="id" id="deleteOrderId">
@@ -806,7 +806,7 @@ include 'includes/header.php';
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-pencil-alt mr-2"></i>Edit Order <span id="editOrderNumber" class="font-mono text-purple-100 italic"></span>
                 </h3>
-                <button type="button" onclick="closeModal('editOrderModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="document.getElementById('editOrderModal').classList.add('hidden'); document.getElementById('editOrderModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('editOrderForm')?.reset();" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -882,11 +882,11 @@ include 'includes/header.php';
 
         <!-- Modal Footer -->
         <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
-            <button type="button" onclick="closeModal('editOrderModal')"
-                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
-                <span class="relative z-10 font-medium">Cancel</span>
-            </button>
+                <button type="button" onclick="document.getElementById('editOrderModal').classList.add('hidden'); document.getElementById('editOrderModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('editOrderForm')?.reset();"
+                        class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                    <span class="relative z-10 font-medium">Cancel</span>
+                </button>
              <button type="submit" form="editOrderForm"
                     class="group relative bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
@@ -906,7 +906,7 @@ include 'includes/header.php';
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-cart-plus mr-2"></i>Add New Order
                 </h3>
-                <button type="button" onclick="closeModal('addOrderModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="document.getElementById('addOrderModal').classList.add('hidden'); document.getElementById('addOrderModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('addOrderForm')?.reset();" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1004,7 +1004,7 @@ include 'includes/header.php';
 
         <!-- Modal Footer -->
         <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
-            <button type="button" onclick="closeModal('addOrderModal')"
+            <button type="button" onclick="document.getElementById('addOrderModal').classList.add('hidden'); document.getElementById('addOrderModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('addOrderForm')?.reset();"
                     class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                 <span class="relative z-10 font-medium">Cancel</span>
@@ -1025,31 +1025,6 @@ include 'includes/header.php';
 // No need to uncomment or add it here as it's included globally
 
 
-// Enhanced Global utility to close modals with better error handling and animation support
-function closeModal(modalId) {
-    if (!modalId || typeof modalId !== 'string') {
-        console.warn('closeModal: Invalid modal ID provided');
-        return;
-    }
-
-    const modal = document.getElementById(modalId);
-    if (!modal) {
-        console.warn(`closeModal: Modal with ID "${modalId}" not found`);
-        return;
-    }
-
-    // Add fade-out animation class if available
-    if (typeof animate !== 'undefined') {
-        modal.classList.add('animate__fadeOut');
-        setTimeout(() => {
-            modal.classList.add('hidden');
-            modal.classList.remove('animate__fadeOut');
-        }, 300);
-    } else {
-        // Fallback for immediate hide
-        modal.classList.add('hidden');
-    }
-}
 
 // Close modal when clicking outside (on the black overlay)
 window.addEventListener('click', function(event) {
@@ -1057,9 +1032,25 @@ window.addEventListener('click', function(event) {
     modalIds.forEach(id => {
         const modal = document.getElementById(id);
         if (modal && !modal.classList.contains('hidden') && event.target === modal) {
-            closeModal(id);
+            modal.classList.add('hidden');
+            modal.classList.remove('animate__fadeIn', 'animate__zoomIn');
         }
     });
+});
+
+// Close modal when pressing ESC key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modalIds = ['deleteModal', 'editOrderModal', 'addOrderModal'];
+        modalIds.forEach(id => {
+            const modal = document.getElementById(id);
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+                modal.classList.remove('animate__fadeIn', 'animate__zoomIn');
+                event.preventDefault(); // Prevent default ESC behavior
+            }
+        });
+    }
 });
 
 // Calculate total amount in modals based on subtotal and delivery fee
@@ -1278,22 +1269,42 @@ function confirmDelete(orderId, orderNumber) {
 
 // Populates and displays the edit order modal
 function editOrder(orderData, customerName, customerEmail) {
-    document.getElementById('edit_order_id').value = orderData.id;
-    document.getElementById('editOrderNumber').textContent = `#${orderData.order_number}`;
-    document.getElementById('editCustomerName').textContent = customerName;
-    document.getElementById('editCustomerEmail').textContent = customerEmail || 'N/A';
+    // Fetch complete order data to ensure we have all fields
+    fetch(`orders.php?fetch_order_data=${orderData.id}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch order details');
+            }
+            return response.json();
+        })
+        .then(fullOrderData => {
+            if (fullOrderData.error) {
+                Swal.fire('Error', 'Failed to load order details for editing.', 'error');
+                return;
+            }
 
-    document.getElementById('edit_status').value = orderData.status;
-    document.getElementById('edit_payment_status').value = orderData.payment_status || 'pending'; // Fallback for payment status
-    document.getElementById('edit_delivery_address').value = orderData.delivery_address;
-    document.getElementById('edit_delivery_instructions').value = orderData.delivery_instructions;
+            // Populate modal with complete order data
+            document.getElementById('edit_order_id').value = fullOrderData.id;
+            document.getElementById('editOrderNumber').textContent = `#${fullOrderData.order_number}`;
+            document.getElementById('editCustomerName').textContent = customerName || 'N/A';
+            document.getElementById('editCustomerEmail').textContent = customerEmail || 'N/A';
 
-    document.getElementById('edit_subtotal').value = parseFloat(orderData.subtotal).toFixed(2);
-    document.getElementById('edit_delivery_fee').value = parseFloat(orderData.delivery_fee).toFixed(2);
-    calculateTotal('edit'); // Compute total based on populated subtotal/delivery_fee
-    document.getElementById('editOrderModal').classList.remove('hidden'); // Show modal
-    // Optional: Add animation class
-    // document.getElementById('editOrderModal').classList.add('animate__zoomIn');
+            document.getElementById('edit_status').value = fullOrderData.status;
+            document.getElementById('edit_payment_status').value = fullOrderData.payment_status || 'pending';
+            document.getElementById('edit_delivery_address').value = fullOrderData.delivery_address || '';
+            document.getElementById('edit_delivery_instructions').value = fullOrderData.delivery_instructions || '';
+
+            document.getElementById('edit_subtotal').value = parseFloat(fullOrderData.subtotal || 0).toFixed(2);
+            document.getElementById('edit_delivery_fee').value = parseFloat(fullOrderData.delivery_fee || 0).toFixed(2);
+            calculateTotal('edit'); // Compute total based on populated subtotal/delivery_fee
+
+            // Show modal
+            document.getElementById('editOrderModal').classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('Error fetching order data for edit:', error);
+            Swal.fire('Error', 'Failed to load order details for editing.', 'error');
+        });
 }
 
 // Resets and displays the add new order modal
@@ -1308,26 +1319,62 @@ function addOrder() {
     document.getElementById('add_delivery_fee').value = '0.00';
     calculateTotal('add'); // Initialize total to 0.00
     document.getElementById('addOrderModal').classList.remove('hidden'); // Show modal
-    // Optional: Add animation class
-    // document.getElementById('addOrderModal').classList.add('animate__zoomIn');
 }
 
 // Function to update order status directly (e.g., from Process, Ship, Deliver buttons)
 function updateOrderStatus(orderId, newStatus) {
-    // First, fetch the *full* current order data from the backend
-    fetch(`orders.php?fetch_order_data=${orderId}`)
-        .then(response => {
-            if (!response.ok) { // Handle HTTP errors
-                // Attempt to parse JSON error message if provided
-                return response.json().then(errorData => Promise.reject(new Error(errorData?.error || response.statusText)));
-            }
-            return response.json(); // Parse the JSON response
-        })
-        })
-        .catch(error => {
-            console.error('Error in updateOrderStatus fetch:', error);
-            Swal.fire('Error', `Failed to fetch order details for status update. Please try again. (${error.message})`, 'error');
-        });
+    // Show confirmation dialog
+    Swal.fire({
+        title: 'Update Order Status?',
+        text: `Are you sure you want to change this order status to "${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}"?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, update status!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Show loading state
+            const button = event.target.closest('button');
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin relative z-10"></i><span class="relative z-10 font-medium">Updating...</span>';
+            button.disabled = true;
+
+            // Update status via AJAX to update_status.php
+            fetch(`update_status.php?id=${orderId}&status=${newStatus}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP error! status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Success!', 'Order status updated successfully!', 'success');
+                    // Reload page to reflect changes
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    Swal.fire('Error', 'Error updating order status: ' + (data.message || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Status update error:', error);
+                Swal.fire('Error', 'Error updating order status: ' + error.message, 'error');
+            })
+            .finally(() => {
+                // Restore button state
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            });
+        }
+    });
 }
 </script>
 

@@ -408,15 +408,12 @@ require_once 'includes/header.php';
                                     <i class="fas fa-<?php echo (($post['status'] ?? 'draft') === 'published' ? 'eye-slash' : 'eye'); ?>"></i>
                                     <span class="hidden sm:inline"><?php echo (($post['status'] ?? 'draft') === 'published' ? 'Draft' : 'Publish'); ?></span>
                                 </a>
-                                <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this blog post? This action cannot be undone.');">
-                                    <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
-                                    <button type="submit" name="delete_post"
-                                            class="action-btn bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-1"
-                                            title="Permanently delete this blog post">
-                                        <i class="fas fa-trash"></i>
-                                        <span class="hidden sm:inline">Delete</span>
-                                    </button>
-                                </form>
+                                <button onclick="confirmDeletePost(<?php echo $post['id']; ?>, '<?php echo htmlspecialchars(addslashes($post['title'])); ?>')"
+                                        class="action-btn bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-1"
+                                        title="Permanently delete this blog post">
+                                    <i class="fas fa-trash"></i>
+                                    <span class="hidden sm:inline">Delete</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -620,8 +617,48 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
+                </h3>
+                <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 text-gray-700">
+            <p class="text-lg font-medium mb-3">Are you sure you want to delete blog post "<span id="deletePostName" class="font-bold text-red-600"></span>"?</p>
+            <p>This action cannot be undone. All associated data will be permanently removed.</p>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
+                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <span class="relative z-10 font-medium">Cancel</span>
+            </button>
+            <form action="" method="POST" class="inline-block" id="deletePostForm">
+                <input type="hidden" name="post_id" id="deletePostId">
+                <button type="submit" name="delete_post"
+                        class="group relative bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                    <i class="fas fa-trash mr-2 relative z-10"></i>
+                    <span class="relative z-10 font-medium">Delete Post</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
-/* Blog page enhancements */
 .blog-card {
     transition: all 0.2s ease;
 }
@@ -872,12 +909,13 @@ function closeEditModal() {
     document.getElementById('edit_image').replaceWith(document.getElementById('edit_image').cloneNode(true));
 }
 
-function closeViewModal() {
-    document.getElementById('viewModal').classList.add('hidden');
-    document.getElementById('viewModalContent').innerHTML = '';
+function confirmDeletePost(id, title) {
+    document.getElementById('deletePostId').value = id;
+    document.getElementById('deletePostName').textContent = title;
+    document.getElementById('deleteModal').classList.remove('hidden');
 }
 
-// Close modals when clicking outside
+// Close modal when clicking outside
 document.getElementById('addModal')?.addEventListener('click', function(e) {
     if (e.target === this) {
         closeAddModal();
@@ -896,12 +934,19 @@ document.getElementById('viewModal')?.addEventListener('click', function(e) {
     }
 });
 
+document.getElementById('deleteModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.classList.add('hidden');
+    }
+});
+
 // Close modals with Escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeAddModal();
         closeEditModal();
         closeViewModal();
+        document.getElementById('deleteModal')?.classList.add('hidden');
     }
 });
 </script>

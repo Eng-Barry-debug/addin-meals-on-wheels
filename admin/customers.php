@@ -433,10 +433,9 @@ $page_title = 'Manage Customers';
                                             <span class="relative z-10 font-medium">Edit</span>
                                         </button>
                                         <?php if ($user['id'] != $_SESSION['user_id']): // Prevent admin from deleting their own account ?>
-                                            <form action="" method="POST" class="inline"
-                                                onsubmit="return confirm('Are you sure you want to delete this customer? This action cannot be undone.');">
+                                            <form action="" method="POST" class="inline" onsubmit="return false;">
                                                 <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
-                                                <button type="submit" name="delete_user"
+                                                <button type="button" onclick="event.preventDefault(); confirmDeleteUser(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars(addslashes($user['name'])); ?>');"
                                                         class="group relative bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-red-400/20">
                                                     <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                                                     <i class="fas fa-trash text-sm relative z-10"></i>
@@ -464,7 +463,7 @@ $page_title = 'Manage Customers';
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-user-edit mr-2"></i>Edit Customer
                 </h3>
-                <button onclick="closeModal('editUserModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="document.getElementById('editUserModal').classList.add('hidden'); document.getElementById('editUserModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('editUserForm')?.reset();" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -520,7 +519,7 @@ $page_title = 'Manage Customers';
                         <i class="fas fa-save mr-2 relative z-10"></i>
                         <span class="relative z-10 font-medium">Update Customer</span>
                     </button>
-                    <button type="button" onclick="closeModal('editUserModal')"
+                    <button type="button" onclick="document.getElementById('editUserModal').classList.add('hidden'); document.getElementById('editUserModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('editUserForm')?.reset();"
                             class="group relative bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-gray-400/20">
                         <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                         <span class="relative z-10 font-medium">Cancel</span>
@@ -540,7 +539,7 @@ $page_title = 'Manage Customers';
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-user-plus mr-2"></i>Add New Customer
                 </h3>
-                <button onclick="closeModal('addUserModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button onclick="document.getElementById('addUserModal').classList.add('hidden'); document.getElementById('addUserModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('addUserForm')?.reset();" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -602,7 +601,7 @@ $page_title = 'Manage Customers';
                         <i class="fas fa-plus mr-2 relative z-10"></i>
                         <span class="relative z-10 font-medium">Add Customer</span>
                     </button>
-                    <button type="button" onclick="closeModal('addUserModal')"
+                    <button type="button" onclick="document.getElementById('addUserModal').classList.add('hidden'); document.getElementById('addUserModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('addUserForm')?.reset();"
                             class="group relative bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-gray-400/20">
                         <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                         <span class="relative z-10 font-medium">Cancel</span>
@@ -622,7 +621,7 @@ $page_title = 'Manage Customers';
                 <h3 id="deleteModalTitle" class="text-xl font-bold">
                     <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
                 </h3>
-                <button type="button" onclick="closeModal('deleteConfirmationModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="document.getElementById('deleteConfirmationModal').classList.add('hidden'); document.getElementById('deleteConfirmationModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -636,7 +635,7 @@ $page_title = 'Manage Customers';
 
         <!-- Modal Footer -->
         <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
-            <button type="button" onclick="closeModal('deleteConfirmationModal')"
+            <button type="button" onclick="document.getElementById('deleteConfirmationModal').classList.add('hidden'); document.getElementById('deleteConfirmationModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
                     class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                 <span class="relative z-10 font-medium">Cancel</span>
@@ -655,61 +654,7 @@ $page_title = 'Manage Customers';
 </div>
 
 <script>
-// --- Global Functions for Modals (consistent with ambassador.php/orders.php) ---
-function closeModal(modalId) {
-    if (!modalId || typeof modalId !== 'string') {
-        console.warn('closeModal: Invalid modal ID provided');
-        return;
-    }
-
-    const modal = document.getElementById(modalId);
-    if (!modal) {
-        console.warn(`closeModal: Modal with ID "${modalId}" not found`);
-        return;
-    }
-
-    modal.classList.add('animate__fadeOut');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-        modal.classList.remove('animate__fadeOut', 'animate__animated', 'animate__fadeIn');
-        document.body.classList.remove('overflow-y-hidden');
-    }, 300);
-
-    // Clear content of AJAX-loaded modals if any, or reset form fields
-    if (modalId === 'editUserModal') {
-        document.getElementById('editUserForm').reset(); // Reset edit form
-    } else if (modalId === 'addUserModal') {
-        document.getElementById('addUserForm').reset(); // Reset add form
-    } else if (modalId === 'deleteConfirmationModal') {
-        document.getElementById('customerNameToDelete').textContent = ''; // Clear name in delete modal
-    }
-}
-
-function openModal(modalId) {
-    if (!modalId || typeof modalId !== 'string') {
-        console.warn('openModal: Invalid modal ID provided');
-        return;
-    }
-
-    const modal = document.getElementById(modalId);
-    if (!modal) {
-        console.warn(`openModal: Modal with ID "${modalId}" not found`);
-        return;
-    }
-
-    // Hide all other modals first (optional, but good for single modal display)
-    const allModals = document.querySelectorAll('.fixed.inset-0.modal-backdrop');
-    allModals.forEach(m => {
-        if (m.id !== modalId) {
-            m.classList.add('hidden');
-            m.classList.remove('animate__fadeIn', 'animate__zoomIn');
-        }
-    });
-
-    modal.classList.remove('hidden');
-    modal.classList.add('animate__animated', 'animate__fadeIn');
-    document.body.classList.add('overflow-y-hidden');
-}
+// Global functions for customer management
 
 
 // Close modal when clicking outside (on the black overlay)
@@ -717,10 +662,9 @@ window.addEventListener('click', function(event) {
     const modalIds = ['editUserModal', 'addUserModal', 'deleteConfirmationModal'];
     modalIds.forEach(id => {
         const modal = document.getElementById(id);
-        if (modal && !modal.classList.contains('hidden')) {
-            if (event.target === modal) {
-                closeModal(id);
-            }
+        if (modal && !modal.classList.contains('hidden') && event.target === modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('animate__fadeIn', 'animate__zoomIn');
         }
     });
 });
@@ -729,13 +673,14 @@ window.addEventListener('click', function(event) {
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         const modalIds = ['editUserModal', 'addUserModal', 'deleteConfirmationModal'];
-        for (const id of modalIds) {
+        modalIds.forEach(id => {
             const modal = document.getElementById(id);
             if (modal && !modal.classList.contains('hidden')) {
-                closeModal(id);
-                break;
+                modal.classList.add('hidden');
+                modal.classList.remove('animate__fadeIn', 'animate__zoomIn');
+                event.preventDefault(); // Prevent default ESC behavior
             }
-        }
+        });
     }
 });
 
@@ -748,8 +693,8 @@ function editUser(user) {
     document.getElementById('edit_role').value = user.role;
     document.getElementById('edit_status').value = user.status;
 
-    // Show modal using the new openModal function
-    openModal('editUserModal');
+    // Show modal using direct JavaScript
+    document.getElementById('editUserModal').classList.remove('hidden');
 }
 
 function addUser() {
@@ -761,15 +706,15 @@ function addUser() {
     // Ensure password field is visible/active (if it was hidden for edit)
     document.getElementById('add_password').required = true;
 
-    // Show modal using the new openModal function
-    openModal('addUserModal');
+    // Show modal using direct JavaScript
+    document.getElementById('addUserModal').classList.remove('hidden');
 }
 
 // Function to open the delete confirmation modal
 function confirmDeleteUser(userId, userName) {
     document.getElementById('deleteCustomerId').value = userId;
     document.getElementById('customerNameToDelete').textContent = userName;
-    openModal('deleteConfirmationModal');
+    document.getElementById('deleteConfirmationModal').classList.remove('hidden');
 }
 
 
@@ -910,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // The PHP handler will look for 'delete_user_ajax'
 
             try {
-                const response = await fetch('customer.php', { // Ensure this URL is correct for customer.php
+                const response = await fetch('customers.php', { // Ensure this URL is correct for customer.php
                     method: 'POST',
                     body: formData
                 });
@@ -919,7 +864,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (result.status === 'success') {
                     Swal.fire('Deleted!', result.message, 'success').then(() => {
-                        closeModal('deleteConfirmationModal');
+                        document.getElementById('deleteConfirmationModal').classList.add('hidden');
+                        document.getElementById('deleteConfirmationModal').classList.remove('animate__fadeIn', 'animate__zoomIn');
                         location.reload(); // Reload the page to show changes
                     });
                 } else {

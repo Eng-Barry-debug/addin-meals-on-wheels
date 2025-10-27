@@ -100,6 +100,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
                             <i class="fas fa-handshake mr-3 text-sm"></i>
                             <span>Ambassador</span>
                         </a>
+                        <a href="success_stories.php" class="flex items-center px-4 py-2 text-sm font-medium rounded-md group <?php echo basename($_SERVER['PHP_SELF']) == 'success_stories.php' ? 'bg-primary/70 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'; ?>">
+                            <i class="fas fa-star mr-3 text-sm"></i>
+                            <span>Success Stories</span>
+                        </a>
                         <a href="blog.php" class="flex items-center px-4 py-2 text-sm font-medium rounded-md group <?php echo basename($_SERVER['PHP_SELF']) == 'blog.php' ? 'bg-primary/70 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'; ?>">
                             <i class="fas fa-blog mr-3 text-sm"></i>
                             <span>Blogs</span>
@@ -129,6 +133,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
                             ?>
                                 <span class="ml-auto px-2 py-0.5 text-xs font-medium rounded-full bg-orange-500 text-white"><?php echo $pending_campaigns; ?></span>
                             <?php endif; } catch (Exception $e) { } ?>
+                        </a>
+                        <a href="images.php" class="flex items-center px-4 py-2 text-sm font-medium rounded-md group <?php echo basename($_SERVER['PHP_SELF']) == 'images.php' ? 'bg-primary/70 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'; ?>">
+                            <i class="fas fa-images mr-3 text-sm"></i>
+                            <span>Homepage Images</span>
                         </a>
                     </div>
                 </div>
@@ -312,10 +320,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
                     'categories.php': 'products',
                     'reviews.php': 'products',
                     'ambassador.php': 'marketing',
+                    'success_stories.php': 'marketing',
                     'blog.php': 'marketing',
                     'newsletter.php': 'marketing',
                     'create_newsletter.php': 'marketing',
-                    'teams.php': 'admin',
                     'reports.php': 'admin',
                     'settings.php': 'admin',
                     'feedback.php': 'admin'

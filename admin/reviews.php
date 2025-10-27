@@ -49,12 +49,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (isset($_POST['delete_review'])) {
-            $review_id = (int)$_POST['review_id'];
-            $stmt = $pdo->prepare("DELETE FROM reviews WHERE id = ?");
-            $stmt->execute([$review_id]);
-            $message = 'Review deleted successfully!';
-            $message_type = 'success';
-            $activityLogger->logActivity("Customer review deleted (ID: {$review_id}).", $_SESSION['user_id'] ?? null, 'review_delete');
+            // Check if it's a testimonial or product review
+            if (isset($_POST['testimonial_id']) && !empty($_POST['testimonial_id'])) {
+                // Handle testimonial deletion
+                $testimonial_id = (int)$_POST['testimonial_id'];
+                $stmt = $pdo->prepare("DELETE FROM customer_reviews WHERE id = ?");
+                $stmt->execute([$testimonial_id]);
+                $message = 'Testimonial deleted successfully!';
+                $message_type = 'success';
+                $activityLogger->logActivity("Customer testimonial deleted (ID: {$testimonial_id}).", $_SESSION['user_id'] ?? null, 'testimonial_delete');
+            } elseif (isset($_POST['review_id']) && !empty($_POST['review_id'])) {
+                // Handle product review deletion
+                $review_id = (int)$_POST['review_id'];
+                $stmt = $pdo->prepare("DELETE FROM reviews WHERE id = ?");
+                $stmt->execute([$review_id]);
+                $message = 'Review deleted successfully!';
+                $message_type = 'success';
+                $activityLogger->logActivity("Customer review deleted (ID: {$review_id}).", $_SESSION['user_id'] ?? null, 'review_delete');
+            }
         }
 
         if (isset($_POST['testimonial_action'])) {
@@ -81,12 +93,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message_type = 'success';
                     $activityLogger->logActivity("Customer testimonial deleted (ID: {$testimonial_id}).", $_SESSION['user_id'] ?? null, 'testimonial_delete');
                 }
-
-                // Refresh customer testimonials data
-                $stmt = $pdo->prepare("SELECT * FROM customer_reviews ORDER BY created_at DESC");
-                $stmt->execute();
-                $customer_testimonials = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
             } catch (Exception $e) {
                 $message = $e->getMessage();
                 $message_type = 'error';
@@ -468,11 +474,10 @@ include 'includes/header.php';
                                         </form>
                                     <?php endif; ?>
 
-                                    <form method="POST" class="inline">
+                                    <form method="POST" class="inline" onsubmit="return false;">
                                         <input type="hidden" name="testimonial_id" value="<?php echo $testimonial['id']; ?>">
                                         <input type="hidden" name="testimonial_action" value="delete">
-                                        <button type="submit"
-                                                onclick="return confirm('Are you sure you want to delete this testimonial?')"
+                                        <button type="button" onclick="event.preventDefault(); confirmDeleteReview(<?php echo $testimonial['id']; ?>, '<?php echo htmlspecialchars(addslashes($testimonial['customer_name'] ?? 'Unknown Customer')); ?>', 'testimonial');"
                                                 class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
                                             Delete
                                         </button>
@@ -560,10 +565,9 @@ include 'includes/header.php';
                                         </form>
                                     <?php endif; ?>
 
-                                    <form method="POST" class="inline">
+                                    <form method="POST" class="inline" onsubmit="return false;">
                                         <input type="hidden" name="review_id" value="<?php echo $review['id']; ?>">
-                                        <button type="submit" name="delete_review"
-                                                onclick="return confirm('Are you sure you want to delete this review?')"
+                                        <button type="button" onclick="event.preventDefault(); confirmDeleteReview(<?php echo $review['id']; ?>, '<?php echo htmlspecialchars(addslashes($review['customer_name'] ?? 'Unknown Customer')); ?>');"
                                                 class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
                                             Delete
                                         </button>
@@ -576,101 +580,208 @@ include 'includes/header.php';
             <?php endif; ?>
         </div>
     </div>
-</div>
 
-<!-- Bulk Actions Forms (hidden) -->
-<form id="testimonials-bulk-form" method="POST" class="hidden">
-    <input type="hidden" name="testimonial_bulk_action" value="">
-    <input type="hidden" name="testimonial_type" value="testimonials">
-</form>
-<form id="products-bulk-form" method="POST" class="hidden">
-    <input type="hidden" name="review_type" value="products">
-</form>
+    <!-- Bulk Actions Forms (hidden) -->
+    <form id="testimonials-bulk-form" method="POST" class="hidden">
+        <input type="hidden" name="testimonial_bulk_action" value="">
+        <input type="hidden" name="testimonial_type" value="testimonials">
+    </form>
+    <form id="products-bulk-form" method="POST" class="hidden">
+        <input type="hidden" name="review_type" value="products">
+    </form>
 
-<!-- JavaScript for Tab Functionality -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabContents = document.querySelectorAll('.tab-content');
+    <!-- JavaScript for Tab Functionality -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
 
-    tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const tabType = this.getAttribute('data-tab');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const tabType = this.getAttribute('data-tab');
 
-            // Update active button
-            tabButtons.forEach(btn => btn.classList.remove('active', 'bg-primary', 'text-white'));
-            this.classList.add('active', 'bg-primary', 'text-white');
+                // Update active button
+                tabButtons.forEach(btn => btn.classList.remove('active', 'bg-primary', 'text-white'));
+                this.classList.add('active', 'bg-primary', 'text-white');
 
-            // Show/hide content
-            tabContents.forEach(content => {
-                if (content.id === tabType + '-section') {
-                    content.classList.remove('hidden');
+                // Show/hide content
+                tabContents.forEach(content => {
+                    if (content.id === tabType + '-section') {
+                        content.classList.remove('hidden');
+                    } else {
+                        content.classList.add('hidden');
+                    }
+                });
+            });
+        });
+
+        // Handle bulk actions for testimonials
+        const testimonialsForm = document.getElementById('testimonials-bulk-form');
+        const testimonialsSection = document.getElementById('testimonials-section');
+
+        if (testimonialsSection) {
+            // Add bulk action buttons for testimonials
+            const bulkActionsDiv = document.createElement('div');
+            bulkActionsDiv.className = 'flex flex-col sm:flex-row gap-2 mb-4';
+            bulkActionsDiv.innerHTML = `
+                <select id="testimonial-bulk-select" class="px-3 py-2 border border-gray-300 rounded-lg">
+                    <option value="">Bulk Actions</option>
+                    <option value="approve">Approve Selected</option>
+                    <option value="reject">Reject Selected</option>
+                    <option value="delete">Delete Selected</option>
+                </select>
+                <button type="button" id="testimonial-bulk-apply" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg">
+                    Apply
+                </button>
+            `;
+
+            const existingHeader = testimonialsSection.querySelector('.flex.flex-col.md\\:flex-row');
+            if (existingHeader) {
+                existingHeader.appendChild(bulkActionsDiv);
+            }
+
+            // Handle bulk apply button
+            document.getElementById('testimonial-bulk-apply').addEventListener('click', function() {
+                const action = document.getElementById('testimonial-bulk-select').value;
+                const checkboxes = testimonialsSection.querySelectorAll('input[name="testimonial_ids[]"]:checked');
+
+                if (action && checkboxes.length > 0) {
+                    if (confirm(`Are you sure you want to ${action} ${checkboxes.length} testimonial(s)?`)) {
+                        const testimonialIds = Array.from(checkboxes).map(cb => cb.value);
+
+                        // Set form values
+                        testimonialsForm.querySelector('input[name="testimonial_bulk_action"]').value = action;
+                        testimonialsForm.querySelector('input[name="testimonial_ids[]"]').remove();
+
+                        testimonialIds.forEach(id => {
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = 'testimonial_ids[]';
+                            input.value = id;
+                            testimonialsForm.appendChild(input);
+                        });
+
+                        testimonialsForm.submit();
+                    }
                 } else {
-                    content.classList.add('hidden');
+                    alert('Please select an action and at least one testimonial.');
                 }
             });
+        }
+    });
+    </script>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white rounded-t-2xl">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-bold">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
+                    </h3>
+                    <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 text-gray-700">
+                <p class="text-lg font-medium mb-3">Are you sure you want to delete this review?</p>
+                <p class="text-sm text-gray-600">This action cannot be undone. The review will be permanently removed.</p>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+                <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
+                        class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                    <span class="relative z-10 font-medium">Cancel</span>
+                </button>
+                <form method="POST" class="inline-block" id="deleteReviewForm">
+                    <input type="hidden" name="testimonial_id" id="deleteTestimonialId">
+                    <input type="hidden" name="review_id" id="deleteReviewId">
+                    <input type="hidden" name="delete_type" id="deleteType" value="review">
+                    <button type="submit" name="delete_review" id="deleteSubmitButton"
+                            class="group relative bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                        <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                        <i class="fas fa-trash mr-2 relative z-10"></i>
+                        <span class="relative z-10 font-medium" id="deleteButtonText">Delete Review</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <?php include 'includes/footer.php'; ?>
+
+    <script>
+    // Delete confirmation modal
+    function confirmDeleteReview(id, title, type = 'review') {
+        // Set the review ID in the modal form
+        if (type === 'testimonial') {
+            document.getElementById('deleteTestimonialId').value = id;
+            document.getElementById('deleteReviewId').value = '';
+            document.getElementById('deleteType').value = 'testimonial';
+            document.getElementById('deleteButtonText').textContent = 'Delete Testimonial';
+            document.getElementById('deleteSubmitButton').name = 'testimonial_action';
+            document.getElementById('deleteSubmitButton').value = 'delete';
+        } else {
+            document.getElementById('deleteReviewId').value = id;
+            document.getElementById('deleteTestimonialId').value = '';
+            document.getElementById('deleteType').value = 'review';
+            document.getElementById('deleteButtonText').textContent = 'Delete Review';
+            document.getElementById('deleteSubmitButton').name = 'delete_review';
+            document.getElementById('deleteSubmitButton').value = '1';
+        }
+
+        // Update the modal content based on type
+        const modalBody = document.querySelector('#deleteModal .p-6.text-gray-700');
+        if (modalBody) {
+            if (type === 'testimonial') {
+                modalBody.innerHTML = `
+                    <p class="text-lg font-medium mb-3">Are you sure you want to delete this testimonial?</p>
+                    <p class="text-sm text-gray-600">This action cannot be undone. The testimonial will be permanently removed.</p>
+                `;
+            } else {
+                modalBody.innerHTML = `
+                    <p class="text-lg font-medium mb-3">Are you sure you want to delete this review?</p>
+                    <p class="text-sm text-gray-600">This action cannot be undone. The review will be permanently removed.</p>
+                `;
+            }
+        }
+
+        // Show the modal
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        const modalIds = ['deleteModal'];
+        modalIds.forEach(id => {
+            const modal = document.getElementById(id);
+            if (modal && !modal.classList.contains('hidden') && event.target === modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('animate__fadeIn', 'animate__zoomIn');
+            }
         });
     });
 
-    // Handle bulk actions for testimonials
-    const testimonialsForm = document.getElementById('testimonials-bulk-form');
-    const testimonialsSection = document.getElementById('testimonials-section');
-
-    if (testimonialsSection) {
-        // Add bulk action buttons for testimonials
-        const bulkActionsDiv = document.createElement('div');
-        bulkActionsDiv.className = 'flex flex-col sm:flex-row gap-2 mb-4';
-        bulkActionsDiv.innerHTML = `
-            <select id="testimonial-bulk-select" class="px-3 py-2 border border-gray-300 rounded-lg">
-                <option value="">Bulk Actions</option>
-                <option value="approve">Approve Selected</option>
-                <option value="reject">Reject Selected</option>
-                <option value="delete">Delete Selected</option>
-            </select>
-            <button type="button" id="testimonial-bulk-apply" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg">
-                Apply
-            </button>
-        `;
-
-        const existingHeader = testimonialsSection.querySelector('.flex.flex-col.md\\:flex-row');
-        if (existingHeader) {
-            existingHeader.appendChild(bulkActionsDiv);
-        }
-
-        // Handle bulk apply button
-        document.getElementById('testimonial-bulk-apply').addEventListener('click', function() {
-            const action = document.getElementById('testimonial-bulk-select').value;
-            const checkboxes = testimonialsSection.querySelectorAll('input[name="testimonial_ids[]"]:checked');
-
-            if (action && checkboxes.length > 0) {
-                if (confirm(`Are you sure you want to ${action} ${checkboxes.length} testimonial(s)?`)) {
-                    const testimonialIds = Array.from(checkboxes).map(cb => cb.value);
-
-                    // Set form values
-                    testimonialsForm.querySelector('input[name="testimonial_bulk_action"]').value = action;
-                    testimonialsForm.querySelector('input[name="testimonial_ids[]"]').remove();
-
-                    testimonialIds.forEach(id => {
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = 'testimonial_ids[]';
-                        input.value = id;
-                        testimonialsForm.appendChild(input);
-                    });
-
-                    testimonialsForm.submit();
+    // Keyboard navigation for modals (Escape key)
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const modalIds = ['deleteModal'];
+            modalIds.forEach(id => {
+                const modal = document.getElementById(id);
+                if (modal && !modal.classList.contains('hidden')) {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('animate__fadeIn', 'animate__zoomIn');
+                    event.preventDefault(); // Prevent default ESC behavior
                 }
-            } else {
-                alert('Please select an action and at least one testimonial.');
-            }
-        });
-    }
-});
-</script>
-
-<!-- Close HTML structure as required by header.php -->
-</div>
-</div>
-</div>
+            });
+        }
+    });
+    </script>
 </body>
 </html>

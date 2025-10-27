@@ -256,9 +256,9 @@ require_once 'includes/header.php';
                                 <i class="fas fa-edit mr-2"></i>
                                 Edit
                             </button>
-                            <form action="" method="POST" class="flex-1" onsubmit="return confirmDelete('<?php echo htmlspecialchars($category['name']); ?>')">
+                            <form action="" method="POST" class="flex-1" onsubmit="return false;">
                                 <input type="hidden" name="category_id" value="<?php echo $category['id']; ?>">
-                                <button type="submit" name="delete_category"
+                                <button type="button" onclick="event.preventDefault(); confirmDeleteCategory(<?php echo $category['id']; ?>, '<?php echo htmlspecialchars(addslashes($category['name'])); ?>');"
                                         class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center">
                                     <i class="fas fa-trash mr-2"></i>
                                     Delete
@@ -328,6 +328,102 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
+                </h3>
+                <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 text-gray-700">
+            <p class="text-lg font-medium mb-3">Are you sure you want to delete category "<span id="deleteCategoryName" class="font-bold text-red-600"></span>"?</p>
+            <p class="text-sm text-gray-600 mb-2">This action cannot be undone.</p>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
+                    <span class="text-yellow-800 font-medium">Warning:</span>
+                </div>
+                <p class="text-yellow-700 text-sm mt-1">Deleting this category will only work if no menu items are assigned to it. Check the item count before proceeding.</p>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
+                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <span class="relative z-10 font-medium">Cancel</span>
+            </button>
+            <form method="POST" class="inline-block" id="deleteCategoryForm">
+                <input type="hidden" name="category_id" id="deleteCategoryId">
+                <button type="submit" name="delete_category"
+                        class="group relative bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                    <i class="fas fa-trash mr-2 relative z-10"></i>
+                    <span class="relative z-10 font-medium">Delete Category</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
+                </h3>
+                <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 text-gray-700">
+            <p class="text-lg font-medium mb-3">Are you sure you want to delete category "<span id="deleteCategoryName" class="font-bold text-red-600"></span>"?</p>
+            <p class="text-sm text-gray-600 mb-2">This action cannot be undone.</p>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
+                    <span class="text-yellow-800 font-medium">Warning:</span>
+                </div>
+                <p class="text-yellow-700 text-sm mt-1">Deleting this category will only work if no menu items are assigned to it. Check the item count before proceeding.</p>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
+                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <span class="relative z-10 font-medium">Cancel</span>
+            </button>
+            <form method="POST" class="inline-block" id="deleteCategoryForm">
+                <input type="hidden" name="category_id" id="deleteCategoryId">
+                <button type="submit" name="delete_category"
+                        class="group relative bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                    <i class="fas fa-trash mr-2 relative z-10"></i>
+                    <span class="relative z-10 font-medium">Delete Category</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 function showAddCategoryModal() {
     document.getElementById('modalTitle').textContent = 'Add New Category';
@@ -354,8 +450,11 @@ function closeCategoryModal() {
     document.getElementById('categoryForm').reset();
 }
 
-function confirmDelete(categoryName) {
-    return confirm(`Are you sure you want to delete "${categoryName}"?\n\nThis action cannot be undone. Make sure no menu items are assigned to this category first.`);
+// Delete confirmation modal
+function confirmDeleteCategory(id, name) {
+    document.getElementById('deleteCategoryId').value = id;
+    document.getElementById('deleteCategoryName').textContent = name;
+    document.getElementById('deleteModal').classList.remove('hidden');
 }
 
 // Close modal when clicking outside
@@ -387,6 +486,40 @@ document.getElementById('categoryForm').addEventListener('submit', function(e) {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
     }, 3000);
+});
+
+document.getElementById('deleteModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.classList.add('hidden');
+    }
+});
+
+// Keyboard navigation for modals (Escape key)
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modalIds = ['categoryModal', 'deleteModal'];
+        modalIds.forEach(id => {
+            const modal = document.getElementById(id);
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+                event.preventDefault(); // Prevent default ESC behavior
+            }
+        });
+    }
+});
+
+// Initialize modal event listeners when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Close modal when clicking the close button
+    const closeButtons = document.querySelectorAll('#categoryModal .fa-times, #deleteModal .fa-times');
+    closeButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modal = this.closest('[id$="Modal"]');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        });
+    });
 });
 </script>
 
@@ -427,7 +560,7 @@ document.getElementById('categoryForm').addEventListener('submit', function(e) {
 }
 
 /* Modal animations */
-#categoryModal {
+#categoryModal, #deleteModal {
     animation: fadeIn 0.3s ease-out;
 }
 

@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $item_name_for_log = 'Unknown Item'; // Default for logging if item not found
 
         // Retrieve menu item details (for image deletion and logging)
-        $item_details = getRecordById('menu_items', $id, 'image,name'); // Assume getRecordById fetches specific columns
+        $item_details = getRecordById('menu_items', $id, 'image,name,additional_images'); // Assume getRecordById fetches specific columns
         if ($item_details) {
             $item_name_for_log = $item_details['name'];
             // Delete associated image file if it exists
@@ -77,6 +77,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     unlink($imagePath);
                 } else {
                     error_log("Failed to delete image: {$imagePath} (file not found or not writable)");
+                }
+            }
+            // Delete additional images
+            $additional_images = json_decode($item_details['additional_images'] ?? '[]', true) ?: [];
+            foreach ($additional_images as $additional_image) {
+                $additionalImagePath = '../uploads/menu/' . $additional_image;
+                if (file_exists($additionalImagePath) && is_writable($additionalImagePath)) {
+                    unlink($additionalImagePath);
+                } else {
+                    error_log("Failed to delete additional image: {$additionalImagePath}");
                 }
             }
         }
@@ -140,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = trim($_POST['status'] ?? 'inactive');
         $is_featured = isset($_POST['is_featured']) ? 1 : 0;
         $image_name = null;
+        $additional_images = [];
 
         $errors = [];
         if (empty($name)) $errors[] = "Item name is required.";
@@ -147,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($category_id <= 0) $errors[] = "Category is required.";
 
         if (empty($errors)) {
-            // Handle image upload
+            // Handle main image upload
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                 $uploadDir = '../uploads/menu/';
                 if (!is_dir($uploadDir)) {
@@ -158,18 +169,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $targetPath = $uploadDir . $image_name;
 
                 if (!move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
-                    $errors[] = "Failed to upload image.";
+                    $errors[] = "Failed to upload main image.";
                     $image_name = null; // Reset image name if upload fails
                 }
             } else if ($_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE) {
-                $errors[] = "Error uploading image: " . $_FILES['image']['error'];
+                $errors[] = "Error uploading main image: " . $_FILES['image']['error'];
+            }
+
+            // Handle additional images upload
+            if (isset($_FILES['additional_images'])) {
+                foreach ($_FILES['additional_images']['tmp_name'] as $key => $tmp_name) {
+                    if ($_FILES['additional_images']['error'][$key] === UPLOAD_ERR_OK) {
+                        $fileExtension = pathinfo($_FILES['additional_images']['name'][$key], PATHINFO_EXTENSION);
+                        $additional_image_name = uniqid('menu_add_') . '.' . $fileExtension;
+                        $targetPath = $uploadDir . $additional_image_name;
+
+                        if (move_uploaded_file($tmp_name, $targetPath)) {
+                            $additional_images[] = $additional_image_name;
+                        } else {
+                            $errors[] = "Failed to upload additional image: " . $_FILES['additional_images']['name'][$key];
+                        }
+                    } else if ($_FILES['additional_images']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
+                        $errors[] = "Error uploading additional image " . $_FILES['additional_images']['name'][$key] . ": " . $_FILES['additional_images']['error'][$key];
+                    }
+                }
             }
         }
 
         if (empty($errors)) {
             try {
-                $stmt = $pdo->prepare("INSERT INTO menu_items (name, description, ingredients, allergens, nutrition_info, price, category_id, status, is_featured, image, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
-                $stmt->execute([$name, $description, $ingredients, $allergens, $nutrition_info, $price, $category_id, $status, $is_featured, $image_name]);
+                $stmt = $pdo->prepare("INSERT INTO menu_items (name, description, ingredients, allergens, nutrition_info, price, category_id, status, is_featured, image, additional_images, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+                $stmt->execute([$name, $description, $ingredients, $allergens, $nutrition_info, $price, $category_id, $status, $is_featured, $image_name, json_encode($additional_images)]);
                 $new_item_id = $pdo->lastInsertId();
                 $_SESSION['message'] = ['type' => 'success', 'text' => "New menu item '{$name}' added successfully."];
                 $activityLogger->logActivity("New menu item '{$name}' (ID: {$new_item_id}) added.", $_SESSION['user_id'] ?? null, 'menu_add');
@@ -197,6 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = trim($_POST['status'] ?? 'inactive');
         $is_featured = isset($_POST['is_featured']) ? 1 : 0;
         $image_name = null; // Will be set if a new image is uploaded
+        $additional_images = [];
 
         $errors = [];
         if ($id <= 0) $errors[] = "Invalid item ID for update.";
@@ -205,12 +236,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($category_id <= 0) $errors[] = "Category is required.";
 
         if (empty($errors)) {
-            // Fetch current image name to retain if no new image is uploaded
-            $current_item = getRecordById('menu_items', $id, 'image,name');
-            $original_image = $current_item['image'] ?? null;
+            // Fetch current additional images to retain if no new ones are uploaded
+            $current_item = getRecordById('menu_items', $id, 'image,name,additional_images');
+            $original_additional_images = json_decode($current_item['additional_images'] ?? '[]', true) ?: [];
             $item_name_for_log = $current_item['name'] ?? 'Unknown Item';
 
-            // Handle new image upload
+            // Handle removed additional images
+            $remaining_additional_images = json_decode($_POST['remaining_additional_images'] ?? '[]', true) ?: [];
+            $removed_images = array_diff($original_additional_images, $remaining_additional_images);
+            foreach ($removed_images as $removed_image) {
+                $removedImagePath = '../uploads/menu/' . $removed_image;
+                if (file_exists($removedImagePath) && is_writable($removedImagePath)) {
+                    unlink($removedImagePath);
+                }
+            }
+
+            // Use the remaining images as the base
+            $all_additional_images = $remaining_additional_images;
+
+            // Handle new main image upload
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                 $uploadDir = '../uploads/menu/';
                 if (!is_dir($uploadDir)) {
@@ -226,26 +270,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         unlink($uploadDir . $original_image);
                     }
                 } else {
-                    $errors[] = "Failed to upload new image.";
+                    $errors[] = "Failed to upload new main image.";
                     $image_name = $original_image; // Revert to original if new upload fails
                 }
             } else if ($_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE) {
-                $errors[] = "Error uploading image: " . $_FILES['image']['error'];
+                $errors[] = "Error uploading main image: " . $_FILES['image']['error'];
                 $image_name = $original_image; // Revert to original on error
             } else {
-                $image_name = $original_image; // If no new file uploaded, retain old one
+                // No new main image uploaded, retain the original
+                $image_name = $original_image;
             }
-        }
 
-        if (empty($errors)) {
-            try {
-                $stmt = $pdo->prepare("UPDATE menu_items SET name = ?, description = ?, ingredients = ?, allergens = ?, nutrition_info = ?, price = ?, category_id = ?, status = ?, is_featured = ?, image = ?, updated_at = NOW() WHERE id = ?");
-                $stmt->execute([$name, $description, $ingredients, $allergens, $nutrition_info, $price, $category_id, $status, $is_featured, $image_name, $id]);
+            // Handle new additional images upload
+            if (isset($_FILES['additional_images'])) {
+                foreach ($_FILES['additional_images']['tmp_name'] as $key => $tmp_name) {
+                    if ($_FILES['additional_images']['error'][$key] === UPLOAD_ERR_OK) {
+                        $fileExtension = pathinfo($_FILES['additional_images']['name'][$key], PATHINFO_EXTENSION);
+                        $additional_image_name = uniqid('menu_add_') . '.' . $fileExtension;
+                        $targetPath = $uploadDir . $additional_image_name;
+
+                        if (move_uploaded_file($tmp_name, $targetPath)) {
+                            $all_additional_images[] = $additional_image_name;
+                        } else {
+                            $errors[] = "Failed to upload additional image: " . $_FILES['additional_images']['name'][$key];
+                        }
+                    } else if ($_FILES['additional_images']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
+                        $errors[] = "Error uploading additional image " . $_FILES['additional_images']['name'][$key] . ": " . $_FILES['additional_images']['error'][$key];
+                    }
+                }
+            }
+
+            if (empty($errors)) {
+                // Build the UPDATE query dynamically to only update changed fields
+                $updateFields = [];
+                $updateValues = [];
+
+                // Always update these fields
+                $updateFields[] = "name = ?";
+                $updateValues[] = $name;
+                $updateFields[] = "description = ?";
+                $updateValues[] = $description;
+                $updateFields[] = "ingredients = ?";
+                $updateValues[] = $ingredients;
+                $updateFields[] = "allergens = ?";
+                $updateValues[] = $allergens;
+                $updateFields[] = "nutrition_info = ?";
+                $updateValues[] = $nutrition_info;
+                $updateFields[] = "price = ?";
+                $updateValues[] = $price;
+                $updateFields[] = "category_id = ?";
+                $updateValues[] = $category_id;
+                $updateFields[] = "status = ?";
+                $updateValues[] = $status;
+                $updateFields[] = "is_featured = ?";
+                $updateValues[] = $is_featured;
+                $updateFields[] = "additional_images = ?";
+                $updateValues[] = json_encode($all_additional_images);
+                $updateFields[] = "updated_at = NOW()";
+
+                // Only update the image if a new one is uploaded
+                if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                    $updateFields[] = "image = ?";
+                    $updateValues[] = $image_name;
+                }
+
+                $updateFieldsStr = implode(", ", $updateFields);
+                $stmt = $pdo->prepare("UPDATE menu_items SET $updateFieldsStr WHERE id = ?");
+                $updateValues[] = $id; // Add the ID at the end
+                $stmt->execute($updateValues);
+
                 $_SESSION['message'] = ['type' => 'success', 'text' => "Menu item '{$name}' (ID: {$id}) updated successfully."];
                 $activityLogger->logActivity("Menu item '{$item_name_for_log}' (ID: {$id}) updated.", $_SESSION['user_id'] ?? null, 'menu_update');
-            } catch (PDOException $e) {
-                $errors[] = "Database error: " . $e->getMessage();
-                error_log("Error updating menu item (ID: {$id}): " . $e->getMessage());
             }
         }
 
@@ -585,8 +680,15 @@ include 'includes/header.php';
 
                     <!-- Image Section -->
                     <div class="relative h-48 overflow-hidden">
-                        <?php if (!empty($item['image'])): ?>
-                            <img src="../uploads/menu/<?php echo htmlspecialchars($item['image']); ?>"
+                        <?php
+                        $displayImage = $item['image'];
+                        if (empty($displayImage)) {
+                            $additionalImages = json_decode($item['additional_images'] ?? '[]', true) ?: [];
+                            $displayImage = !empty($additionalImages) ? $additionalImages[0] : null;
+                        }
+                        ?>
+                        <?php if (!empty($displayImage)): ?>
+                            <img src="../uploads/menu/<?php echo htmlspecialchars($displayImage); ?>"
                                  alt="<?php echo htmlspecialchars($item['name']); ?>"
                                  class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                         <?php else: ?>
@@ -797,7 +899,7 @@ include 'includes/header.php';
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
                 </h3>
-                <button type="button" onclick="closeModal('deleteModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -811,7 +913,7 @@ include 'includes/header.php';
 
         <!-- Modal Footer -->
         <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
-            <button type="button" onclick="closeModal('deleteModal')"
+            <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
                     class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                 <span class="relative z-10 font-medium">Cancel</span>
@@ -839,7 +941,7 @@ include 'includes/header.php';
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-pencil-alt mr-2"></i>Edit Menu Item <span id="editItemNameDisplay" class="font-mono text-purple-100 italic"></span>
                 </h3>
-                <button type="button" onclick="closeModal('editItemModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="document.getElementById('editItemModal').classList.add('hidden'); document.getElementById('editItemModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -851,6 +953,8 @@ include 'includes/header.php';
                 <!-- Hidden input for item ID -->
                 <input type="hidden" name="id" id="edit_item_id">
                 <input type="hidden" name="edit_menu_item" value="1"> <!-- Marker for PHP POST handler -->
+                <!-- Hidden input for remaining additional images -->
+                <input type="hidden" name="remaining_additional_images" id="remaining_additional_images" value="">
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Item Name -->
@@ -910,6 +1014,18 @@ include 'includes/header.php';
                     </div>
                 </div>
 
+                <!-- Additional Images Upload -->
+                <div>
+                    <label for="edit_additional_images" class="block text-sm font-semibold text-gray-700 mb-2">Additional Images</label>
+                    <input type="file" name="additional_images[]" id="edit_additional_images" accept="image/*" multiple
+                           class="w-full text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
+                    <p class="text-xs text-gray-500 mt-1">Select multiple images. Max 2MB each, JPG/PNG. Leave blank to keep current additional images.</p>
+                    <div id="edit_current_additional_images_preview" class="mt-2">
+                        <span class="text-sm text-gray-600">Current Additional Images:</span>
+                        <div id="edit_additional_images_thumbs" class="flex flex-wrap gap-2 mt-1"></div>
+                    </div>
+                </div>
+
                 <!-- Ingredients -->
                 <div>
                     <label for="edit_ingredients" class="block text-sm font-semibold text-gray-700 mb-2">
@@ -956,7 +1072,7 @@ include 'includes/header.php';
 
         <!-- Modal Footer -->
         <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
-            <button type="button" onclick="closeModal('editItemModal')"
+            <button type="button" onclick="document.getElementById('editItemModal').classList.add('hidden'); document.getElementById('editItemModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
                     class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                 <span class="relative z-10 font-medium">Cancel</span>
@@ -980,7 +1096,7 @@ include 'includes/header.php';
                 <h3 class="text-xl font-bold">
                     <i class="fas fa-plus-circle mr-2"></i>Add New Menu Item
                 </h3>
-                <button type="button" onclick="closeModal('addItemModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="document.getElementById('addItemModal').classList.add('hidden'); document.getElementById('addItemModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('addItemForm')?.reset();" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1045,6 +1161,14 @@ include 'includes/header.php';
                     <p class="text-xs text-gray-500 mt-1">Max 2MB, JPG/PNG. Required for new items.</p>
                 </div>
 
+                <!-- Additional Images Upload -->
+                <div>
+                    <label for="add_additional_images" class="block text-sm font-semibold text-gray-700 mb-2">Additional Images</label>
+                    <input type="file" name="additional_images[]" id="add_additional_images" accept="image/*" multiple
+                           class="w-full text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+                    <p class="text-xs text-gray-500 mt-1">Select multiple images. Max 2MB each, JPG/PNG.</p>
+                </div>
+
                 <!-- Ingredients -->
                 <div>
                     <label for="add_ingredients" class="block text-sm font-semibold text-gray-700 mb-2">
@@ -1091,7 +1215,7 @@ include 'includes/header.php';
 
         <!-- Modal Footer -->
         <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
-            <button type="button" onclick="closeModal('addItemModal')"
+            <button type="button" onclick="document.getElementById('addItemModal').classList.add('hidden'); document.getElementById('addItemModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('addItemForm')?.reset();"
                     class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                 <span class="relative z-10 font-medium">Cancel</span>
@@ -1116,19 +1240,47 @@ include 'includes/header.php';
 <script>
 // Global utility to close modals by adding 'hidden' class
 function closeModal(modalId) {
-    document.getElementById(modalId).classList.add('hidden');
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('animate__fadeIn', 'animate__zoomIn');
+
+        // Reset forms for Add/Edit modals
+        if (modalId === 'addItemModal') {
+            document.getElementById('addItemForm')?.reset();
+        }
+        if (modalId === 'editItemModal') {
+            // Reset form when closing Edit modal
+            const editForm = document.getElementById('editItemForm');
+            if (editForm) {
+                editForm.reset();
+            }
+        }
+    }
 }
 
-// Close modal when clicking outside (on the black overlay)
-window.addEventListener('click', function(event) {
-    const modalIds = ['deleteModal', 'editItemModal', 'addItemModal']; // List of all modal IDs
-    modalIds.forEach(id => {
-        const modal = document.getElementById(id);
-        // Only close if the modal exists, is visible, and the click was directly on the backdrop
-        if (modal && !modal.classList.contains('hidden') && event.target === modal) {
-            closeModal(id);
-        }
-    });
+// Keyboard navigation for modals (Escape key)
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modalIds = ['deleteModal', 'editItemModal', 'addItemModal'];
+        modalIds.forEach(id => {
+            const modal = document.getElementById(id);
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+                modal.classList.remove('animate__fadeIn', 'animate__zoomIn');
+
+                // Reset forms for Add/Edit modals
+                if (id === 'addItemModal') {
+                    document.getElementById('addItemForm')?.reset();
+                }
+                if (id === 'editItemModal') {
+                    document.getElementById('editItemForm')?.reset();
+                }
+
+                event.preventDefault(); // Prevent default ESC behavior
+            }
+        });
+    }
 });
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1246,6 +1398,24 @@ async function openEditItemModal(itemId) {
             imageThumb.src = ''; // Clear src if no image
         }
 
+        // Additional images preview logic
+        const currentAdditionalImagesPreview = document.getElementById('edit_current_additional_images_preview');
+        const additionalImagesThumbs = document.getElementById('edit_additional_images_thumbs');
+        const additionalImages = JSON.parse(itemData.additional_images || '[]');
+        if (additionalImages.length > 0) {
+            additionalImagesThumbs.innerHTML = additionalImages.map((img, index) => {
+                const imgSrc = `../uploads/menu/${img}`;
+                return `<div class="relative w-16 h-16 group" data-index="${index}">
+                    <img src="${imgSrc}" alt="Additional Image" class="w-16 h-16 object-cover rounded border" onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik00MiAzMkM0MiAyNi4wOTU0IDM3LjkwNTQgMjIgMzIgMjJDMjYuMDk1NCAyMiAyMiAyNi4wOTU0IDIyIDMyQzIyIDM3LjkwNTQgMjYuMDk1NCA0MiAzMiA0MkM0MiA0MiA0MiAzNy45MDU0IDQyIDMyWiIgZmlsbD0iI0Q5RDlEOSIvPgo8L3N2Zz4K'; this.alt='Image not found';">
+                    <button type="button" class="absolute top-0 right-0 bg-red-500 text-white rounded-full w-4 h-4 text-xs opacity-0 group-hover:opacity-100 transition-opacity" onclick="removeAdditionalImage(${index})">×</button>
+                </div>`;
+            }).join('');
+            currentAdditionalImagesPreview.style.display = 'block';
+        } else {
+            currentAdditionalImagesPreview.style.display = 'none';
+            additionalImagesThumbs.innerHTML = '';
+        }
+
         // Show the edit modal
         document.getElementById('editItemModal').classList.remove('hidden');
     } catch (error) {
@@ -1338,6 +1508,22 @@ async function toggleItemProperty(itemId, actionType) {
             }
         }
     });
+}
+
+// Function to remove additional image
+function removeAdditionalImage(index) {
+    const thumbsContainer = document.getElementById('edit_additional_images_thumbs');
+    const images = Array.from(thumbsContainer.children);
+    if (images[index]) {
+        images[index].remove();
+    }
+    // Update the hidden input with remaining images
+    const remainingImages = images.map(div => {
+        const img = div.querySelector('img');
+        const src = img.src.split('/').pop();
+        return src && !src.includes('data:') ? src : null;
+    }).filter(Boolean);
+    document.getElementById('remaining_additional_images').value = JSON.stringify(remainingImages);
 }
 </script>
 

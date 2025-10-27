@@ -1,10 +1,36 @@
 <?php
 // Database configuration
-$db_host = 'localhost';
-$db_name = 'meals_db';
-$db_user = 'root';     // Update with your database username
-$db_pass = '';         // Update with your database password
-$db_charset = 'utf8mb4';
+
+// Detect environment - you can set this manually or based on server
+$environment = 'localhost'; // Change to 'infinityfree' for production
+
+// Localhost configuration (existing)
+$localhost_config = [
+    'host' => 'localhost',
+    'name' => 'meals_db',
+    'user' => 'root',
+    'pass' => '',
+    'charset' => 'utf8mb4'
+];
+
+// Infinity Free configuration (update with your actual database details)
+$infinityfree_config = [
+    'host' => 'sql312.infinityfree.com', // Update with your actual database host from Infinity Free control panel
+    'name' => 'if0_40189838_meals_db',    // Update with your actual database name (usually if0_XXXXX_dbname)
+    'user' => 'if0_40189838',
+    'pass' => '8RKbVuXNOw',
+    'charset' => 'utf8mb4'
+];
+
+// Select configuration based on environment
+$config = ($environment === 'infinityfree') ? $infinityfree_config : $localhost_config;
+
+// Set database variables
+$db_host = $config['host'];
+$db_name = $config['name'];
+$db_user = $config['user'];
+$db_pass = $config['pass'];
+$db_charset = $config['charset'];
 
 // MySQLi Connection
 try {
@@ -120,15 +146,12 @@ if (isset($airtel_config['env']) && $airtel_config['env'] === 'production') {
     $current_airtel = $airtel_config['production'];
 }
 
-// Check if M-Pesa credentials are properly configured
-function isMpesaConfigured() {
-    global $current_mpesa;
-    return !empty($current_mpesa['consumer_key']) &&
-           !empty($current_mpesa['consumer_secret']) &&
-           !empty($current_mpesa['shortcode']) &&
-           !empty($current_mpesa['passkey']) &&
-           !preg_match('/YOUR_/', $current_mpesa['consumer_key']) &&
-           !preg_match('/YOUR_/', $current_mpesa['consumer_secret']) &&
-           !preg_match('/YOUR_/', $current_mpesa['shortcode']) &&
-           !preg_match('/YOUR_/', $current_mpesa['passkey']);
-}
+// SMTP Configuration for Email Sending
+$smtp_config = [
+    'host' => 'smtp.gmail.com', // SMTP server (e.g., smtp.gmail.com)
+    'port' => 587, // Port (587 for TLS, 465 for SSL)
+    'username' => 'youractualgmail@gmail.com', // Replace with your real Gmail address
+    'password' => 'your-16-character-app-password', // Replace with your App Password
+    'from_email' => 'youractualgmail@gmail.com', // Must match username
+    'from_name' => 'Addins Meals on Wheels' // From name
+];

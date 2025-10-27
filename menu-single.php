@@ -212,6 +212,34 @@ $popular_items = $popular_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <?php endif; ?>
                     </div>
                     
+                    <!-- Additional Images Gallery -->
+                    <?php
+                    $additionalImages = json_decode($menu_item['additional_images'] ?? '[]', true) ?: [];
+                    if (!empty($additionalImages)):
+                    ?>
+                    <div class="mt-6">
+                        <h4 class="text-sm font-medium text-gray-700 mb-3">More Images</h4>
+                        <div class="flex space-x-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+                            <?php foreach ($additionalImages as $img): ?>
+                                <div class="flex-shrink-0 w-64 h-48">
+                                    <img src="uploads/menu/<?= htmlspecialchars($img) ?>"
+                                         alt="Additional Image"
+                                         class="w-full h-full object-cover rounded-lg border border-gray-200 cursor-pointer hover:shadow-lg transition-shadow"
+                                         onclick="openImageModal('uploads/menu/<?= htmlspecialchars($img) ?>')">
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <div class="flex justify-center mt-4 space-x-2">
+                            <button onclick="scrollGallery(-1)" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm">
+                                <i class="fas fa-chevron-left"></i> Previous
+                            </button>
+                            <button onclick="scrollGallery(1)" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm">
+                                Next <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
                     <!-- Image Gallery (Placeholder for multiple images) -->
                     <div class="flex space-x-2 mt-4">
                         <div class="w-16 h-16 border border-gray-200 rounded overflow-hidden">
@@ -906,6 +934,37 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize recently viewed items
     initializeRecentlyViewed();
 });
+
+// Function to open image modal
+function openImageModal(src) {
+    document.getElementById('modalImage').src = src;
+    document.getElementById('imageModal').classList.remove('hidden');
+}
+
+// Function to close image modal
+function closeImageModal() {
+    document.getElementById('imageModal').classList.add('hidden');
+    document.getElementById('modalImage').src = '';
+}
+
+// Function to scroll the gallery
+function scrollGallery(direction) {
+    const gallery = document.querySelector('.overflow-x-auto');
+    if (gallery) {
+        const scrollAmount = 280; // Approximate width of one image + gap
+        gallery.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
+    }
+}
 </script>
+
+<!-- Image Modal -->
+<div id="imageModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <div class="relative max-w-5xl max-h-screen w-full h-full flex items-center justify-center">
+        <button type="button" onclick="closeImageModal()" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 z-10">
+            <i class="fas fa-times"></i>
+        </button>
+        <img id="modalImage" src="" alt="Enlarged Image" class="max-w-full max-h-full object-contain rounded shadow-lg">
+    </div>
+</div>
 
 <?php include 'includes/footer.php'; ?>

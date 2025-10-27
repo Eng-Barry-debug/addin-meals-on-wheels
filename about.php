@@ -25,10 +25,8 @@ include 'includes/header.php';
 <section class="relative h-screen overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('assets/img/Addinkitchen.png');">
         <!-- Enhanced overlay for better text visibility -->
-        <div class="absolute inset-0 bg-gradient-to-br from-black/90 via-black/80 to-black/85"></div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/60"></div>
-        <!-- Additional brand color overlay -->
-        <div class="absolute inset-0 bg-primary/10"></div>
+        <div class="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/70"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/40"></div>
     </div>
 
     <div class="relative z-10 h-full flex items-center justify-center">
@@ -102,57 +100,165 @@ include 'includes/header.php';
     </div>
 </section>
 
-<!-- 2. Company Story -->
-<section class="py-16 bg-white">
-    <div class="container mx-auto px-4">
-        <div class="flex flex-col md:flex-row items-center">
-            <div class="md:w-1/2 mb-8 md:mb-0 md:pr-8">
-                <img src="assets/img/story.jpg" alt="Our Story" class="rounded-lg shadow-lg w-full h-80 md:h-96 object-cover">
+<!-- 2. Company Story Section -->
+<section class="py-20 bg-white relative overflow-hidden">
+    <!-- Background decoration -->
+    <div class="absolute inset-0 bg-gradient-to-br from-gray-50/50 to-white"></div>
+    <div class="absolute top-10 right-10 w-64 h-64 bg-primary/5 rounded-full blur-2xl"></div>
+    <div class="absolute bottom-10 left-10 w-48 h-48 bg-accent/5 rounded-full blur-2xl"></div>
+
+    <div class="container mx-auto px-4 relative z-10">
+        <div class="max-w-7xl mx-auto">
+            <!-- Section Header -->
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+                    Our <span class="text-primary">Story</span>
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Discover the journey that shaped Addins Meals on Wheels, from humble beginnings to a mission-driven food business.
+                </p>
+                <div class="w-20 h-1 bg-primary mx-auto mt-6"></div>
             </div>
-            <div class="md:w-1/2">
-                <h2 class="text-3xl font-bold text-[#1A1A1A] mb-6">Our Story</h2>
-                <p class="text-[#212121] mb-4">
-                    Addins Meals on Wheels is a food business born out of a passion for cooking, entrepreneurship and a desire to bring love and care through food. Our journey began in campus days with small ventures like chapati sales, later expanding to pizza, cookies, cupcakes, and catering services. We were officially registered in September 2024.
-                </p>
-                <p class="text-[#212121] mb-6">
-                    We are rooted in values of integrity, excellence and glorifying Christ through business, bringing the nurturing touch of a mother in every bite.
-                </p>
 
-                <!-- The Meaning of Addins -->
-                <div class="bg-[#F5E6D3] p-6 rounded-lg mb-6">
-                    <h3 class="text-xl font-bold text-[#C1272D] mb-3">The Meaning of Addins</h3>
-                    <p class="text-[#212121] mb-3">
-                        The name Addins is inspired by Adino the Spearman, one of King David's mighty men (2 Samuel 23:8). Adino was known for his unmatched courage, strength and resilience, defeating 800 men in a single encounter.
-                    </p>
-                    <p class="text-[#212121]">
-                        At Addins Meals on Wheels, we draw inspiration from this legacy of strength and perseverance, combining it with the nurturing heart of a mother to deliver food made with integrity, love and excellence.
+            <!-- Story Content -->
+            <div class="flex flex-col md:flex-row items-stretch gap-12">
+                <!-- Image Section -->
+                <div class="md:w-1/2 group min-h-96">
+                    <div class="relative h-full">
+                        <img src="assets/img/story.jpg" alt="Our Story" class="rounded-2xl shadow-2xl w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+                        <!-- Overlay for hover effect -->
+                        <div class="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <!-- Decorative border -->
+                        <div class="absolute inset-0 border-4 border-primary/20 rounded-2xl -m-2"></div>
+                    </div>
+                </div>
+
+                <!-- Text Section -->
+                <div class="md:w-1/2 space-y-8 min-h-96">
+                    <!-- Our Story -->
+                    <div class="bg-white rounded-2xl p-8 shadow-lg border-l-4 border-primary">
+                        <div class="flex items-center mb-4">
+                            <div class="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center mr-4">
+                                <i class="fas fa-book-open text-white text-lg"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-800">Our Story</h3>
+                        </div>
+                        <p class="text-gray-600 leading-relaxed text-lg">
+                            Addins Meals on Wheels is a food business born out of a passion for cooking, entrepreneurship and a desire to bring love and care through food. Our journey began in campus days with small ventures like chapati sales, later expanding to pizza, cookies, cupcakes, and catering services. We were officially registered in September 2024.
+                        </p>
+                        <p class="text-gray-600 leading-relaxed text-lg mt-4">
+                            We are rooted in values of integrity, excellence and glorifying Christ through business, bringing the nurturing touch of a mother in every bite.
+                        </p>
+                    </div>
+
+                    <!-- The Meaning of Addins -->
+                    <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-8 shadow-lg border-l-4 border-accent">
+                        <div class="flex items-center mb-4">
+                            <div class="w-12 h-12 bg-gradient-to-br from-accent to-accent/80 rounded-full flex items-center justify-center mr-4">
+                                <i class="fas fa-star text-white text-lg"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-800">The Meaning of Addins</h3>
+                        </div>
+                        <p class="text-gray-600 leading-relaxed text-lg mb-3">
+                            The name Addins is inspired by Adino the Spearman, one of King David's mighty men (2 Samuel 23:8). Adino was known for his unmatched courage, strength and resilience, defeating 800 men in a single encounter.
+                        </p>
+                        <p class="text-gray-600 leading-relaxed text-lg">
+                            At Addins Meals on Wheels, we draw inspiration from this legacy of strength and perseverance, combining it with the nurturing heart of a mother to deliver food made with integrity, love and excellence.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Our Vision & Mission Section -->
+<section class="py-20 bg-gradient-to-br from-gray-50 to-white relative overflow-hidden">
+    <!-- Background decoration -->
+    <div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5"></div>
+    <div class="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+    <div class="absolute bottom-0 right-0 w-96 h-96 bg-accent/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+
+    <div class="container mx-auto px-4 relative z-10">
+        <div class="max-w-7xl mx-auto">
+            <!-- Section Header -->
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+                    Our <span class="text-primary">Vision</span> & <span class="text-accent">Mission</span>
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Guiding principles that drive our commitment to excellence, community, and faith in every meal we serve.
+                </p>
+                <div class="w-24 h-1 bg-gradient-to-r from-primary to-accent mx-auto mt-6"></div>
+            </div>
+
+            <!-- Vision and Mission Grid -->
+            <div class="grid md:grid-cols-2 gap-12 mb-16">
+                <!-- Our Vision -->
+                <div class="group bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-l-4 border-primary">
+                    <div class="flex items-center mb-6">
+                        <div class="w-16 h-16 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-eye text-white text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800 group-hover:text-primary transition-colors">Our Vision</h3>
+                            <div class="w-12 h-0.5 bg-primary mt-1"></div>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 leading-relaxed text-lg">
+                        To build a globally recognized food brand that not only delivers quality meals but also nurtures lives, creates opportunities for young people and glorifies God through business.
                     </p>
                 </div>
 
-                <!-- Vision & Mission -->
-                <div class="grid md:grid-cols-2 gap-6 mb-8">
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-xl font-bold text-[#C1272D] mb-3">Our Vision</h3>
-                        <p class="text-[#212121]">To build a globally recognized food brand that not only delivers quality meals but also nurtures lives, creates opportunities for young people and glorifies God through business.</p>
+                <!-- Our Mission -->
+                <div class="group bg-white rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-l-4 border-accent">
+                    <div class="flex items-center mb-6">
+                        <div class="w-16 h-16 bg-gradient-to-br from-accent to-accent/80 rounded-full flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-bullseye text-white text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800 group-hover:text-accent transition-colors">Our Mission</h3>
+                            <div class="w-12 h-0.5 bg-accent mt-1"></div>
+                        </div>
                     </div>
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-xl font-bold text-[#C1272D] mb-3">Our Mission</h3>
-                        <p class="text-[#212121]">To provide delicious, high-quality and affordable meals while creating opportunities for students and young entrepreneurs to grow, learn, and earn through the Addins Ambassadors program.</p>
-                    </div>
+                    <p class="text-gray-600 leading-relaxed text-lg">
+                        To provide delicious, high-quality and affordable meals while creating opportunities for students and young entrepreneurs to grow, learn, and earn through the Addins Ambassadors program.
+                    </p>
                 </div>
-                <div class="flex flex-wrap gap-4
-                ">
-                    <div class="bg-[#F5E6D3] p-4 rounded-lg">
-                        <h3 class="font-bold text-[#C1272D]">50+</h3>
-                        <p class="text-sm">Menu Items</p>
+            </div>
+
+            <!-- Statistics Section -->
+            <div class="bg-white rounded-2xl p-8 shadow-lg border-t-4 border-gradient-to-r from-primary to-accent">
+                <h3 class="text-2xl font-bold text-gray-800 text-center mb-8">Our Impact</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Menu Items -->
+                    <div class="text-center group">
+                        <div class="w-20 h-20 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-utensils text-white text-2xl"></i>
+                        </div>
+                        <div class="text-4xl font-bold text-primary mb-2">50+</div>
+                        <div class="text-gray-600 font-medium">Menu Items</div>
+                        <div class="w-16 h-0.5 bg-primary mx-auto mt-2"></div>
                     </div>
-                    <div class="bg-[#F5E6D3] p-4 rounded-lg">
-                        <h3 class="font-bold text-[#C1272D]">5+</h3>
-                        <p class="text-sm">Years Serving</p>
+
+                    <!-- Years Serving -->
+                    <div class="text-center group">
+                        <div class="w-20 h-20 bg-gradient-to-br from-accent to-accent/80 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-clock text-white text-2xl"></i>
+                        </div>
+                        <div class="text-4xl font-bold text-accent mb-2">5+</div>
+                        <div class="text-gray-600 font-medium">Years Serving</div>
+                        <div class="w-16 h-0.5 bg-accent mx-auto mt-2"></div>
                     </div>
-                    <div class="bg-[#F5E6D3] p-4 rounded-lg">
-                        <h3 class="font-bold text-[#C1272D]">10K+</h3>
-                        <p class="text-sm">Happy Customers</p>
+
+                    <!-- Happy Customers -->
+                    <div class="text-center group">
+                        <div class="w-20 h-20 bg-gradient-to-br from-green-500 to-green-400 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-users text-white text-2xl"></i>
+                        </div>
+                        <div class="text-4xl font-bold text-green-600 mb-2">10K+</div>
+                        <div class="text-gray-600 font-medium">Happy Customers</div>
+                        <div class="w-16 h-0.5 bg-green-500 mx-auto mt-2"></div>
                     </div>
                 </div>
             </div>

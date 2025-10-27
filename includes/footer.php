@@ -101,8 +101,6 @@
                 <div class="mt-3 flex justify-center space-x-4">
                     <a href="/privacy.php" class="text-gray-400 hover:text-accent transition-colors duration-200 text-sm">Privacy Policy</a>
                     <a href="/terms.php" class="text-gray-400 hover:text-accent transition-colors duration-200 text-sm">Terms of Service</a>
-                    <span class="text-gray-600">•</span>
-                    <a href="/sitemap.php" class="text-gray-400 hover:text-accent transition-colors duration-200 text-sm">Sitemap</a>
                 </div>
     <!-- Newsletter Subscription JavaScript -->
     <script>

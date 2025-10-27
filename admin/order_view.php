@@ -21,12 +21,13 @@ $query = "SELECT o.*,
                 u.name as customer_name,
                 u.email as customer_email,
                 u.phone as customer_phone,
-                GROUP_CONCAT(oi.item_name SEPARATOR ', ') as item_names,
-                GROUP_CONCAT(oi.quantity SEPARATOR ', ') as item_quantities,
-                GROUP_CONCAT(oi.price SEPARATOR ', ') as item_prices,
-                GROUP_CONCAT(oi.total SEPARATOR ', ') as item_totals,
+                GROUP_CONCAT(oi.item_name SEPARATOR '|||') as item_names,
+                GROUP_CONCAT(oi.quantity SEPARATOR '|||') as item_quantities,
+                GROUP_CONCAT(oi.price SEPARATOR '|||') as item_prices,
+                GROUP_CONCAT(oi.total SEPARATOR '|||') as item_totals,
                 COUNT(oi.id) as item_count,
-                SUM(oi.total) as subtotal
+                (SELECT SUM(total) FROM order_items WHERE order_id = o.id) as subtotal,
+                (SELECT SUM(total) FROM order_items WHERE order_id = o.id) + COALESCE(o.delivery_fee, 0) as total_amount
          FROM orders o
          LEFT JOIN users u ON o.user_id = u.id
          LEFT JOIN order_items oi ON o.id = oi.order_id
@@ -354,10 +355,10 @@ include 'includes/header.php';
 
         <?php
         // Split the concatenated data back into arrays
-        $item_names = !empty($order['item_names']) ? explode(', ', $order['item_names']) : [];
-        $item_quantities = !empty($order['item_quantities']) ? explode(', ', $order['item_quantities']) : [];
-        $item_prices = !empty($order['item_prices']) ? explode(', ', $order['item_prices']) : [];
-        $item_totals = !empty($order['item_totals']) ? explode(', ', $order['item_totals']) : [];
+        $item_names = !empty($order['item_names']) ? explode('|||', $order['item_names']) : [];
+        $item_quantities = !empty($order['item_quantities']) ? explode('|||', $order['item_quantities']) : [];
+        $item_prices = !empty($order['item_prices']) ? explode('|||', $order['item_prices']) : [];
+        $item_totals = !empty($order['item_totals']) ? explode('|||', $order['item_totals']) : [];
         $item_count = count($item_names);
         ?>
 
@@ -493,10 +494,10 @@ function generateInvoice() {
         totalAmount: <?= $order['total_amount'] ?? 0 ?>,
         items: [
             <?php
-            $item_names = !empty($order['item_names']) ? explode(', ', $order['item_names']) : [];
-            $item_quantities = !empty($order['item_quantities']) ? explode(', ', $order['item_quantities']) : [];
-            $item_prices = !empty($order['item_prices']) ? explode(', ', $order['item_prices']) : [];
-            $item_totals = !empty($order['item_totals']) ? explode(', ', $order['item_totals']) : [];
+            $item_names = !empty($order['item_names']) ? explode('|||', $order['item_names']) : [];
+            $item_quantities = !empty($order['item_quantities']) ? explode('|||', $order['item_quantities']) : [];
+            $item_prices = !empty($order['item_prices']) ? explode('|||', $order['item_prices']) : [];
+            $item_totals = !empty($order['item_totals']) ? explode('|||', $order['item_totals']) : [];
 
             for ($i = 0; $i < count($item_names); $i++):
             ?>
@@ -533,10 +534,10 @@ function generateReceipt() {
         deliveryFee: <?= $order['delivery_fee'] ?? 0 ?>,
         items: [
             <?php
-            $item_names = !empty($order['item_names']) ? explode(', ', $order['item_names']) : [];
-            $item_quantities = !empty($order['item_quantities']) ? explode(', ', $order['item_quantities']) : [];
-            $item_prices = !empty($order['item_prices']) ? explode(', ', $order['item_prices']) : [];
-            $item_totals = !empty($order['item_totals']) ? explode(', ', $order['item_totals']) : [];
+            $item_names = !empty($order['item_names']) ? explode('|||', $order['item_names']) : [];
+            $item_quantities = !empty($order['item_quantities']) ? explode('|||', $order['item_quantities']) : [];
+            $item_prices = !empty($order['item_prices']) ? explode('|||', $order['item_prices']) : [];
+            $item_totals = !empty($order['item_totals']) ? explode('|||', $order['item_totals']) : [];
 
             for ($i = 0; $i < count($item_names); $i++):
             ?>
@@ -684,7 +685,10 @@ function generateReceiptHTML(data) {
         </head>
         <body>
             <div class="receipt-header">
-                <div class="receipt-title">RECEIPT</div>
+                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+                    <img src="../assets/img/Addin-logo.jpeg" alt="Addins Logo" style="max-width: 60px; max-height: 40px; margin-right: 10px;">
+                    <div class="receipt-title">RECEIPT</div>
+                </div>
                 <div class="company-name">Addins Meals on Wheels</div>
                 <div>Order #${data.orderNumber}</div>
             </div>
@@ -748,99 +752,382 @@ function generateInvoiceHTML(data) {
             <title>Invoice #${data.orderNumber}</title>
             <meta charset="utf-8">
             <style>
-                body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-                .invoice-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #dc2626; padding-bottom: 20px; }
-                .invoice-title { color: #dc2626; font-size: 28px; font-weight: bold; margin: 0; }
-                .invoice-subtitle { color: #666; font-size: 16px; margin: 5px 0 0 0; }
-                .company-info { text-align: center; margin-bottom: 30px; }
-                .customer-info, .order-info { margin-bottom: 20px; }
-                .info-section { display: inline-block; width: 48%; vertical-align: top; }
-                .info-title { font-weight: bold; color: #dc2626; margin-bottom: 10px; }
-                .info-item { margin: 5px 0; }
-                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-                th { background-color: #f8f9fa; font-weight: bold; color: #333; }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    background-color: #fff;
+                    font-size: 14px;
+                }
+
+                .invoice-container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 40px;
+                    background: #fff;
+                    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+                }
+
+                .invoice-header {
+                    text-align: center;
+                    margin-bottom: 40px;
+                    padding-bottom: 30px;
+                    border-bottom: 3px solid #2c3e50;
+                    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+                    color: white;
+                    border-radius: 10px 10px 0 0;
+                    padding: 30px;
+                }
+
+                .invoice-title {
+                    font-size: 36px;
+                    font-weight: 300;
+                    margin-bottom: 10px;
+                    letter-spacing: 2px;
+                    text-transform: uppercase;
+                }
+
+                .invoice-subtitle {
+                    font-size: 18px;
+                    opacity: 0.9;
+                    font-weight: 300;
+                }
+
+                .company-section {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: 40px;
+                    padding: 20px;
+                }
+
+                .company-logo {
+                    max-width: 120px;
+                    max-height: 80px;
+                    margin-right: 30px;
+                    filter: brightness(0) invert(1);
+                }
+
+                .company-info h2 {
+                    font-size: 24px;
+                    margin-bottom: 8px;
+                    color: #2c3e50;
+                    font-weight: 600;
+                }
+
+                .company-info .tagline {
+                    font-size: 16px;
+                    color: #7f8c8d;
+                    margin-bottom: 5px;
+                    font-style: italic;
+                }
+
+                .company-info .contact {
+                    font-size: 14px;
+                    color: #95a5a6;
+                }
+
+                .invoice-details {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 40px;
+                    margin-bottom: 40px;
+                }
+
+                .detail-section {
+                    background: #f8f9fa;
+                    padding: 25px;
+                    border-radius: 8px;
+                    border-left: 4px solid #3498db;
+                }
+
+                .detail-title {
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #2c3e50;
+                    margin-bottom: 15px;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                }
+
+                .detail-item {
+                    margin-bottom: 8px;
+                    display: flex;
+                    justify-content: space-between;
+                }
+
+                .detail-label {
+                    font-weight: 500;
+                    color: #7f8c8d;
+                }
+
+                .detail-value {
+                    font-weight: 600;
+                    color: #2c3e50;
+                }
+
+                .delivery-info {
+                    background: linear-gradient(135deg, #e8f4f8 0%, #d1ecf1 100%);
+                    padding: 20px;
+                    border-radius: 8px;
+                    margin-bottom: 30px;
+                    border-left: 4px solid #16a085;
+                }
+
+                .delivery-title {
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #2c3e50;
+                    margin-bottom: 10px;
+                }
+
+                .delivery-address {
+                    font-size: 15px;
+                    color: #34495e;
+                    line-height: 1.5;
+                }
+
+                .items-section {
+                    margin-bottom: 30px;
+                }
+
+                .items-title {
+                    font-size: 20px;
+                    font-weight: 600;
+                    color: #2c3e50;
+                    margin-bottom: 20px;
+                    padding-bottom: 10px;
+                    border-bottom: 2px solid #ecf0f1;
+                }
+
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    background: white;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                }
+
+                th {
+                    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+                    color: white;
+                    padding: 18px 15px;
+                    text-align: left;
+                    font-weight: 600;
+                    font-size: 14px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }
+
+                td {
+                    padding: 15px;
+                    border-bottom: 1px solid #ecf0f1;
+                    font-size: 14px;
+                }
+
+                tbody tr:nth-child(even) {
+                    background-color: #f8f9fa;
+                }
+
+                tbody tr:hover {
+                    background-color: #e8f4f8;
+                    transition: background-color 0.3s ease;
+                }
+
                 .text-right { text-align: right; }
-                .total-row { font-weight: bold; background-color: #f8f9fa; }
-                .grand-total { font-size: 18px; color: #dc2626; font-weight: bold; }
-                .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; }
-                @media print { body { margin: 0; } .no-print { display: none; } }
+                .text-center { text-align: center; }
+
+                .totals-section {
+                    display: flex;
+                    justify-content: flex-end;
+                    margin-bottom: 40px;
+                }
+
+                .totals-table {
+                    background: #f8f9fa;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    min-width: 300px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+
+                .totals-table tr {
+                    border-bottom: 1px solid #dee2e6;
+                }
+
+                .totals-table td {
+                    padding: 12px 20px;
+                    font-size: 14px;
+                }
+
+                .total-row {
+                    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+                    color: white;
+                    font-weight: 600;
+                }
+
+                .total-row td {
+                    font-size: 16px;
+                    padding: 15px 20px;
+                }
+
+                .footer {
+                    text-align: center;
+                    margin-top: 50px;
+                    padding-top: 30px;
+                    border-top: 2px solid #ecf0f1;
+                    background: #f8f9fa;
+                    border-radius: 0 0 10px 10px;
+                    padding: 30px;
+                }
+
+                .footer-text {
+                    font-size: 16px;
+                    color: #2c3e50;
+                    margin-bottom: 10px;
+                    font-weight: 500;
+                }
+
+                .footer-subtext {
+                    font-size: 14px;
+                    color: #7f8c8d;
+                }
+
+                .thank-you {
+                    font-size: 18px;
+                    color: #27ae60;
+                    font-weight: 600;
+                    margin-bottom: 20px;
+                }
+
+                @media print {
+                    body { margin: 0; }
+                    .invoice-container {
+                        box-shadow: none;
+                        padding: 20px;
+                    }
+                    .no-print { display: none; }
+                }
+
+                @media (max-width: 768px) {
+                    .invoice-container { padding: 20px; }
+                    .invoice-details { grid-template-columns: 1fr; gap: 20px; }
+                    .company-section { flex-direction: column; text-align: center; }
+                    .company-logo { margin-right: 0; margin-bottom: 20px; }
+                }
             </style>
         </head>
         <body>
-            <div class="invoice-header">
-                <h1 class="invoice-title">INVOICE</h1>
-                <p class="invoice-subtitle">Order #${data.orderNumber}</p>
-            </div>
-
-            <div class="company-info">
-                <h2>Addins Meals on Wheels</h2>
-                <p>Delicious Food Delivery Service</p>
-                <p>📞 +254 112 855 900 | 📧 info@addinsmeals.com</p>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; margin: 20px 0;">
-                <div class="info-section">
-                    <div class="info-title">Bill To:</div>
-                    <div class="info-item"><strong>${data.customerName}</strong></div>
-                    <div class="info-item">${data.customerEmail}</div>
-                    <div class="info-item">${data.customerPhone}</div>
+            <div class="invoice-container">
+                <div class="invoice-header">
+                    <h1 class="invoice-title">Invoice</h1>
+                    <p class="invoice-subtitle">Order #${data.orderNumber}</p>
                 </div>
 
-                <div class="info-section">
-                    <div class="info-title">Order Details:</div>
-                    <div class="info-item"><strong>Order #:</strong> ${data.orderNumber}</div>
-                    <div class="info-item"><strong>Date:</strong> ${data.orderDate}</div>
-                    <div class="info-item"><strong>Status:</strong> ${data.status}</div>
-                    <div class="info-item"><strong>Payment:</strong> ${data.paymentMethod}</div>
-                    <div class="info-item"><strong>Payment Status:</strong> ${data.paymentStatus}</div>
+                <div class="company-section">
+                    <img src="../assets/img/Addin-logo.jpeg" alt="Addins Meals on Wheels Logo" class="company-logo">
+                    <div class="company-info">
+                        <h2>Addins Meals on Wheels</h2>
+                        <p class="tagline">Delicious Food Delivery Service</p>
+                        <p class="contact">📞 +254 112 855 900 | 📧 info@addinsmeals.com</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="delivery-info" style="margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
-                <div class="info-title">Delivery Information:</div>
-                <div><strong>Address:</strong> ${data.deliveryAddress}</div>
-            </div>
+                <div class="invoice-details">
+                    <div class="detail-section">
+                        <div class="detail-title">Bill To</div>
+                        <div class="detail-item">
+                            <span class="detail-label">Customer:</span>
+                            <span class="detail-value">${data.customerName}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Email:</span>
+                            <span class="detail-value">${data.customerEmail}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Phone:</span>
+                            <span class="detail-value">${data.customerPhone}</span>
+                        </div>
+                    </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th class="text-right">Qty</th>
-                        <th class="text-right">Unit Price</th>
-                        <th class="text-right">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${data.items.map(item => `
+                    <div class="detail-section">
+                        <div class="detail-title">Order Details</div>
+                        <div class="detail-item">
+                            <span class="detail-label">Order Number:</span>
+                            <span class="detail-value">${data.orderNumber}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Order Date:</span>
+                            <span class="detail-value">${data.orderDate}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Status:</span>
+                            <span class="detail-value">${data.status}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Payment Method:</span>
+                            <span class="detail-value">${data.paymentMethod}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Payment Status:</span>
+                            <span class="detail-value">${data.paymentStatus}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="delivery-info">
+                    <div class="delivery-title">Delivery Information</div>
+                    <div class="delivery-address">${data.deliveryAddress}</div>
+                </div>
+
+                <div class="items-section">
+                    <div class="items-title">Order Items</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-right">Unit Price</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.items.map(item => `
+                                <tr>
+                                    <td>${item.name}</td>
+                                    <td class="text-center">${item.quantity}</td>
+                                    <td class="text-right">KES ${item.unitPrice.toFixed(2)}</td>
+                                    <td class="text-right">KES ${item.total.toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="totals-section">
+                    <table class="totals-table">
                         <tr>
-                            <td>${item.name}</td>
-                            <td class="text-right">${item.quantity}</td>
-                            <td class="text-right">KES ${item.unitPrice.toFixed(2)}</td>
-                            <td class="text-right">KES ${item.total.toFixed(2)}</td>
+                            <td>Subtotal:</td>
+                            <td class="text-right">KES ${data.subtotal.toFixed(2)}</td>
                         </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+                        <tr>
+                            <td>Delivery Fee:</td>
+                            <td class="text-right">${data.deliveryFee === 0 ? 'FREE' : 'KES ' + data.deliveryFee.toFixed(2)}</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td><strong>Total Amount:</strong></td>
+                            <td class="text-right"><strong>KES ${data.totalAmount.toFixed(2)}</strong></td>
+                        </tr>
+                    </table>
+                </div>
 
-            <table style="margin-left: auto; width: 300px;">
-                <tr>
-                    <td>Subtotal:</td>
-                    <td class="text-right">KES ${data.subtotal.toFixed(2)}</td>
-                </tr>
-                <tr>
-                    <td>Delivery Fee:</td>
-                    <td class="text-right">${data.deliveryFee === 0 ? 'FREE' : 'KES ' + data.deliveryFee.toFixed(2)}</td>
-                </tr>
-                <tr class="total-row">
-                    <td><strong>TOTAL:</strong></td>
-                    <td class="text-right grand-total">KES ${data.totalAmount.toFixed(2)}</td>
-                </tr>
-            </table>
-
-            <div class="footer">
-                <p>Thank you for choosing Addins Meals on Wheels!</p>
-                <p>This invoice was generated on ${new Date().toLocaleDateString()}</p>
+                <div class="footer">
+                    <div class="thank-you">Thank you for choosing Addins Meals on Wheels!</div>
+                    <p class="footer-text">We appreciate your business and look forward to serving you again.</p>
+                    <p class="footer-subtext">This invoice was generated on ${new Date().toLocaleDateString()} | For inquiries, please contact us at +254 112 855 900</p>
+                </div>
             </div>
         </body>
         </html>

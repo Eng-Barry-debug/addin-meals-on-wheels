@@ -29,15 +29,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
             
             // Store token in database
+            $used = 0; // Token starts as unused
             $stmt = $GLOBALS['conn']->prepare("
-                INSERT INTO password_resets (user_id, token, expires_at) 
-                VALUES (?, ?, ?)
+                INSERT INTO password_resets (user_id, token, expires_at, used) 
+                VALUES (?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE 
                     token = VALUES(token),
                     expires_at = VALUES(expires_at),
+                    used = VALUES(used),
                     created_at = NOW()
             ");
-            $stmt->bind_param("iss", $user['id'], $token, $expires);
+            $stmt->bind_param("issi", $user['id'], $token, $expires, $used);
             
             if ($stmt->execute()) {
                 // Send email with reset link
@@ -47,14 +49,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message .= "You requested a password reset. Click the link below to set a new password:\n\n";
                 $message .= $reset_link . "\n\n";
                 $message .= "This link will expire in 1 hour.\n\n";
-                $message .= "If you didn't request this, please ignore this email.\n";
-                
-                // In a real application, use a proper email sending library
-                $headers = "From: no-reply@addinmeals.com";
-                @mail($email, $subject, $message, $headers);
-                
-                $success = true;
-                $success_message = "If an account exists with that email, we've sent a password reset link.";
+                $message .= "If you didn't request this, please ignore this email.\n\n";
+                $message .= "Best regards,\nAddins Meals on Wheels Team";
+
+                // Try to send email
+                $emailSent = false;
+                $headers = "From: Addins Meals <no-reply@addinsmeals.com>\r\n";
+                $headers .= "Reply-To: info@addinsmeals.com\r\n";
+                $headers .= "MIME-Version: 1.0\r\n";
+                $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+
+                // For development, show email content instead of sending
+                if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'localhost') !== false) {
+                    // Development mode - show email content instead of sending
+                    $_SESSION['email_content'] = [
+                        'to' => $email,
+                        'subject' => $subject,
+                        'message' => $message,
+                        'reset_link' => $reset_link
+                    ];
+                    $emailSent = true; // Simulate success for development
+                } else {
+                    // Production mode - try to send actual email
+                    if (mail($email, $subject, $message, $headers)) {
+                        $emailSent = true;
+                    }
+                }
+
+                if ($emailSent) {
+                    $success = true;
+                    $success_message = "If an account exists with that email, we've sent a password reset link.";
+                } else {
+                    $error = "Error processing your request. Please try again.";
+                }
             } else {
                 $error = "Error processing your request. Please try again.";
             }
@@ -109,6 +136,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php echo htmlspecialchars($success_message); ?>
                     <p class="mt-2">Didn't receive the email? <a href="forgot-password.php" class="font-medium text-[#C1272D] hover:underline">Try again</a></p>
                 </div>
+
+                <?php if (isset($_SESSION['email_content'])): ?>
+                    <!-- Development Mode: Show Email Content -->
+                    <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 class="font-semibold text-blue-800 mb-2">📧 Development Mode - Email Preview</h3>
+                        <div class="text-sm text-blue-700 space-y-1">
+                            <p><strong>To:</strong> <?php echo htmlspecialchars($_SESSION['email_content']['to']); ?></p>
+                            <p><strong>Subject:</strong> <?php echo htmlspecialchars($_SESSION['email_content']['subject']); ?></p>
+                            <p><strong>Reset Link:</strong> <a href="<?php echo htmlspecialchars($_SESSION['email_content']['reset_link']); ?>" class="text-blue-600 underline" target="_blank">Click here</a></p>
+                        </div>
+                        <div class="mt-3 p-3 bg-gray-50 rounded text-xs font-mono text-gray-700">
+                            <?php echo nl2br(htmlspecialchars($_SESSION['email_content']['message'])); ?>
+                        </div>
+                        <p class="mt-2 text-xs text-blue-600">In production, this email would be sent to the user.</p>
+                    </div>
+                <?php endif; ?>
             <?php else: ?>
                 <form method="POST" action="" class="space-y-6">
                     <div>

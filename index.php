@@ -16,6 +16,51 @@ try {
     // If table doesn't exist or error occurs, use empty array
     $reviews = [];
 }
+
+// Hero Slideshow Configuration - Easily editable for admins
+$hero_slides = [
+    [
+        'title' => 'Delicious Meals Delivered',
+        'subtitle' => 'Experience the taste of home-cooked meals',
+        'description' => 'Fresh ingredients, chef-prepared meals delivered hot and fresh to your doorstep. From our kitchen to your table in minutes.',
+        'buttonText' => 'Order Now',
+        'buttonLink' => '/menu.php',
+        'bgImage' => 'assets/img/freshfoods.png'
+    ],
+    [
+        'title' => 'Premium Catering Services',
+        'subtitle' => 'Perfect for events, parties, and gatherings',
+        'description' => 'Professional catering for weddings, corporate events, birthdays, and celebrations. Custom menus tailored to your needs.',
+        'buttonText' => 'Book Catering',
+        'buttonLink' => '/catering.php',
+        'bgImage' => 'assets/img/catering2.png'
+    ],
+    [
+        'title' => 'Addins Ambassador Program',
+        'subtitle' => 'Empowering students and entrepreneurs',
+        'description' => 'Join our ambassador program and become part of a community that supports growth, learning, and business development.',
+        'buttonText' => 'Join Program',
+        'buttonLink' => '/ambassador.php',
+        'bgImage' => 'assets/img/Addinhotel.png'
+    ],
+    [
+        'title' => 'Recipes & Blog Content',
+        'subtitle' => 'Discover culinary inspiration and tips',
+        'description' => 'Explore our collection of recipes, cooking tips, and food stories. Learn from our chefs and community members.',
+        'buttonText' => 'Read Blog',
+        'buttonLink' => '/blog.php',
+        'bgImage' => 'assets/img/cookies.png'
+    ],
+    [
+        'title' => '24/7 Customer Support',
+        'subtitle' => 'Always here to help you succeed',
+        'description' => 'Get instant assistance with orders, catering bookings, and any questions. Our support team is available round the clock.',
+        'buttonText' => 'Get Support',
+        'buttonLink' => '/contact.php',
+        'bgImage' => 'assets/img/delivery.png'
+    ]
+];
+
 ?>
 
     <!-- Additional Slideshow Styles -->
@@ -136,7 +181,7 @@ try {
         }"
         x-init="
             // Auto-advance slides every 6 seconds
-            setInterval(() => { $data.nextSlide(); }, 6000);
+            setInterval(() => { nextSlide(); }, 6000);
         "
         class="relative h-full hero-slideshow">
 
@@ -422,7 +467,7 @@ try {
         <div class="container mx-auto px-4 text-center">
             <h2 class="text-3xl font-bold mb-6">Ready to Try Our Delicious Meals?</h2>
             <p class="text-xl mb-8 max-w-2xl mx-auto">Join hundreds of satisfied customers enjoying our meals today!</p>
-            <a href="/menu.php" class="btn btn-secondary px-8 py-3 text-lg">Order Now</a>
+            <a href="/menu.php" class="inline-block bg-white text-primary hover:bg-gray-100 border-2 border-white hover:border-gray-100 px-8 py-3 text-lg font-bold rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl">Order Now</a>
         </div>
     </section>
 

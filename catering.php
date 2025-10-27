@@ -70,12 +70,11 @@ $page_title = "Catering Services - Addins Meals on Wheels";
 <?php include 'includes/header.php'; ?>
 
 <!-- Hero Section -->
-<section class="relative h-screen overflow-hidden">
+<section class="relative h-96 overflow-hidden">
     <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('assets/img/opening.png');">
         <!-- Enhanced overlay for better text visibility -->
-        <div class="absolute inset-0 bg-black/80"></div>
-        <!-- Additional brand color overlay -->
-        <div class="absolute inset-0 bg-primary/5"></div>
+        <div class="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/70"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/40"></div>
     </div>
 
     <div class="relative z-10 h-full flex items-center">

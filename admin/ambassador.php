@@ -1083,7 +1083,7 @@ require_once 'includes/header.php';
                 <h3 id="applicationModalTitle" class="text-xl font-bold">
                     <i class="fas fa-eye mr-2"></i>Application Details
                 </h3>
-                <button type="button" onclick="closeModal('viewApplicationModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="document.getElementById('viewApplicationModal').classList.add('hidden'); document.getElementById('viewApplicationModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1102,7 +1102,7 @@ require_once 'includes/header.php';
 
         <!-- Modal Footer - Optional for view modal, but good for consistency -->
         <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
-            <button type="button" onclick="closeModal('viewApplicationModal')"
+            <button type="button" onclick="document.getElementById('viewApplicationModal').classList.add('hidden'); document.getElementById('viewApplicationModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
                     class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                 <span class="relative z-10 font-medium">Close</span>
@@ -1120,7 +1120,7 @@ require_once 'includes/header.php';
                 <h3 id="editModalTitle" class="text-xl font-bold">
                     <i class="fas fa-pencil-alt mr-2"></i>Edit Application <span id="editApplicationName" class="font-mono text-purple-100 italic"></span>
                 </h3>
-                <button type="button" onclick="closeModal('editApplicationModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="document.getElementById('editApplicationModal').classList.add('hidden'); document.getElementById('editApplicationModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1138,7 +1138,7 @@ require_once 'includes/header.php';
 
         <!-- Modal Footer (fixed at the bottom) -->
         <div class="p-6 border-t border-gray-200 flex gap-3 justify-end flex-shrink-0">
-             <button type="button" onclick="closeModal('editApplicationModal')"
+             <button type="button" onclick="document.getElementById('editApplicationModal').classList.add('hidden'); document.getElementById('editApplicationModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
                     class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                 <span class="relative z-10 font-medium">Cancel</span>
@@ -1162,7 +1162,7 @@ require_once 'includes/header.php';
                 <h3 id="deleteModalTitle" class="text-xl font-bold">
                     <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
                 </h3>
-                <button type="button" onclick="closeModal('deleteConfirmationModal')" class="text-white hover:text-gray-200 text-2xl">
+                <button type="button" onclick="document.getElementById('deleteConfirmationModal').classList.add('hidden'); document.getElementById('deleteConfirmationModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1176,7 +1176,7 @@ require_once 'includes/header.php';
 
         <!-- Modal Footer -->
         <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
-            <button type="button" onclick="closeModal('deleteConfirmationModal')"
+            <button type="button" onclick="document.getElementById('deleteConfirmationModal').classList.add('hidden'); document.getElementById('deleteConfirmationModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
                     class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
                 <span class="relative z-10 font-medium">Cancel</span>
@@ -1215,32 +1215,17 @@ function closeModal(modalId) {
         return;
     }
 
-    // Add fade-out animation class if available
-    modal.classList.add('animate__fadeOut');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-        modal.classList.remove('animate__fadeOut', 'animate__animated', 'animate__fadeIn'); // Clean up animation classes
-        // Re-enable background scrolling
-        document.body.classList.remove('overflow-y-hidden');
-    }, 300); // Match animation duration
+    // Hide modal immediately
+    modal.classList.add('hidden');
+    modal.classList.remove('animate__fadeIn', 'animate__zoomIn');
 
-    // Clear content of AJAX-loaded modals when closing
-    if (modalId === 'viewApplicationModal') {
-        document.getElementById('viewModalContent').innerHTML = `
-            <div class="flex flex-col items-center justify-center p-8 text-gray-700">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-primary mb-4"></div>
-                <span class="text-lg font-semibold">Loading application details...</span>
-                <p class="text-sm text-gray-500 mt-2">This may take a moment.</p>
-            </div>`;
-        document.getElementById('viewApplicationName').textContent = ''; // Clear name in header
-    } else if (modalId === 'editApplicationModal') {
-        document.getElementById('editModalContent').innerHTML = `
-            <div class="flex flex-col items-center justify-center p-8 text-gray-700">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-primary mb-4"></div>
-                <span class="text-lg font-semibold">Loading edit form...</span>
-                <p class="text-sm text-gray-500 mt-2">This may take a moment.</p>
-            </div>`;
-        document.getElementById('editApplicationName').textContent = ''; // Clear name in header
+    // Special cleanup for Edit Application modal
+    if (modalId === 'editApplicationModal') {
+        // Reset form when closing Edit modal
+        const editForm = document.getElementById('editApplicationForm');
+        if (editForm) {
+            editForm.reset();
+        }
     }
 }
 
@@ -1275,14 +1260,12 @@ function openModal(modalId) {
 
 // Close modal when clicking outside (on the black overlay) - from orders.php
 window.addEventListener('click', function(event) {
-    const modalIds = ['viewApplicationModal', 'editApplicationModal', 'deleteConfirmationModal']; // All modal IDs
+    const modalIds = ['viewApplicationModal', 'editApplicationModal', 'deleteConfirmationModal'];
     modalIds.forEach(id => {
         const modal = document.getElementById(id);
-        if (modal && !modal.classList.contains('hidden')) { // Check if it's open
-            // Check if the click was directly on the backdrop (not inside the modal content)
-            if (event.target === modal) {
-                closeModal(id);
-            }
+        if (modal && !modal.classList.contains('hidden') && event.target === modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('animate__fadeIn', 'animate__zoomIn');
         }
     });
 });
@@ -1290,14 +1273,15 @@ window.addEventListener('click', function(event) {
 // Keyboard navigation for modals (Escape key) - from orders.php
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
-        const modalIds = ['viewApplicationModal', 'editApplicationModal', 'deleteConfirmationModal']; // All modal IDs
-        for (const id of modalIds) {
+        const modalIds = ['viewApplicationModal', 'editApplicationModal', 'deleteConfirmationModal'];
+        modalIds.forEach(id => {
             const modal = document.getElementById(id);
             if (modal && !modal.classList.contains('hidden')) {
-                closeModal(id); // Close the topmost visible modal
-                break;
+                modal.classList.add('hidden');
+                modal.classList.remove('animate__fadeIn', 'animate__zoomIn');
+                event.preventDefault(); // Prevent default ESC behavior
             }
-        }
+        });
     }
 });
 
@@ -1370,7 +1354,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (result.status === 'success') {
                     Swal.fire('Deleted!', result.message, 'success').then(() => {
-                        closeModal('deleteConfirmationModal');
+                        document.getElementById('deleteConfirmationModal').classList.add('hidden');
+                        document.getElementById('deleteConfirmationModal').classList.remove('animate__fadeIn', 'animate__zoomIn');
                         location.reload(); // Reload the page to show changes
                     });
                 } else {

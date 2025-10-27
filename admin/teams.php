@@ -154,7 +154,7 @@ include 'includes/header.php';
                                             class="text-primary hover:text-primary-dark text-sm font-medium">
                                         <i class="fas fa-edit mr-1"></i>Edit
                                     </button>
-                                    <button onclick="deleteMember(<?php echo $member['id']; ?>)"
+                                    <button onclick="confirmDeleteMember(<?php echo $member['id']; ?>, '<?php echo htmlspecialchars(addslashes($member['name'])); ?>')"
                                             class="text-red-600 hover:text-red-800 text-sm font-medium">
                                         <i class="fas fa-trash mr-1"></i>Delete
                                     </button>
@@ -187,7 +187,7 @@ include 'includes/header.php';
     <div class="flex items-center justify-center min-h-screen p-4">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto relative">
             <!-- Close button at top right -->
-            <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+            <button id="closeModalBtn" onclick="document.getElementById('memberModal').classList.add('hidden');" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
                 <i class="fas fa-times text-xl"></i>
             </button>
 
@@ -256,7 +256,7 @@ include 'includes/header.php';
 
                     <!-- Buttons -->
                     <div class="flex justify-end space-x-3 pt-4">
-                        <button type="button" onclick="closeModal()"
+                        <button type="button" onclick="document.getElementById('memberModal').classList.add('hidden');"
                                 class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm">
                             Cancel
                         </button>
@@ -267,6 +267,90 @@ include 'includes/header.php';
                     </div>
                 </form>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
+                </h3>
+                <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 text-gray-700">
+            <p class="text-lg font-medium mb-3">Are you sure you want to delete team member "<span id="deleteMemberName" class="font-bold text-red-600"></span>"?</p>
+            <p>This action cannot be undone. All associated data will be permanently removed.</p>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
+                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <span class="relative z-10 font-medium">Cancel</span>
+            </button>
+            <form action="" method="POST" class="inline-block" id="deleteMemberForm">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="id" id="deleteMemberId">
+                <button type="submit"
+                        class="group relative bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                    <i class="fas fa-trash mr-2 relative z-10"></i>
+                    <span class="relative z-10 font-medium">Delete Member</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Deletion
+                </h3>
+                <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 text-gray-700">
+            <p class="text-lg font-medium mb-3">Are you sure you want to delete team member "<span id="deleteMemberName" class="font-bold text-red-600"></span>"?</p>
+            <p>This action cannot be undone. All associated data will be permanently removed.</p>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <button type="button" onclick="document.getElementById('deleteModal').classList.add('hidden'); document.getElementById('deleteModal').classList.remove('animate__fadeIn', 'animate__zoomIn');"
+                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <span class="relative z-10 font-medium">Cancel</span>
+            </button>
+            <form action="" method="POST" class="inline-block" id="deleteMemberForm">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="id" id="deleteMemberId">
+                <button type="submit"
+                        class="group relative bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                    <i class="fas fa-trash mr-2 relative z-10"></i>
+                    <span class="relative z-10 font-medium">Delete Member</span>
+                </button>
+            </form>
         </div>
     </div>
 </div>
@@ -305,7 +389,8 @@ function closeModal() {
     const modal = document.getElementById('memberModal');
     if (modal) {
         modal.classList.add('hidden');
-        // Clear form fields when closing
+
+        // Reset form fields when closing
         document.getElementById('memberName').value = '';
         document.getElementById('memberPosition').value = '';
         document.getElementById('memberBio').value = '';
@@ -321,6 +406,13 @@ function closeModal() {
             document.getElementById('previewImg').src = '';
         }
     }
+}
+
+// Delete confirmation modal
+function confirmDeleteMember(id, name) {
+    document.getElementById('deleteMemberId').value = id;
+    document.getElementById('deleteMemberName').textContent = name;
+    document.getElementById('deleteModal').classList.remove('hidden');
 }
 
 // Toggle status function
@@ -379,21 +471,61 @@ function previewImage(input) {
     }
 }
 
+// Keyboard navigation for modals (Escape key)
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modalIds = ['memberModal', 'deleteModal'];
+        modalIds.forEach(id => {
+            const modal = document.getElementById(id);
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+                event.preventDefault(); // Prevent default ESC behavior
+            }
+        });
+    }
+});
+
 // Initialize modal event listeners when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    // Close modal when clicking the backdrop
-    document.getElementById('memberModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeModal();
+    // Close modal when clicking the backdrop for all modals
+    const allModals = ['memberModal', 'deleteModal'];
+    allModals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.add('hidden');
+                }
+            });
         }
     });
 
-    // Close modal when clicking the close button
-    document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+    // Close modal when clicking the close button for all modals
+    const closeBtns = ['closeModalBtn'];
+    closeBtns.forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            btn.addEventListener('click', function() {
+                const modal = document.getElementById('memberModal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
+            });
+        }
+    });
 
-    // Close modal when clicking Cancel button
-    document.querySelector('button[type="button"][onclick*="closeModal"]').addEventListener('click', closeModal);
+    // Close modal when clicking Cancel button for all modals
+    const cancelBtns = document.querySelectorAll('button[type="button"][onclick*="closeModal"]');
+    cancelBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modal = document.getElementById('memberModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        });
+    });
 });
+
 </script>
 
 <?php include 'includes/footer.php'; ?>
