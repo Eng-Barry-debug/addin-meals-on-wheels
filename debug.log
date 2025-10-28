@@ -1,0 +1,1510 @@
+[2025-10-28 16:42:35] Fetched post: Found
+[2025-10-28 16:42:35] Post status: published
+[2025-10-28 16:42:35] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 16:44:24] Fetched post: Found
+[2025-10-28 16:44:24] Post status: published
+[2025-10-28 16:44:24] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 17:27:44] Fetched post: Found
+[2025-10-28 17:27:44] Post status: published
+[2025-10-28 17:27:44] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 17:41:05] Fetched post: Found
+[2025-10-28 17:41:05] Post status: published
+[2025-10-28 17:41:05] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 17:45:35] Fetched post: Found
+[2025-10-28 17:45:35] Post status: published
+[2025-10-28 17:45:35] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 17:45:50] Fetched post: Found
+[2025-10-28 17:45:50] Post status: published
+[2025-10-28 17:45:50] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 17:46:06] Fetched post: Found
+[2025-10-28 17:46:06] Post status: published
+[2025-10-28 17:46:06] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 17:46:06] Fetched post: Found
+[2025-10-28 17:46:06] Post status: published
+[2025-10-28 17:46:06] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 17:46:06] Fetched post: Found
+[2025-10-28 17:46:06] Post status: published
+[2025-10-28 17:46:06] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 17:59:31] Fetched post: Found
+[2025-10-28 17:59:31] Post status: published
+[2025-10-28 17:59:31] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:14:20] Fetched post: Found
+[2025-10-28 18:14:20] Post status: published
+[2025-10-28 18:14:20] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:14:53] Fetched post: Found
+[2025-10-28 18:14:53] Post status: published
+[2025-10-28 18:14:53] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 18:29:56] Processing blog post with ID: 6
+[2025-10-28 18:29:56] Attempting to fetch post with ID: 6
+[2025-10-28 18:29:56] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 6 AND p.status = 'published'
+    
+[2025-10-28 18:29:56] Fetched post data: {"id":6,"title":"\ud83c\udf55 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience","content":"When hunger strikes, you don\u2019t want to waste time scrolling endlessly through apps that feel too complicated or detached. At Addins Meals on Wheels, we believe ordering food should be simple, reliable, and joyful.\r\n\r\nWhat Makes Addins Different?\r\n\r\nUnlike generic delivery platforms, Addins is built for you, by people who care about your experience.\r\nHere\u2019s what sets us apart:\r\n\r\nCurated Menu Categories \u2013 Pizza, Cookies, Cupcakes, and Catering, all crafted with love.\r\n\r\nReal-Time Order Tracking \u2013 Know exactly when your meal will arrive.\r\n\r\nTransparent Pricing \u2013 No hidden costs, just fresh food at fair prices.\r\n\r\nMultiple Payment Options \u2013 Pay securely via M-Pesa, PayPal, or cash on delivery.\r\n\r\nDesigned for Speed &amp;amp;amp;amp; Convenience\r\n\r\nOur platform is designed with a mobile-first approach so you can browse and order easily from your phone. With just a few clicks, your food is on its way.\r\n\r\nSmart Cart \u2013 Add items in real-time, see your total instantly.\r\n\r\nGuest Checkout \u2013 No need to sign up if you\u2019re in a hurry.\r\n\r\nPersonalized Experience \u2013 Create an account to save your favorites and view past orders.\r\n\r\nMore Than Just Food Delivery\r\n\r\nFood is about connection. That\u2019s why Addins integrates features that let you:\r\n\r\nRead &amp;amp;amp;amp; Leave Reviews \u2013 Share your experience and learn from others.\r\n\r\nAccess Nutritional Info \u2013 Know what\u2019s in your food before you order.\r\n\r\nJoin Our Community \u2013 Follow our blog for recipes, health tips, and ambassador stories.\r\n\r\nBrand Promise in Every Meal\r\n\r\nOur meals carry the Deep Red (#C1272D) of passion, the Gold (#D4AF37) of excellence, and the Warm Cream (#F5E6D3) of care. When your food arrives, it\u2019s not just a delivery \u2014 it\u2019s a promise kept.\r\n\r\nConclusion\r\n\r\nWith Addins Meals on Wheels, you\u2019re not just placing an order \u2014 you\u2019re joining a movement that values quality, trust, and community.\r\n\r\n\ud83d\udc49 Explore the Menu Page today and let\u2019s bring fresh meals straight to your table.","author":"Bonnie Computer Hub Team","status":"published","image":"catering_1.jpeg","created_at":"2025-10-04 07:42:47","views":25,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:30:02] Processing blog post with ID: 6
+[2025-10-28 18:30:02] Attempting to fetch post with ID: 6
+[2025-10-28 18:30:02] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 6 AND p.status = 'published'
+    
+[2025-10-28 18:30:02] Fetched post data: {"id":6,"title":"\ud83c\udf55 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience","content":"When hunger strikes, you don\u2019t want to waste time scrolling endlessly through apps that feel too complicated or detached. At Addins Meals on Wheels, we believe ordering food should be simple, reliable, and joyful.\r\n\r\nWhat Makes Addins Different?\r\n\r\nUnlike generic delivery platforms, Addins is built for you, by people who care about your experience.\r\nHere\u2019s what sets us apart:\r\n\r\nCurated Menu Categories \u2013 Pizza, Cookies, Cupcakes, and Catering, all crafted with love.\r\n\r\nReal-Time Order Tracking \u2013 Know exactly when your meal will arrive.\r\n\r\nTransparent Pricing \u2013 No hidden costs, just fresh food at fair prices.\r\n\r\nMultiple Payment Options \u2013 Pay securely via M-Pesa, PayPal, or cash on delivery.\r\n\r\nDesigned for Speed &amp;amp;amp;amp; Convenience\r\n\r\nOur platform is designed with a mobile-first approach so you can browse and order easily from your phone. With just a few clicks, your food is on its way.\r\n\r\nSmart Cart \u2013 Add items in real-time, see your total instantly.\r\n\r\nGuest Checkout \u2013 No need to sign up if you\u2019re in a hurry.\r\n\r\nPersonalized Experience \u2013 Create an account to save your favorites and view past orders.\r\n\r\nMore Than Just Food Delivery\r\n\r\nFood is about connection. That\u2019s why Addins integrates features that let you:\r\n\r\nRead &amp;amp;amp;amp; Leave Reviews \u2013 Share your experience and learn from others.\r\n\r\nAccess Nutritional Info \u2013 Know what\u2019s in your food before you order.\r\n\r\nJoin Our Community \u2013 Follow our blog for recipes, health tips, and ambassador stories.\r\n\r\nBrand Promise in Every Meal\r\n\r\nOur meals carry the Deep Red (#C1272D) of passion, the Gold (#D4AF37) of excellence, and the Warm Cream (#F5E6D3) of care. When your food arrives, it\u2019s not just a delivery \u2014 it\u2019s a promise kept.\r\n\r\nConclusion\r\n\r\nWith Addins Meals on Wheels, you\u2019re not just placing an order \u2014 you\u2019re joining a movement that values quality, trust, and community.\r\n\r\n\ud83d\udc49 Explore the Menu Page today and let\u2019s bring fresh meals straight to your table.","author":"Bonnie Computer Hub Team","status":"published","image":"catering_1.jpeg","created_at":"2025-10-04 07:42:47","views":26,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:33:37] Processing blog post with ID: 4
+[2025-10-28 18:33:37] Attempting to fetch post with ID: 4
+[2025-10-28 18:33:37] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 4 AND p.status = 'published'
+    
+[2025-10-28 18:33:37] Fetched post data: {"id":4,"title":"Test Image Post","content":"This is a test post with an image","author":"Test Author","status":"published","image":"cupcakes2_1.jpeg","created_at":"2025-10-04 07:28:47","views":7,"like_count":0,"comment_count":0,"author_name":"Test Author"}
+[2025-10-28 18:33:41] Processing blog post with ID: 6
+[2025-10-28 18:33:41] Attempting to fetch post with ID: 6
+[2025-10-28 18:33:41] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 6 AND p.status = 'published'
+    
+[2025-10-28 18:33:41] Fetched post data: {"id":6,"title":"\ud83c\udf55 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience","content":"When hunger strikes, you don\u2019t want to waste time scrolling endlessly through apps that feel too complicated or detached. At Addins Meals on Wheels, we believe ordering food should be simple, reliable, and joyful.\r\n\r\nWhat Makes Addins Different?\r\n\r\nUnlike generic delivery platforms, Addins is built for you, by people who care about your experience.\r\nHere\u2019s what sets us apart:\r\n\r\nCurated Menu Categories \u2013 Pizza, Cookies, Cupcakes, and Catering, all crafted with love.\r\n\r\nReal-Time Order Tracking \u2013 Know exactly when your meal will arrive.\r\n\r\nTransparent Pricing \u2013 No hidden costs, just fresh food at fair prices.\r\n\r\nMultiple Payment Options \u2013 Pay securely via M-Pesa, PayPal, or cash on delivery.\r\n\r\nDesigned for Speed &amp;amp;amp;amp; Convenience\r\n\r\nOur platform is designed with a mobile-first approach so you can browse and order easily from your phone. With just a few clicks, your food is on its way.\r\n\r\nSmart Cart \u2013 Add items in real-time, see your total instantly.\r\n\r\nGuest Checkout \u2013 No need to sign up if you\u2019re in a hurry.\r\n\r\nPersonalized Experience \u2013 Create an account to save your favorites and view past orders.\r\n\r\nMore Than Just Food Delivery\r\n\r\nFood is about connection. That\u2019s why Addins integrates features that let you:\r\n\r\nRead &amp;amp;amp;amp; Leave Reviews \u2013 Share your experience and learn from others.\r\n\r\nAccess Nutritional Info \u2013 Know what\u2019s in your food before you order.\r\n\r\nJoin Our Community \u2013 Follow our blog for recipes, health tips, and ambassador stories.\r\n\r\nBrand Promise in Every Meal\r\n\r\nOur meals carry the Deep Red (#C1272D) of passion, the Gold (#D4AF37) of excellence, and the Warm Cream (#F5E6D3) of care. When your food arrives, it\u2019s not just a delivery \u2014 it\u2019s a promise kept.\r\n\r\nConclusion\r\n\r\nWith Addins Meals on Wheels, you\u2019re not just placing an order \u2014 you\u2019re joining a movement that values quality, trust, and community.\r\n\r\n\ud83d\udc49 Explore the Menu Page today and let\u2019s bring fresh meals straight to your table.","author":"Bonnie Computer Hub Team","status":"published","image":"catering_1.jpeg","created_at":"2025-10-04 07:42:47","views":27,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:33:43] Processing blog post with ID: 6
+[2025-10-28 18:33:43] Attempting to fetch post with ID: 6
+[2025-10-28 18:33:43] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 6 AND p.status = 'published'
+    
+[2025-10-28 18:33:43] Fetched post data: {"id":6,"title":"\ud83c\udf55 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience","content":"When hunger strikes, you don\u2019t want to waste time scrolling endlessly through apps that feel too complicated or detached. At Addins Meals on Wheels, we believe ordering food should be simple, reliable, and joyful.\r\n\r\nWhat Makes Addins Different?\r\n\r\nUnlike generic delivery platforms, Addins is built for you, by people who care about your experience.\r\nHere\u2019s what sets us apart:\r\n\r\nCurated Menu Categories \u2013 Pizza, Cookies, Cupcakes, and Catering, all crafted with love.\r\n\r\nReal-Time Order Tracking \u2013 Know exactly when your meal will arrive.\r\n\r\nTransparent Pricing \u2013 No hidden costs, just fresh food at fair prices.\r\n\r\nMultiple Payment Options \u2013 Pay securely via M-Pesa, PayPal, or cash on delivery.\r\n\r\nDesigned for Speed &amp;amp;amp;amp; Convenience\r\n\r\nOur platform is designed with a mobile-first approach so you can browse and order easily from your phone. With just a few clicks, your food is on its way.\r\n\r\nSmart Cart \u2013 Add items in real-time, see your total instantly.\r\n\r\nGuest Checkout \u2013 No need to sign up if you\u2019re in a hurry.\r\n\r\nPersonalized Experience \u2013 Create an account to save your favorites and view past orders.\r\n\r\nMore Than Just Food Delivery\r\n\r\nFood is about connection. That\u2019s why Addins integrates features that let you:\r\n\r\nRead &amp;amp;amp;amp; Leave Reviews \u2013 Share your experience and learn from others.\r\n\r\nAccess Nutritional Info \u2013 Know what\u2019s in your food before you order.\r\n\r\nJoin Our Community \u2013 Follow our blog for recipes, health tips, and ambassador stories.\r\n\r\nBrand Promise in Every Meal\r\n\r\nOur meals carry the Deep Red (#C1272D) of passion, the Gold (#D4AF37) of excellence, and the Warm Cream (#F5E6D3) of care. When your food arrives, it\u2019s not just a delivery \u2014 it\u2019s a promise kept.\r\n\r\nConclusion\r\n\r\nWith Addins Meals on Wheels, you\u2019re not just placing an order \u2014 you\u2019re joining a movement that values quality, trust, and community.\r\n\r\n\ud83d\udc49 Explore the Menu Page today and let\u2019s bring fresh meals straight to your table.","author":"Bonnie Computer Hub Team","status":"published","image":"catering_1.jpeg","created_at":"2025-10-04 07:42:47","views":28,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:34:06] Processing blog post with ID: 2
+[2025-10-28 18:34:06] Attempting to fetch post with ID: 2
+[2025-10-28 18:34:06] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 2 AND p.status = 'published'
+    
+[2025-10-28 18:34:06] Fetched post data: {"id":2,"title":"\ud83c\udf1f Empowering Young Entrepreneurs: The Addins Ambassadors Program","content":"At Addins Meals on Wheels, we\u2019re not just building a food platform \u2014 we\u2019re building futures. One of the most exciting parts of our project is the Ambassadors Program, designed to empower young entrepreneurs, especially students, with real-world opportunities to grow, learn, and earn.\r\n\r\nWhat is the Addins Ambassadors Program?\r\n\r\nThe Ambassadors Program is a community-driven initiative where passionate individuals represent Addins Meals on Wheels in their schools, universities, and neighborhoods. Ambassadors don\u2019t just promote the platform \u2014 they become part of a network that combines entrepreneurship, leadership, and technology.\r\n\r\nWhy It Matters\r\n\r\nIn a world where youth unemployment is high, we believe in giving young people the tools to succeed. The program provides:\r\n\r\nSkill Development: Training in digital marketing, customer service, and community engagement.\r\n\r\nFinancial Opportunities: Earn rewards and commissions by connecting people to Addins Meals on Wheels.\r\n\r\nNetworking: Join a community of like-minded young leaders and entrepreneurs.\r\n\r\nReal-World Experience: Gain practical exposure in sales, event planning, and brand building.\r\n\r\nHow the Platform Supports Ambassadors\r\n\r\nThe web platform comes with a dedicated Ambassador dashboard where participants can:\r\n\r\nApply online and track application status\r\n\r\nAccess training resources and program updates\r\n\r\nMonitor performance and engagement\r\n\r\nConnect with coordinators and fellow ambassadors\r\n\r\nOur Vision\r\n\r\nThe Ambassadors Program goes beyond business. It\u2019s about inspiring youth to take charge, build confidence, and discover their potential. By combining technology with opportunity, we\u2019re creating a ripple effect that impacts both communities and the individuals within them.\r\n\r\nJoin Us\r\n\r\nIf you\u2019re a student, young professional, or simply passionate about making a difference in your community, the Addins Ambassadors Program is your chance to shine.\r\n\r\nTogether, we can serve meals, inspire change, and empower through technology.","author":"Bonnie Computer Hub Team","status":"published","image":"68def819a7ba9_1.png","created_at":"2025-10-04 06:53:53","views":34,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:36:01] Processing blog post with ID: 1
+[2025-10-28 18:36:01] Attempting to fetch post with ID: 1
+[2025-10-28 18:36:01] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 1 AND p.status = 'published'
+    
+[2025-10-28 18:36:01] Fetched post data: {"id":1,"title":"Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author","content":"At Bonnie Computer Hub, we believe in empowering communities through technology. Our latest project, Addins Meals on Wheels, is more than just a food delivery service \u2014 it\u2019s a complete digital platform designed to transform how people access meals, catering, and entrepreneurial opportunities.\r\n\r\nWhy Addins Meals on Wheels?\r\n\r\nIn today\u2019s fast-moving world, convenience and accessibility are essential. Customers want to order meals with a few clicks, event organizers need quick catering solutions, and young entrepreneurs need opportunities to grow. The Addins Meals on Wheels platform answers all three needs in one place.\r\n\r\nCore Features\r\n\r\nHere\u2019s what makes this project unique:\r\n\r\nEasy Online Ordering: Customers can browse menus, filter by categories, and place real-time orders.\r\n\r\nCatering Services: Event planners can book customized packages, request quotes, and explore past events in the gallery.\r\n\r\nAmbassadors Program: Students and young entrepreneurs can join as Addins Ambassadors, gaining skills and contributing to community impact.\r\n\r\nContent &amp;amp;amp;amp; Updates: From recipes to company news, the blog and CMS keep users informed and engaged.","author":"Bonnie Computer Hub Team","status":"published","image":"catering2_1.png","created_at":"2025-10-04 06:48:09","views":0,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:36:07] Processing blog post with ID: 1
+[2025-10-28 18:36:07] Attempting to fetch post with ID: 1
+[2025-10-28 18:36:07] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 1 AND p.status = 'published'
+    
+[2025-10-28 18:36:07] Fetched post data: {"id":1,"title":"Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author","content":"At Bonnie Computer Hub, we believe in empowering communities through technology. Our latest project, Addins Meals on Wheels, is more than just a food delivery service \u2014 it\u2019s a complete digital platform designed to transform how people access meals, catering, and entrepreneurial opportunities.\r\n\r\nWhy Addins Meals on Wheels?\r\n\r\nIn today\u2019s fast-moving world, convenience and accessibility are essential. Customers want to order meals with a few clicks, event organizers need quick catering solutions, and young entrepreneurs need opportunities to grow. The Addins Meals on Wheels platform answers all three needs in one place.\r\n\r\nCore Features\r\n\r\nHere\u2019s what makes this project unique:\r\n\r\nEasy Online Ordering: Customers can browse menus, filter by categories, and place real-time orders.\r\n\r\nCatering Services: Event planners can book customized packages, request quotes, and explore past events in the gallery.\r\n\r\nAmbassadors Program: Students and young entrepreneurs can join as Addins Ambassadors, gaining skills and contributing to community impact.\r\n\r\nContent &amp;amp;amp;amp; Updates: From recipes to company news, the blog and CMS keep users informed and engaged.","author":"Bonnie Computer Hub Team","status":"published","image":"catering2_1.png","created_at":"2025-10-04 06:48:09","views":1,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:37:05] Processing blog post with ID: 2
+[2025-10-28 18:37:05] Attempting to fetch post with ID: 2
+[2025-10-28 18:37:05] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 2 AND p.status = 'published'
+    
+[2025-10-28 18:37:05] Fetched post data: {"id":2,"title":"\ud83c\udf1f Empowering Young Entrepreneurs: The Addins Ambassadors Program","content":"At Addins Meals on Wheels, we\u2019re not just building a food platform \u2014 we\u2019re building futures. One of the most exciting parts of our project is the Ambassadors Program, designed to empower young entrepreneurs, especially students, with real-world opportunities to grow, learn, and earn.\r\n\r\nWhat is the Addins Ambassadors Program?\r\n\r\nThe Ambassadors Program is a community-driven initiative where passionate individuals represent Addins Meals on Wheels in their schools, universities, and neighborhoods. Ambassadors don\u2019t just promote the platform \u2014 they become part of a network that combines entrepreneurship, leadership, and technology.\r\n\r\nWhy It Matters\r\n\r\nIn a world where youth unemployment is high, we believe in giving young people the tools to succeed. The program provides:\r\n\r\nSkill Development: Training in digital marketing, customer service, and community engagement.\r\n\r\nFinancial Opportunities: Earn rewards and commissions by connecting people to Addins Meals on Wheels.\r\n\r\nNetworking: Join a community of like-minded young leaders and entrepreneurs.\r\n\r\nReal-World Experience: Gain practical exposure in sales, event planning, and brand building.\r\n\r\nHow the Platform Supports Ambassadors\r\n\r\nThe web platform comes with a dedicated Ambassador dashboard where participants can:\r\n\r\nApply online and track application status\r\n\r\nAccess training resources and program updates\r\n\r\nMonitor performance and engagement\r\n\r\nConnect with coordinators and fellow ambassadors\r\n\r\nOur Vision\r\n\r\nThe Ambassadors Program goes beyond business. It\u2019s about inspiring youth to take charge, build confidence, and discover their potential. By combining technology with opportunity, we\u2019re creating a ripple effect that impacts both communities and the individuals within them.\r\n\r\nJoin Us\r\n\r\nIf you\u2019re a student, young professional, or simply passionate about making a difference in your community, the Addins Ambassadors Program is your chance to shine.\r\n\r\nTogether, we can serve meals, inspire change, and empower through technology.","author":"Bonnie Computer Hub Team","status":"published","image":"68def819a7ba9_1.png","created_at":"2025-10-04 06:53:53","views":35,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:37:08] Processing blog post with ID: 2
+[2025-10-28 18:37:08] Attempting to fetch post with ID: 2
+[2025-10-28 18:37:08] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 2 AND p.status = 'published'
+    
+[2025-10-28 18:37:08] Fetched post data: {"id":2,"title":"\ud83c\udf1f Empowering Young Entrepreneurs: The Addins Ambassadors Program","content":"At Addins Meals on Wheels, we\u2019re not just building a food platform \u2014 we\u2019re building futures. One of the most exciting parts of our project is the Ambassadors Program, designed to empower young entrepreneurs, especially students, with real-world opportunities to grow, learn, and earn.\r\n\r\nWhat is the Addins Ambassadors Program?\r\n\r\nThe Ambassadors Program is a community-driven initiative where passionate individuals represent Addins Meals on Wheels in their schools, universities, and neighborhoods. Ambassadors don\u2019t just promote the platform \u2014 they become part of a network that combines entrepreneurship, leadership, and technology.\r\n\r\nWhy It Matters\r\n\r\nIn a world where youth unemployment is high, we believe in giving young people the tools to succeed. The program provides:\r\n\r\nSkill Development: Training in digital marketing, customer service, and community engagement.\r\n\r\nFinancial Opportunities: Earn rewards and commissions by connecting people to Addins Meals on Wheels.\r\n\r\nNetworking: Join a community of like-minded young leaders and entrepreneurs.\r\n\r\nReal-World Experience: Gain practical exposure in sales, event planning, and brand building.\r\n\r\nHow the Platform Supports Ambassadors\r\n\r\nThe web platform comes with a dedicated Ambassador dashboard where participants can:\r\n\r\nApply online and track application status\r\n\r\nAccess training resources and program updates\r\n\r\nMonitor performance and engagement\r\n\r\nConnect with coordinators and fellow ambassadors\r\n\r\nOur Vision\r\n\r\nThe Ambassadors Program goes beyond business. It\u2019s about inspiring youth to take charge, build confidence, and discover their potential. By combining technology with opportunity, we\u2019re creating a ripple effect that impacts both communities and the individuals within them.\r\n\r\nJoin Us\r\n\r\nIf you\u2019re a student, young professional, or simply passionate about making a difference in your community, the Addins Ambassadors Program is your chance to shine.\r\n\r\nTogether, we can serve meals, inspire change, and empower through technology.","author":"Bonnie Computer Hub Team","status":"published","image":"68def819a7ba9_1.png","created_at":"2025-10-04 06:53:53","views":36,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:37:11] Processing blog post with ID: 6
+[2025-10-28 18:37:11] Attempting to fetch post with ID: 6
+[2025-10-28 18:37:11] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 6 AND p.status = 'published'
+    
+[2025-10-28 18:37:11] Fetched post data: {"id":6,"title":"\ud83c\udf55 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience","content":"When hunger strikes, you don\u2019t want to waste time scrolling endlessly through apps that feel too complicated or detached. At Addins Meals on Wheels, we believe ordering food should be simple, reliable, and joyful.\r\n\r\nWhat Makes Addins Different?\r\n\r\nUnlike generic delivery platforms, Addins is built for you, by people who care about your experience.\r\nHere\u2019s what sets us apart:\r\n\r\nCurated Menu Categories \u2013 Pizza, Cookies, Cupcakes, and Catering, all crafted with love.\r\n\r\nReal-Time Order Tracking \u2013 Know exactly when your meal will arrive.\r\n\r\nTransparent Pricing \u2013 No hidden costs, just fresh food at fair prices.\r\n\r\nMultiple Payment Options \u2013 Pay securely via M-Pesa, PayPal, or cash on delivery.\r\n\r\nDesigned for Speed &amp;amp;amp;amp; Convenience\r\n\r\nOur platform is designed with a mobile-first approach so you can browse and order easily from your phone. With just a few clicks, your food is on its way.\r\n\r\nSmart Cart \u2013 Add items in real-time, see your total instantly.\r\n\r\nGuest Checkout \u2013 No need to sign up if you\u2019re in a hurry.\r\n\r\nPersonalized Experience \u2013 Create an account to save your favorites and view past orders.\r\n\r\nMore Than Just Food Delivery\r\n\r\nFood is about connection. That\u2019s why Addins integrates features that let you:\r\n\r\nRead &amp;amp;amp;amp; Leave Reviews \u2013 Share your experience and learn from others.\r\n\r\nAccess Nutritional Info \u2013 Know what\u2019s in your food before you order.\r\n\r\nJoin Our Community \u2013 Follow our blog for recipes, health tips, and ambassador stories.\r\n\r\nBrand Promise in Every Meal\r\n\r\nOur meals carry the Deep Red (#C1272D) of passion, the Gold (#D4AF37) of excellence, and the Warm Cream (#F5E6D3) of care. When your food arrives, it\u2019s not just a delivery \u2014 it\u2019s a promise kept.\r\n\r\nConclusion\r\n\r\nWith Addins Meals on Wheels, you\u2019re not just placing an order \u2014 you\u2019re joining a movement that values quality, trust, and community.\r\n\r\n\ud83d\udc49 Explore the Menu Page today and let\u2019s bring fresh meals straight to your table.","author":"Bonnie Computer Hub Team","status":"published","image":"catering_1.jpeg","created_at":"2025-10-04 07:42:47","views":29,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:37:39] Processing blog post with ID: 1
+[2025-10-28 18:37:39] Attempting to fetch post with ID: 1
+[2025-10-28 18:37:39] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 1 AND p.status = 'published'
+    
+[2025-10-28 18:37:39] Fetched post data: {"id":1,"title":"Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author","content":"At Bonnie Computer Hub, we believe in empowering communities through technology. Our latest project, Addins Meals on Wheels, is more than just a food delivery service \u2014 it\u2019s a complete digital platform designed to transform how people access meals, catering, and entrepreneurial opportunities.\r\n\r\nWhy Addins Meals on Wheels?\r\n\r\nIn today\u2019s fast-moving world, convenience and accessibility are essential. Customers want to order meals with a few clicks, event organizers need quick catering solutions, and young entrepreneurs need opportunities to grow. The Addins Meals on Wheels platform answers all three needs in one place.\r\n\r\nCore Features\r\n\r\nHere\u2019s what makes this project unique:\r\n\r\nEasy Online Ordering: Customers can browse menus, filter by categories, and place real-time orders.\r\n\r\nCatering Services: Event planners can book customized packages, request quotes, and explore past events in the gallery.\r\n\r\nAmbassadors Program: Students and young entrepreneurs can join as Addins Ambassadors, gaining skills and contributing to community impact.\r\n\r\nContent &amp;amp;amp;amp; Updates: From recipes to company news, the blog and CMS keep users informed and engaged.","author":"Bonnie Computer Hub Team","status":"published","image":"catering2_1.png","created_at":"2025-10-04 06:48:09","views":2,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:39:15] Processing blog post with ID: 6
+[2025-10-28 18:39:15] Attempting to fetch post with ID: 6
+[2025-10-28 18:39:15] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 6 AND p.status = 'published'
+    
+[2025-10-28 18:39:15] Fetched post data: {"id":6,"title":"\ud83c\udf55 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience","content":"When hunger strikes, you don\u2019t want to waste time scrolling endlessly through apps that feel too complicated or detached. At Addins Meals on Wheels, we believe ordering food should be simple, reliable, and joyful.\r\n\r\nWhat Makes Addins Different?\r\n\r\nUnlike generic delivery platforms, Addins is built for you, by people who care about your experience.\r\nHere\u2019s what sets us apart:\r\n\r\nCurated Menu Categories \u2013 Pizza, Cookies, Cupcakes, and Catering, all crafted with love.\r\n\r\nReal-Time Order Tracking \u2013 Know exactly when your meal will arrive.\r\n\r\nTransparent Pricing \u2013 No hidden costs, just fresh food at fair prices.\r\n\r\nMultiple Payment Options \u2013 Pay securely via M-Pesa, PayPal, or cash on delivery.\r\n\r\nDesigned for Speed &amp;amp;amp;amp; Convenience\r\n\r\nOur platform is designed with a mobile-first approach so you can browse and order easily from your phone. With just a few clicks, your food is on its way.\r\n\r\nSmart Cart \u2013 Add items in real-time, see your total instantly.\r\n\r\nGuest Checkout \u2013 No need to sign up if you\u2019re in a hurry.\r\n\r\nPersonalized Experience \u2013 Create an account to save your favorites and view past orders.\r\n\r\nMore Than Just Food Delivery\r\n\r\nFood is about connection. That\u2019s why Addins integrates features that let you:\r\n\r\nRead &amp;amp;amp;amp; Leave Reviews \u2013 Share your experience and learn from others.\r\n\r\nAccess Nutritional Info \u2013 Know what\u2019s in your food before you order.\r\n\r\nJoin Our Community \u2013 Follow our blog for recipes, health tips, and ambassador stories.\r\n\r\nBrand Promise in Every Meal\r\n\r\nOur meals carry the Deep Red (#C1272D) of passion, the Gold (#D4AF37) of excellence, and the Warm Cream (#F5E6D3) of care. When your food arrives, it\u2019s not just a delivery \u2014 it\u2019s a promise kept.\r\n\r\nConclusion\r\n\r\nWith Addins Meals on Wheels, you\u2019re not just placing an order \u2014 you\u2019re joining a movement that values quality, trust, and community.\r\n\r\n\ud83d\udc49 Explore the Menu Page today and let\u2019s bring fresh meals straight to your table.","author":"Bonnie Computer Hub Team","status":"published","image":"catering_1.jpeg","created_at":"2025-10-04 07:42:47","views":30,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:39:17] Processing blog post with ID: 6
+[2025-10-28 18:39:17] Attempting to fetch post with ID: 6
+[2025-10-28 18:39:17] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 6 AND p.status = 'published'
+    
+[2025-10-28 18:39:17] Fetched post data: {"id":6,"title":"\ud83c\udf55 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience","content":"When hunger strikes, you don\u2019t want to waste time scrolling endlessly through apps that feel too complicated or detached. At Addins Meals on Wheels, we believe ordering food should be simple, reliable, and joyful.\r\n\r\nWhat Makes Addins Different?\r\n\r\nUnlike generic delivery platforms, Addins is built for you, by people who care about your experience.\r\nHere\u2019s what sets us apart:\r\n\r\nCurated Menu Categories \u2013 Pizza, Cookies, Cupcakes, and Catering, all crafted with love.\r\n\r\nReal-Time Order Tracking \u2013 Know exactly when your meal will arrive.\r\n\r\nTransparent Pricing \u2013 No hidden costs, just fresh food at fair prices.\r\n\r\nMultiple Payment Options \u2013 Pay securely via M-Pesa, PayPal, or cash on delivery.\r\n\r\nDesigned for Speed &amp;amp;amp;amp; Convenience\r\n\r\nOur platform is designed with a mobile-first approach so you can browse and order easily from your phone. With just a few clicks, your food is on its way.\r\n\r\nSmart Cart \u2013 Add items in real-time, see your total instantly.\r\n\r\nGuest Checkout \u2013 No need to sign up if you\u2019re in a hurry.\r\n\r\nPersonalized Experience \u2013 Create an account to save your favorites and view past orders.\r\n\r\nMore Than Just Food Delivery\r\n\r\nFood is about connection. That\u2019s why Addins integrates features that let you:\r\n\r\nRead &amp;amp;amp;amp; Leave Reviews \u2013 Share your experience and learn from others.\r\n\r\nAccess Nutritional Info \u2013 Know what\u2019s in your food before you order.\r\n\r\nJoin Our Community \u2013 Follow our blog for recipes, health tips, and ambassador stories.\r\n\r\nBrand Promise in Every Meal\r\n\r\nOur meals carry the Deep Red (#C1272D) of passion, the Gold (#D4AF37) of excellence, and the Warm Cream (#F5E6D3) of care. When your food arrives, it\u2019s not just a delivery \u2014 it\u2019s a promise kept.\r\n\r\nConclusion\r\n\r\nWith Addins Meals on Wheels, you\u2019re not just placing an order \u2014 you\u2019re joining a movement that values quality, trust, and community.\r\n\r\n\ud83d\udc49 Explore the Menu Page today and let\u2019s bring fresh meals straight to your table.","author":"Bonnie Computer Hub Team","status":"published","image":"catering_1.jpeg","created_at":"2025-10-04 07:42:47","views":31,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:42:05] Processing blog post with ID: 2
+[2025-10-28 18:42:05] Fetched post: Found
+[2025-10-28 18:42:05] Post status: published
+[2025-10-28 18:42:05] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 18:42:05] Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'excerpt' in 'field list'
+[2025-10-28 18:42:14] Processing blog post with ID: 6
+[2025-10-28 18:42:14] Fetched post: Found
+[2025-10-28 18:42:14] Post status: published
+[2025-10-28 18:42:14] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:42:14] Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'excerpt' in 'field list'
+[2025-10-28 18:44:29] Processing blog post with ID: 6
+[2025-10-28 18:44:29] Fetched post: Found
+[2025-10-28 18:44:29] Post status: published
+[2025-10-28 18:44:29] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:44:29] Processing blog post with ID: 6
+[2025-10-28 18:44:29] Attempting to fetch post with ID: 6
+[2025-10-28 18:44:29] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 6 AND p.status = 'published'
+    
+[2025-10-28 18:44:29] Fetched post data: {"id":6,"title":"\ud83c\udf55 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience","content":"When hunger strikes, you don\u2019t want to waste time scrolling endlessly through apps that feel too complicated or detached. At Addins Meals on Wheels, we believe ordering food should be simple, reliable, and joyful.\r\n\r\nWhat Makes Addins Different?\r\n\r\nUnlike generic delivery platforms, Addins is built for you, by people who care about your experience.\r\nHere\u2019s what sets us apart:\r\n\r\nCurated Menu Categories \u2013 Pizza, Cookies, Cupcakes, and Catering, all crafted with love.\r\n\r\nReal-Time Order Tracking \u2013 Know exactly when your meal will arrive.\r\n\r\nTransparent Pricing \u2013 No hidden costs, just fresh food at fair prices.\r\n\r\nMultiple Payment Options \u2013 Pay securely via M-Pesa, PayPal, or cash on delivery.\r\n\r\nDesigned for Speed &amp;amp;amp;amp; Convenience\r\n\r\nOur platform is designed with a mobile-first approach so you can browse and order easily from your phone. With just a few clicks, your food is on its way.\r\n\r\nSmart Cart \u2013 Add items in real-time, see your total instantly.\r\n\r\nGuest Checkout \u2013 No need to sign up if you\u2019re in a hurry.\r\n\r\nPersonalized Experience \u2013 Create an account to save your favorites and view past orders.\r\n\r\nMore Than Just Food Delivery\r\n\r\nFood is about connection. That\u2019s why Addins integrates features that let you:\r\n\r\nRead &amp;amp;amp;amp; Leave Reviews \u2013 Share your experience and learn from others.\r\n\r\nAccess Nutritional Info \u2013 Know what\u2019s in your food before you order.\r\n\r\nJoin Our Community \u2013 Follow our blog for recipes, health tips, and ambassador stories.\r\n\r\nBrand Promise in Every Meal\r\n\r\nOur meals carry the Deep Red (#C1272D) of passion, the Gold (#D4AF37) of excellence, and the Warm Cream (#F5E6D3) of care. When your food arrives, it\u2019s not just a delivery \u2014 it\u2019s a promise kept.\r\n\r\nConclusion\r\n\r\nWith Addins Meals on Wheels, you\u2019re not just placing an order \u2014 you\u2019re joining a movement that values quality, trust, and community.\r\n\r\n\ud83d\udc49 Explore the Menu Page today and let\u2019s bring fresh meals straight to your table.","author":"Bonnie Computer Hub Team","status":"published","image":"catering_1.jpeg","created_at":"2025-10-04 07:42:47","views":34,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:44:33] Processing blog post with ID: 13
+[2025-10-28 18:44:33] Fetched post: Found
+[2025-10-28 18:44:33] Post status: published
+[2025-10-28 18:44:33] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:44:33] Processing blog post with ID: 13
+[2025-10-28 18:44:33] Attempting to fetch post with ID: 13
+[2025-10-28 18:44:33] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 13 AND p.status = 'published'
+    
+[2025-10-28 18:44:33] Fetched post data: {"id":13,"title":"\ud83c\udf55 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience","content":"When hunger strikes, you don\u2019t want to waste time scrolling endlessly through apps that feel too complicated or detached. At Addins Meals on Wheels, we believe ordering food should be simple, reliable, and joyful.\r\n\r\nWhat Makes Addins Different?\r\n\r\nUnlike generic delivery platforms, Addins is built for you, by people who care about your experience.\r\nHere\u2019s what sets us apart:\r\n\r\nCurated Menu Categories \u2013 Pizza, Cookies, Cupcakes, and Catering, all crafted with love.\r\n\r\nReal-Time Order Tracking \u2013 Know exactly when your meal will arrive.\r\n\r\nTransparent Pricing \u2013 No hidden costs, just fresh food at fair prices.\r\n\r\nMultiple Payment Options \u2013 Pay securely via M-Pesa, PayPal, or cash on delivery.\r\n\r\nDesigned for Speed &amp; Convenience\r\n\r\nOur platform is designed with a mobile-first approach so you can browse and order easily from your phone. With just a few clicks, your food is on its way.\r\n\r\nSmart Cart \u2013 Add items in real-time, see your total instantly.\r\n\r\nGuest Checkout \u2013 No need to sign up if you\u2019re in a hurry.\r\n\r\nPersonalized Experience \u2013 Create an account to save your favorites and view past orders.\r\n\r\nMore Than Just Food Delivery\r\n\r\nFood is about connection. That\u2019s why Addins integrates features that let you:\r\n\r\nRead &amp; Leave Reviews \u2013 Share your experience and learn from others.\r\n\r\nAccess Nutritional Info \u2013 Know what\u2019s in your food before you order.\r\n\r\nJoin Our Community \u2013 Follow our blog for recipes, health tips, and ambassador stories.\r\n\r\nBrand Promise in Every Meal\r\n\r\nOur meals carry the Deep Red (#C1272D) of passion, the Gold (#D4AF37) of excellence, and the Warm Cream (#F5E6D3) of care. When your food arrives, it\u2019s not just a delivery \u2014 it\u2019s a promise kept.\r\n\r\nConclusion\r\n\r\nWith Addins Meals on Wheels, you\u2019re not just placing an order \u2014 you\u2019re joining a movement that values quality, trust, and community.\r\n\r\n\ud83d\udc49 Explore the Menu Page today and let\u2019s bring fresh meals straight to your table.","author":"Bonnie Computer Hub Team","status":"published","image":"freshfoods_1_1.png","created_at":"2025-10-04 07:52:43","views":17,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:44:50] Processing blog post with ID: 6
+[2025-10-28 18:44:50] Fetched post: Found
+[2025-10-28 18:44:50] Post status: published
+[2025-10-28 18:44:50] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:44:50] Processing blog post with ID: 6
+[2025-10-28 18:44:50] Attempting to fetch post with ID: 6
+[2025-10-28 18:44:50] Executing SQL: 
+        SELECT 
+            p.*, 
+            p.author as author_name,
+            (SELECT COUNT(*) FROM blog_likes WHERE post_id = p.id) as like_count,
+            (SELECT COUNT(*) FROM blog_comments WHERE post_id = p.id AND status = 'approved') as comment_count
+        FROM blog_posts p
+        WHERE p.id = 6 AND p.status = 'published'
+    
+[2025-10-28 18:44:50] Fetched post data: {"id":6,"title":"\ud83c\udf55 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience","content":"When hunger strikes, you don\u2019t want to waste time scrolling endlessly through apps that feel too complicated or detached. At Addins Meals on Wheels, we believe ordering food should be simple, reliable, and joyful.\r\n\r\nWhat Makes Addins Different?\r\n\r\nUnlike generic delivery platforms, Addins is built for you, by people who care about your experience.\r\nHere\u2019s what sets us apart:\r\n\r\nCurated Menu Categories \u2013 Pizza, Cookies, Cupcakes, and Catering, all crafted with love.\r\n\r\nReal-Time Order Tracking \u2013 Know exactly when your meal will arrive.\r\n\r\nTransparent Pricing \u2013 No hidden costs, just fresh food at fair prices.\r\n\r\nMultiple Payment Options \u2013 Pay securely via M-Pesa, PayPal, or cash on delivery.\r\n\r\nDesigned for Speed &amp;amp;amp;amp; Convenience\r\n\r\nOur platform is designed with a mobile-first approach so you can browse and order easily from your phone. With just a few clicks, your food is on its way.\r\n\r\nSmart Cart \u2013 Add items in real-time, see your total instantly.\r\n\r\nGuest Checkout \u2013 No need to sign up if you\u2019re in a hurry.\r\n\r\nPersonalized Experience \u2013 Create an account to save your favorites and view past orders.\r\n\r\nMore Than Just Food Delivery\r\n\r\nFood is about connection. That\u2019s why Addins integrates features that let you:\r\n\r\nRead &amp;amp;amp;amp; Leave Reviews \u2013 Share your experience and learn from others.\r\n\r\nAccess Nutritional Info \u2013 Know what\u2019s in your food before you order.\r\n\r\nJoin Our Community \u2013 Follow our blog for recipes, health tips, and ambassador stories.\r\n\r\nBrand Promise in Every Meal\r\n\r\nOur meals carry the Deep Red (#C1272D) of passion, the Gold (#D4AF37) of excellence, and the Warm Cream (#F5E6D3) of care. When your food arrives, it\u2019s not just a delivery \u2014 it\u2019s a promise kept.\r\n\r\nConclusion\r\n\r\nWith Addins Meals on Wheels, you\u2019re not just placing an order \u2014 you\u2019re joining a movement that values quality, trust, and community.\r\n\r\n\ud83d\udc49 Explore the Menu Page today and let\u2019s bring fresh meals straight to your table.","author":"Bonnie Computer Hub Team","status":"published","image":"catering_1.jpeg","created_at":"2025-10-04 07:42:47","views":36,"like_count":0,"comment_count":0,"author_name":"Bonnie Computer Hub Team"}
+[2025-10-28 18:45:07] Processing blog post with ID: 6
+[2025-10-28 18:45:07] Fetched post: Found
+[2025-10-28 18:45:07] Post status: published
+[2025-10-28 18:45:07] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:45:07] Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'excerpt' in 'field list'
+[2025-10-28 18:47:47] Fetched post: Found
+[2025-10-28 18:47:47] Post status: published
+[2025-10-28 18:47:47] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:50:03] Fetched post: Found
+[2025-10-28 18:50:03] Post status: published
+[2025-10-28 18:50:03] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 18:50:07] Fetched post: Found
+[2025-10-28 18:50:07] Post status: published
+[2025-10-28 18:50:07] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:51:15] Fetched post: Found
+[2025-10-28 18:51:15] Post status: published
+[2025-10-28 18:51:15] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:52:06] Fetched post: Found
+[2025-10-28 18:52:06] Post status: published
+[2025-10-28 18:52:06] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 18:52:24] Fetched post: Found
+[2025-10-28 18:52:24] Post status: published
+[2025-10-28 18:52:24] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:52:59] Fetched post: Found
+[2025-10-28 18:52:59] Post status: published
+[2025-10-28 18:52:59] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:54:33] Fetched post: Found
+[2025-10-28 18:54:33] Post status: published
+[2025-10-28 18:54:33] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:55:02] Fetched post: Found
+[2025-10-28 18:55:02] Post status: published
+[2025-10-28 18:55:02] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:56:57] Fetched post: Found
+[2025-10-28 18:56:57] Post status: published
+[2025-10-28 18:56:57] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:56:57] Fetched post: Found
+[2025-10-28 18:56:57] Post status: published
+[2025-10-28 18:56:57] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 18:58:23] Fetched post: Found
+[2025-10-28 18:58:23] Post status: published
+[2025-10-28 18:58:23] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 18:58:41] Fetched post: Found
+[2025-10-28 18:58:41] Post status: published
+[2025-10-28 18:58:41] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 18:59:40] Fetched post: Found
+[2025-10-28 18:59:40] Post status: published
+[2025-10-28 18:59:40] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:00:32] Fetched post: Found
+[2025-10-28 19:00:32] Post status: published
+[2025-10-28 19:00:32] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:00:50] Fetched post: Found
+[2025-10-28 19:00:50] Post status: published
+[2025-10-28 19:00:50] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:02:02] Fetched post: Found
+[2025-10-28 19:02:02] Post status: published
+[2025-10-28 19:02:02] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 19:02:35] Fetched post: Found
+[2025-10-28 19:02:35] Post status: published
+[2025-10-28 19:02:35] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 19:02:48] Fetched post: Found
+[2025-10-28 19:02:48] Post status: published
+[2025-10-28 19:02:48] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 19:03:49] Fetched post: Found
+[2025-10-28 19:03:49] Post status: published
+[2025-10-28 19:03:49] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:06:37] Fetched post: Found
+[2025-10-28 19:06:37] Post status: published
+[2025-10-28 19:06:37] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 19:07:08] Fetched post: Found
+[2025-10-28 19:07:08] Post status: published
+[2025-10-28 19:07:08] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 19:12:32] Fetched post: Found
+[2025-10-28 19:12:32] Post status: published
+[2025-10-28 19:12:32] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:14:11] Fetched post: Found
+[2025-10-28 19:14:11] Post status: published
+[2025-10-28 19:14:11] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:14:13] Fetched post: Found
+[2025-10-28 19:14:13] Post status: published
+[2025-10-28 19:14:13] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:14:13] Fetched post: Found
+[2025-10-28 19:14:13] Post status: published
+[2025-10-28 19:14:13] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:14:34] Fetched post: Found
+[2025-10-28 19:14:34] Post status: published
+[2025-10-28 19:14:34] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:14:53] Fetched post: Found
+[2025-10-28 19:14:53] Post status: published
+[2025-10-28 19:14:53] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:16:16] Fetched post: Found
+[2025-10-28 19:16:16] Post status: published
+[2025-10-28 19:16:16] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:16:18] Fetched post: Found
+[2025-10-28 19:16:18] Post status: published
+[2025-10-28 19:16:18] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:16:26] Fetched post: Found
+[2025-10-28 19:16:26] Post status: published
+[2025-10-28 19:16:26] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:16:27] Fetched post: Found
+[2025-10-28 19:16:27] Post status: published
+[2025-10-28 19:16:27] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:16:37] Fetched post: Found
+[2025-10-28 19:16:37] Post status: published
+[2025-10-28 19:16:37] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:17:49] Fetched post: Found
+[2025-10-28 19:17:49] Post status: published
+[2025-10-28 19:17:49] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:17:57] Fetched post: Found
+[2025-10-28 19:17:57] Post status: published
+[2025-10-28 19:17:57] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:21:26] Fetched post: Found
+[2025-10-28 19:21:26] Post status: published
+[2025-10-28 19:21:26] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:21:26] Fetched post: Found
+[2025-10-28 19:21:26] Post status: published
+[2025-10-28 19:21:26] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:21:26] Fetched post: Found
+[2025-10-28 19:21:26] Post status: published
+[2025-10-28 19:21:26] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:21:26] Fetched post: Found
+[2025-10-28 19:21:26] Post status: published
+[2025-10-28 19:21:26] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 19:21:46] Fetched post: Found
+[2025-10-28 19:21:46] Post status: published
+[2025-10-28 19:21:46] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 19:24:07] Fetched post: Found
+[2025-10-28 19:24:07] Post status: published
+[2025-10-28 19:24:07] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 19:27:46] Fetched post: Found
+[2025-10-28 19:27:46] Post status: published
+[2025-10-28 19:27:46] Post title: 🍕 Fresh, Fast, and Local: The Addins Meals on Wheels Ordering Experience
+[2025-10-28 19:28:12] Fetched post: Found
+[2025-10-28 19:28:12] Post status: published
+[2025-10-28 19:28:12] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 19:28:41] Fetched post: Found
+[2025-10-28 19:28:41] Post status: published
+[2025-10-28 19:28:41] Post title: Test Image Post
+[2025-10-28 19:32:37] Fetched post: Found
+[2025-10-28 19:32:37] Post status: published
+[2025-10-28 19:32:37] Post title: Test Image Post
+[2025-10-28 19:35:44] Fetched post: Found
+[2025-10-28 19:35:44] Post status: published
+[2025-10-28 19:35:44] Post title: Test Image Post
+[2025-10-28 19:39:42] Fetched post: Found
+[2025-10-28 19:39:42] Post status: published
+[2025-10-28 19:39:42] Post title: Test Image Post
+[2025-10-28 19:41:02] Fetched post: Found
+[2025-10-28 19:41:02] Post status: published
+[2025-10-28 19:41:02] Post title: Test Image Post
+[2025-10-28 19:43:26] Fetched post: Found
+[2025-10-28 19:43:26] Post status: published
+[2025-10-28 19:43:26] Post title: Test Image Post
+[2025-10-28 19:46:21] Fetched post: Found
+[2025-10-28 19:46:21] Post status: published
+[2025-10-28 19:46:21] Post title: Test Image Post
+[2025-10-28 19:47:17] Fetched post: Found
+[2025-10-28 19:47:17] Post status: published
+[2025-10-28 19:47:17] Post title: Test Image Post
+[2025-10-28 19:47:27] Error [8192] Constant FILTER_SANITIZE_STRING is deprecated in C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php on line 193
+[2025-10-28 19:47:27] Blog interaction error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'comment' in 'field list' in C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php on line 204\nStack trace:\n#0 C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php(204): PDO->prepare('INSERT INTO blo...')
+#1 {main}
+[2025-10-28 19:48:44] Fetched post: Found
+[2025-10-28 19:48:44] Post status: published
+[2025-10-28 19:48:44] Post title: Test Image Post
+[2025-10-28 19:52:48] Fetched post: Found
+[2025-10-28 19:52:48] Post status: published
+[2025-10-28 19:52:48] Post title: Test Image Post
+[2025-10-28 19:58:03] Fetched post: Found
+[2025-10-28 19:58:03] Post status: published
+[2025-10-28 19:58:03] Post title: Test Image Post
+[2025-10-28 19:58:18] Blog interaction error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.username' in 'field list' in C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php on line 253\nStack trace:\n#0 C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php(253): PDO->prepare('\n              ...')
+#1 {main}
+[2025-10-28 19:58:18] Blog interaction error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.username' in 'field list' in C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php on line 253\nStack trace:\n#0 C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php(253): PDO->prepare('\n              ...')
+#1 {main}
+[2025-10-28 20:00:26] Fetched post: Found
+[2025-10-28 20:00:26] Post status: published
+[2025-10-28 20:00:26] Post title: Test Image Post
+[2025-10-28 20:00:39] Blog interaction error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.profile_image' in 'field list' in C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php on line 253\nStack trace:\n#0 C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php(253): PDO->prepare('\n              ...')
+#1 {main}
+[2025-10-28 20:00:39] Blog interaction error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.profile_image' in 'field list' in C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php on line 253\nStack trace:\n#0 C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php(253): PDO->prepare('\n              ...')
+#1 {main}
+[2025-10-28 20:04:36] Fetched post: Found
+[2025-10-28 20:04:36] Post status: published
+[2025-10-28 20:04:36] Post title: Test Image Post
+[2025-10-28 20:06:23] Fetched post: Found
+[2025-10-28 20:06:23] Post status: published
+[2025-10-28 20:06:23] Post title: Test Image Post
+[2025-10-28 20:06:23] Fetched post: Found
+[2025-10-28 20:06:23] Post status: published
+[2025-10-28 20:06:23] Post title: Test Image Post
+[2025-10-28 20:06:30] Fetched post: Found
+[2025-10-28 20:06:30] Post status: published
+[2025-10-28 20:06:30] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:06:49] Fetched post: Found
+[2025-10-28 20:06:49] Post status: published
+[2025-10-28 20:06:49] Post title: Test Image Post
+[2025-10-28 20:08:30] Fetched post: Found
+[2025-10-28 20:08:30] Post status: published
+[2025-10-28 20:08:30] Post title: Test Image Post
+[2025-10-28 20:08:31] Blog interaction error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'u.profile_image' in 'field list' in C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php on line 253\nStack trace:\n#0 C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php(253): PDO->prepare('\n              ...')
+#1 {main}
+[2025-10-28 20:09:23] Fetched post: Found
+[2025-10-28 20:09:23] Post status: published
+[2025-10-28 20:09:23] Post title: Test Image Post
+[2025-10-28 20:09:24] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 4
+            [post_id] => 4
+            [user_id] => 9
+            [parent_id] => 
+            [content] => Wow
+            [status] => approved
+            [created_at] => 2025-10-28 20:00:39
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [1] => Array
+        (
+            [id] => 5
+            [post_id] => 4
+            [user_id] => 9
+            [parent_id] => 
+            [content] => Wow
+            [status] => approved
+            [created_at] => 2025-10-28 20:00:39
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [2] => Array
+        (
+            [id] => 2
+            [post_id] => 4
+            [user_id] => 9
+            [parent_id] => 
+            [content] => Veru great
+            [status] => approved
+            [created_at] => 2025-10-28 19:58:18
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [3] => Array
+        (
+            [id] => 3
+            [post_id] => 4
+            [user_id] => 9
+            [parent_id] => 
+            [content] => Veru great
+            [status] => approved
+            [created_at] => 2025-10-28 19:58:18
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [4] => Array
+        (
+            [id] => 1
+            [post_id] => 4
+            [user_id] => 9
+            [parent_id] => 
+            [content] => nice one
+            [status] => approved
+            [created_at] => 2025-10-28 19:48:57
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+)
+
+[2025-10-28 20:10:03] Fetched post: Found
+[2025-10-28 20:10:03] Post status: published
+[2025-10-28 20:10:03] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 20:10:04] Fetched comments: Array
+(
+)
+
+[2025-10-28 20:10:25] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 6
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [1] => Array
+        (
+            [id] => 7
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+)
+
+[2025-10-28 20:10:25] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 6
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [1] => Array
+        (
+            [id] => 7
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+)
+
+[2025-10-28 20:11:57] Fetched post: Found
+[2025-10-28 20:11:57] Post status: published
+[2025-10-28 20:11:57] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 20:11:59] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 6
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [1] => Array
+        (
+            [id] => 7
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+)
+
+[2025-10-28 20:12:20] Fetched post: Found
+[2025-10-28 20:12:20] Post status: published
+[2025-10-28 20:12:20] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 20:12:21] Fetched comments: Array
+(
+)
+
+[2025-10-28 20:13:31] Fetched post: Found
+[2025-10-28 20:13:31] Post status: published
+[2025-10-28 20:13:31] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 20:13:33] Fetched comments: Array
+(
+)
+
+[2025-10-28 20:13:47] Fetched post: Found
+[2025-10-28 20:13:47] Post status: published
+[2025-10-28 20:13:47] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 20:13:48] Fetched comments: Array
+(
+)
+
+[2025-10-28 20:15:19] Fetched post: Found
+[2025-10-28 20:15:19] Post status: published
+[2025-10-28 20:15:19] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 20:15:21] Fetched comments: Array
+(
+)
+
+[2025-10-28 20:17:27] Fetched post: Found
+[2025-10-28 20:17:27] Post status: published
+[2025-10-28 20:17:27] Post title: Building the Future of Food Ordering: The Addins Meals on Wheels Platform  Author
+[2025-10-28 20:17:29] Fetched comments: Array
+(
+)
+
+[2025-10-28 20:17:58] Fetched post: Found
+[2025-10-28 20:17:58] Post status: published
+[2025-10-28 20:17:58] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:17:58] Fetched comments: Array
+(
+)
+
+[2025-10-28 20:18:07] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 8
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [1] => Array
+        (
+            [id] => 9
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+)
+
+[2025-10-28 20:19:47] Fetched post: Found
+[2025-10-28 20:19:47] Post status: published
+[2025-10-28 20:19:47] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:19:49] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 8
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [1] => Array
+        (
+            [id] => 9
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+)
+
+[2025-10-28 20:21:17] Fetched post: Found
+[2025-10-28 20:21:17] Post status: published
+[2025-10-28 20:21:17] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:22:08] Fetched post: Found
+[2025-10-28 20:22:08] Post status: published
+[2025-10-28 20:22:08] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 20:23:36] Fetched post: Found
+[2025-10-28 20:23:36] Post status: published
+[2025-10-28 20:23:36] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:23:38] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 8
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [1] => Array
+        (
+            [id] => 9
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+)
+
+[2025-10-28 20:24:19] Fetched post: Found
+[2025-10-28 20:24:19] Post status: published
+[2025-10-28 20:24:19] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:24:20] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 8
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [1] => Array
+        (
+            [id] => 9
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+)
+
+[2025-10-28 20:24:24] Fetched post: Found
+[2025-10-28 20:24:24] Post status: published
+[2025-10-28 20:24:24] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:24:24] Fetched post: Found
+[2025-10-28 20:24:24] Post status: published
+[2025-10-28 20:24:24] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:24:24] Fetched post: Found
+[2025-10-28 20:24:24] Post status: published
+[2025-10-28 20:24:24] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:24:25] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 8
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [1] => Array
+        (
+            [id] => 9
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+)
+
+[2025-10-28 20:25:48] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 11
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [1] => Array
+        (
+            [id] => 12
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [2] => Array
+        (
+            [id] => 6
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [3] => Array
+        (
+            [id] => 7
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+)
+
+[2025-10-28 20:26:02] Fetched post: Found
+[2025-10-28 20:26:02] Post status: published
+[2025-10-28 20:26:02] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 20:26:04] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 11
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [1] => Array
+        (
+            [id] => 12
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [2] => Array
+        (
+            [id] => 6
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [3] => Array
+        (
+            [id] => 7
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+)
+
+[2025-10-28 20:26:50] Fetched post: Found
+[2025-10-28 20:26:50] Post status: published
+[2025-10-28 20:26:50] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 20:26:52] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 13
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => great
+            [status] => approved
+            [created_at] => 2025-10-28 20:26:10
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [1] => Array
+        (
+            [id] => 11
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [2] => Array
+        (
+            [id] => 12
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [3] => Array
+        (
+            [id] => 6
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [4] => Array
+        (
+            [id] => 7
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+)
+
+[2025-10-28 20:29:23] Fetched post: Found
+[2025-10-28 20:29:23] Post status: published
+[2025-10-28 20:29:23] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 20:29:25] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 13
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => great
+            [status] => approved
+            [created_at] => 2025-10-28 20:26:10
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [1] => Array
+        (
+            [id] => 11
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [2] => Array
+        (
+            [id] => 12
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [3] => Array
+        (
+            [id] => 6
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [4] => Array
+        (
+            [id] => 7
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+)
+
+[2025-10-28 20:31:48] Fetched post: Found
+[2025-10-28 20:31:48] Post status: published
+[2025-10-28 20:31:48] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 20:31:49] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 13
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => great
+            [status] => approved
+            [created_at] => 2025-10-28 20:26:10
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [1] => Array
+        (
+            [id] => 11
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [2] => Array
+        (
+            [id] => 12
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [3] => Array
+        (
+            [id] => 6
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [4] => Array
+        (
+            [id] => 7
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+)
+
+[2025-10-28 20:41:38] Fetched post: Found
+[2025-10-28 20:41:38] Post status: published
+[2025-10-28 20:41:38] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:41:42] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 10
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Nicely done
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:21
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [1] => Array
+        (
+            [id] => 8
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [2] => Array
+        (
+            [id] => 9
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+)
+
+[2025-10-28 20:42:24] Fetched post: Found
+[2025-10-28 20:42:24] Post status: published
+[2025-10-28 20:42:24] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:42:26] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 10
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Nicely done
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:21
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [1] => Array
+        (
+            [id] => 8
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [2] => Array
+        (
+            [id] => 9
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+)
+
+[2025-10-28 20:45:19] Fetched post: Found
+[2025-10-28 20:45:19] Post status: published
+[2025-10-28 20:45:19] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 20:45:20] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 10
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Nicely done
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:21
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [1] => Array
+        (
+            [id] => 8
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [2] => Array
+        (
+            [id] => 9
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+)
+
+[2025-10-28 21:19:59] Fetched post: Found
+[2025-10-28 21:19:59] Post status: published
+[2025-10-28 21:19:59] Post title: Test Image Post
+[2025-10-28 21:20:01] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 4
+            [post_id] => 4
+            [user_id] => 9
+            [parent_id] => 
+            [content] => Wow
+            [status] => approved
+            [created_at] => 2025-10-28 20:00:39
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [1] => Array
+        (
+            [id] => 5
+            [post_id] => 4
+            [user_id] => 9
+            [parent_id] => 
+            [content] => Wow
+            [status] => approved
+            [created_at] => 2025-10-28 20:00:39
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [2] => Array
+        (
+            [id] => 2
+            [post_id] => 4
+            [user_id] => 9
+            [parent_id] => 
+            [content] => Veru great
+            [status] => approved
+            [created_at] => 2025-10-28 19:58:18
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [3] => Array
+        (
+            [id] => 3
+            [post_id] => 4
+            [user_id] => 9
+            [parent_id] => 
+            [content] => Veru great
+            [status] => approved
+            [created_at] => 2025-10-28 19:58:18
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [4] => Array
+        (
+            [id] => 1
+            [post_id] => 4
+            [user_id] => 9
+            [parent_id] => 
+            [content] => nice one
+            [status] => approved
+            [created_at] => 2025-10-28 19:48:57
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+)
+
+[2025-10-28 21:20:27] Fetched post: Found
+[2025-10-28 21:20:27] Post status: published
+[2025-10-28 21:20:27] Post title: 🌟 Empowering Young Entrepreneurs: The Addins Ambassadors Program
+[2025-10-28 21:20:28] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 13
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => great
+            [status] => approved
+            [created_at] => 2025-10-28 20:26:10
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [1] => Array
+        (
+            [id] => 11
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [2] => Array
+        (
+            [id] => 12
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I support this blog
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:48
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [3] => Array
+        (
+            [id] => 6
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+    [4] => Array
+        (
+            [id] => 7
+            [post_id] => 2
+            [user_id] => 9
+            [parent_id] => 
+            [content] => I like the make
+            [status] => approved
+            [created_at] => 2025-10-28 20:10:25
+            [updated_at] => 
+            [username] => Dr.  Barrack Test
+        )
+
+)
+
+[2025-10-28 21:49:14] Fetched post: Found
+[2025-10-28 21:49:14] Post status: published
+[2025-10-28 21:49:14] Post title: 🥂 Catering Made Simple: Addins Meals on Wheels for Every Occasion
+[2025-10-28 21:49:16] Fetched comments: Array
+(
+    [0] => Array
+        (
+            [id] => 10
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Nicely done
+            [status] => approved
+            [created_at] => 2025-10-28 20:25:21
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [1] => Array
+        (
+            [id] => 8
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+    [2] => Array
+        (
+            [id] => 9
+            [post_id] => 5
+            [user_id] => 8
+            [parent_id] => 
+            [content] => Great
+            [status] => approved
+            [created_at] => 2025-10-28 20:18:07
+            [updated_at] => 
+            [username] => Barrack
+        )
+
+)
+

@@ -20,6 +20,9 @@ if (!isset($cart) && file_exists(__DIR__ . '/config.php')) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php if (function_exists('isLoggedIn') && isLoggedIn()): ?>
+    <meta name="user-logged-in" content="1">
+    <?php endif; ?>
     <title>Addins Meals on Wheels - Delicious Food Delivered</title>
     <style>
         [x-cloak] { display: none !important; }

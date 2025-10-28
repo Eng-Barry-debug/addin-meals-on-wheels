@@ -1,18 +1,147 @@
 <?php
 /**
  * Get count of records from a table with optional where clause
+ * 
+ * @param PDO $pdo Database connection
+ * @param string $table Table name
+ * @param string $where WHERE clause (without the WHERE keyword)
+ * @param array $params Parameters for prepared statement
+ * @return int Number of records
  */
-function getCount($pdo, $table, $where = '') {
+function getCount($pdo, $table, $where = '', $params = []) {
     try {
-        $sql = "SELECT COUNT(*) as count FROM `$table`";
+        $sql = "SELECT COUNT(*) as count FROM $table";
         if (!empty($where)) {
             $sql .= " WHERE $where";
         }
-        $stmt = $pdo->query($sql);
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return (int)($result['count'] ?? 0);
+    } catch (PDOException $e) {
+        error_log("Error getting count from $table: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Update post like count
+ */
+function updatePostLikeCount($pdo, $postId, $increment = 1) {
+    try {
+        // Update the like count
+        $stmt = $pdo->prepare("UPDATE blog_posts SET like_count = GREATEST(0, like_count + :increment) WHERE id = :post_id");
+        $stmt->execute([':increment' => $increment, ':post_id' => $postId]);
+        
+        // Get the updated like count
+        $stmt = $pdo->prepare("SELECT like_count FROM blog_posts WHERE id = ?");
+        $stmt->execute([$postId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ? (int)$result['like_count'] : 0;
+    } catch (PDOException $e) {
+        error_log("Error updating like count: " . $e->getMessage());
+        return 0;
+    }
+}
+
+// getBlogComments function has been moved to includes/config.php to avoid duplication
+
+/**
+ * Get time ago format
+ */
+function timeAgo($datetime) {
+    $time = strtotime($datetime);
+    $time = time() - $time;
+    
+    $units = [
+        31536000 => 'year',
+        2592000 => 'month',
+        604800 => 'week',
+        86400 => 'day',
+        3600 => 'hour',
+        60 => 'minute',
+        1 => 'second'
+    ];
+    
+    foreach ($units as $unit => $text) {
+        if ($time < $unit) continue;
+        $numberOfUnits = floor($time / $unit);
+        return $numberOfUnits . ' ' . $text . (($numberOfUnits > 1) ? 's' : '') . ' ago';
+    }
+    
+    return 'just now';
+}
+
+/**
+ * Get count of completed orders with optional filters
+ */
+function getCompletedOrdersCount($pdo, $where_conditions = [], $params = []) {
+    try {
+        // Always filter for completed orders only
+        $conditions = $where_conditions;
+        $conditions[] = "status IN ('delivered', 'completed')";
+
+        $sql = "SELECT COUNT(*) as count FROM orders";
+        if (!empty($conditions)) {
+            $sql .= " WHERE " . implode(" AND ", $conditions);
+        }
+
+        $stmt = $pdo->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $stmt->execute();
+
         return (int)$stmt->fetch(PDO::FETCH_ASSOC)['count'];
     } catch (PDOException $e) {
-        error_log("Error in getCount: " . $e->getMessage());
+        error_log("Error in getCompletedOrdersCount: " . $e->getMessage());
         return 0;
+    }
+}
+
+/**
+ * Get total revenue from orders with optional filters
+ */
+function getTotalRevenue($pdo, $where_conditions = [], $params = []) {
+    try {
+        // Remove any existing status filters since we always want completed orders
+        $conditions = [];
+        $new_params = [];
+
+        foreach ($where_conditions as $condition) {
+            if (strpos($condition, 'status = :status_filter') === false &&
+                strpos($condition, 'status IN') === false) {
+                $conditions[] = $condition;
+            }
+        }
+
+        foreach ($params as $key => $value) {
+            if ($key !== ':status_filter') {
+                $new_params[$key] = $value;
+            }
+        }
+
+        // Always filter for completed orders only
+        $conditions[] = "status IN ('delivered', 'completed')";
+
+        $sql = "SELECT COALESCE(SUM(total), 0) as total_revenue FROM orders";
+        if (!empty($conditions)) {
+            $sql .= " WHERE " . implode(" AND ", $conditions);
+        }
+
+        $stmt = $pdo->prepare($sql);
+        foreach ($new_params as $key => $value) {
+            $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $stmt->execute();
+
+        return (float)$stmt->fetch(PDO::FETCH_ASSOC)['total_revenue'];
+    } catch (PDOException $e) {
+        error_log("Error in getTotalRevenue: " . $e->getMessage());
+        return 0.0;
     }
 }
 

@@ -79,3 +79,179 @@
     @apply mt-20;
   }
 }
+
+/* Blog Interactions - Ensure like button and comments are visible */
+#like-button,
+#comments {
+  position: relative;
+  z-index: 50;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Override prose styles for interactive elements */
+.prose #like-button,
+.prose #comments,
+.prose #comment-form,
+.prose .comment-form {
+  position: relative;
+  z-index: 50;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Ensure comment form is visible */
+#comment-form {
+  position: relative;
+  z-index: 50;
+  opacity: 1 !important;
+  visibility: visible !important;
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-top: 1.5rem;
+}
+
+/* Make sure buttons are clickable and visible */
+#like-button,
+#comment-form button[type='submit'],
+.comment-actions button {
+  position: relative;
+  z-index: 50;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Style the like button */
+#like-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  background-color: #f3f4f6;
+  color: #4b5563;
+  font-weight: 500;
+  margin-top: 1.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+#like-button:hover {
+  background-color: #e5e7eb;
+}
+
+#like-button.liked {
+  background-color: #fee2e2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+/* Comment section styling */
+#comments {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.comment {
+  position: relative;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.comment:last-child {
+  border-bottom: none;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.comment-actions button {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.comment-actions button:hover {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+/* Reply form styling */
+.reply-form {
+  margin-top: 1rem;
+  padding-left: 2rem;
+  border-left: 2px solid #e5e7eb;
+}
+
+/* Make sure the comment count is visible */
+#comment-count {
+  color: #4b5563;
+  font-weight: 500;
+}
+
+/* Ensure the comment list is visible */
+#comments-list {
+  margin-top: 1.5rem;
+}
+
+/* Fix for prose content inside comments */
+.prose .comment-content p {
+  margin: 0;
+  color: #374151;
+}
+
+/* Make sure the comment form textarea is visible */
+#comment-form textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background-color: white;
+  resize: vertical;
+}
+
+#comment-form textarea:focus {
+  outline: none;
+  border-color: #c1272d;
+  box-shadow: 0 0 0 3px rgba(193, 39, 45, 0.1);
+}
+
+/* Style the submit button */
+#comment-form button[type='submit'] {
+  background-color: #c1272d;
+  color: white;
+  font-weight: 500;
+  padding: 0.5rem 1.5rem;
+  border-radius: 0.375rem;
+  margin-top: 0.75rem;
+  border: none;
+}
+
+#comment-form button[type='submit']:hover {
+  background-color: #a02025;
+}
+
+/* Make sure error messages are visible */
+.comment-error {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}

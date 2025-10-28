@@ -1,6 +1,7 @@
 <?php
-// Include configuration
+// Include configuration and EmailService
 require_once __DIR__ . '/../admin/includes/config.php';
+require_once __DIR__ . '/../includes/EmailService.php';
 
 // Redirect if already logged in
 if (isLoggedIn()) {
@@ -42,45 +43,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param("issi", $user['id'], $token, $expires, $used);
             
             if ($stmt->execute()) {
-                // Send email with reset link
+                // Send email with reset link using PHPMailer
                 $reset_link = "http://" . $_SERVER['HTTP_HOST'] . "/auth/reset-password.php?token=" . $token;
                 $subject = "Password Reset Request";
-                $message = "Hello " . htmlspecialchars($user['name']) . ",\n\n";
-                $message .= "You requested a password reset. Click the link below to set a new password:\n\n";
-                $message .= $reset_link . "\n\n";
-                $message .= "This link will expire in 1 hour.\n\n";
-                $message .= "If you didn't request this, please ignore this email.\n\n";
-                $message .= "Best regards,\nAddins Meals on Wheels Team";
+                $message = "
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset='utf-8'>
+                    <title>Password Reset</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+                        .header { background: #C1272D; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+                        .content { background: #f8f9fa; padding: 20px; border-radius: 0 0 5px 5px; }
+                        .button { display: inline-block; background: #C1272D; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+                        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <div class='header'>
+                        <h1>Password Reset Request</h1>
+                    </div>
+                    <div class='content'>
+                        <p>Hello " . htmlspecialchars($user['name']) . ",</p>
+                        <p>You requested a password reset. Click the button below to set a new password:</p>
+                        <p><a href='{$reset_link}' class='button'>Reset Password</a></p>
+                        <p><strong>Or copy and paste this link:</strong></p>
+                        <p><a href='{$reset_link}'>{$reset_link}</a></p>
+                        <p>This link will expire in 1 hour.</p>
+                        <p>If you didn't request this, please ignore this email.</p>
+                        <p>Best regards,<br>Addins Meals on Wheels Team</p>
+                    </div>
+                    <div class='footer'>
+                        <p>This is an automated message. Please do not reply to this email.</p>
+                    </div>
+                </body>
+                </html>";
 
-                // Try to send email
+                // Try to send email using EmailService
                 $emailSent = false;
-                $headers = "From: Addins Meals <no-reply@addinsmeals.com>\r\n";
-                $headers .= "Reply-To: info@addinsmeals.com\r\n";
-                $headers .= "MIME-Version: 1.0\r\n";
-                $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-
-                // For development, show email content instead of sending
-                if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'localhost') !== false) {
-                    // Development mode - show email content instead of sending
-                    $_SESSION['email_content'] = [
-                        'to' => $email,
-                        'subject' => $subject,
-                        'message' => $message,
-                        'reset_link' => $reset_link
-                    ];
-                    $emailSent = true; // Simulate success for development
-                } else {
-                    // Production mode - try to send actual email
-                    if (mail($email, $subject, $message, $headers)) {
-                        $emailSent = true;
+                
+                try {
+                    $emailService = new EmailService();
+                    $emailSent = $emailService->sendEmail($email, $subject, $message);
+                    
+                    if ($emailSent) {
+                        // Clear any previous email content from session
+                        if (isset($_SESSION['email_content'])) {
+                            unset($_SESSION['email_content']);
+                        }
+                    } else {
+                        throw new Exception('Failed to send email via EmailService');
                     }
+                } catch (Exception $e) {
+                    error_log("Password reset email failed: " . $e->getMessage());
+                    // For development, show the email content in case of failure
+                    if (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'localhost') !== false) {
+                        $_SESSION['email_content'] = [
+                            'to' => $email,
+                            'subject' => $subject,
+                            'message' => $message,
+                            'reset_link' => $reset_link,
+                            'error' => $e->getMessage()
+                        ];
+                    }
+                    $error = "Error sending email. Please try again later or contact support if the problem persists.";
                 }
 
                 if ($emailSent) {
                     $success = true;
                     $success_message = "If an account exists with that email, we've sent a password reset link.";
-                } else {
-                    $error = "Error processing your request. Please try again.";
                 }
             } else {
                 $error = "Error processing your request. Please try again.";

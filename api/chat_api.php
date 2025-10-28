@@ -217,6 +217,11 @@ switch ($action) {
             ");
             $stmt->execute([$sender_name, $conversation_id, $subject, $message]);
 
+            // Log incoming message activity for admin notification
+            require_once '../includes/ActivityLogger.php';
+            $activityLogger = new ActivityLogger($pdo);
+            $activityLogger->logActivity("New message from {$sender_name} ({$conversation_id}): " . substr($message, 0, 100) . (strlen($message) > 100 ? '...' : ''), null, 'message');
+
             echo json_encode([
                 'success' => true,
                 'message' => 'Message sent successfully',

@@ -83,6 +83,34 @@ function closeConnections() {
     $pdo = null;
 }
 
+/**
+ * Get approved comments for a blog post
+ * 
+ * @param PDO $pdo PDO database connection
+ * @param int $post_id Blog post ID
+ * @return array Array of comments
+ */
+function getBlogComments($pdo, $post_id) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT c.*, u.name as author_name, u.profile_image
+            FROM blog_comments c
+            LEFT JOIN users u ON c.user_id = u.id
+            WHERE c.post_id = :post_id 
+            AND c.status = 'approved'
+            ORDER BY c.created_at DESC
+        ");
+        
+        $stmt->execute([':post_id' => $post_id]);
+        $comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        return $comments ?: [];
+    } catch (PDOException $e) {
+        error_log("Error fetching blog comments: " . $e->getMessage());
+        return [];
+    }
+}
+
 // M-Pesa API Configuration
 $mpesa_config = [
     'env' => 'sandbox', // Use 'production' for live
@@ -150,8 +178,8 @@ if (isset($airtel_config['env']) && $airtel_config['env'] === 'production') {
 $smtp_config = [
     'host' => 'smtp.gmail.com', // SMTP server (e.g., smtp.gmail.com)
     'port' => 587, // Port (587 for TLS, 465 for SSL)
-    'username' => 'youractualgmail@gmail.com', // Replace with your real Gmail address
-    'password' => 'your-16-character-app-password', // Replace with your App Password
-    'from_email' => 'youractualgmail@gmail.com', // Must match username
+    'username' => 'barrackbarry2023@gmail.com', // Your Gmail address for authentication
+    'password' => 'qwhbkksamjgzsfuw', // Your App Password (spaces removed)
+    'from_email' => 'addinsmeals@gmail.com', // Email address that will appear as sender
     'from_name' => 'Addins Meals on Wheels' // From name
 ];

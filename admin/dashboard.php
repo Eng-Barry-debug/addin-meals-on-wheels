@@ -39,22 +39,22 @@ try {
     $totalOrders = getCount($pdo, 'orders');
     $totalMenuItems = getCount($pdo, 'menu_items');
 
-    // Get total revenue and sales (simplified for current table structure)
-    $revenueStmt = $pdo->query("SELECT COALESCE(SUM(100), 0) as total FROM orders WHERE 1=1");
+    // Get total revenue and sales (using actual order totals)
+    $revenueStmt = $pdo->query("SELECT COALESCE(SUM(o.total), 0) as total FROM orders o WHERE 1=1");
     $totalRevenue = (float)($revenueStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
     $totalSales = $totalRevenue;
 
     // Get catering requests count
     $cateringRequests = getCount($pdo, 'catering_requests');
 
-    // Get pending orders count (simplified for current table structure)
-    $pendingOrders = 0;
+    // Get pending orders count from database
+    $pendingOrders = getCount($pdo, 'orders', "status = 'pending'");
 
-    // Get completed orders today (simplified for current table structure)
-    $todayCompleted = 0;
+    // Get completed orders today from database
+    $todayCompleted = getCount($pdo, 'orders', "status IN ('completed', 'delivered') AND DATE(created_at) = CURDATE()");
 
-    // Get new users this month
-    $newUsersThisMonth = getCount($pdo, 'users', "role = 'user' AND DATE_FORMAT(created_at, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')");
+    // Get new customers this month (using correct role value)
+    $newUsersThisMonth = getCount($pdo, 'users', "role = 'customer' AND DATE_FORMAT(created_at, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')");
 
     // Create sample orders if none exist (for demo purposes)
     if ($totalOrders == 0 || empty($recentOrders)) {
@@ -108,10 +108,10 @@ try {
     // Now get recent orders (after potentially creating sample data)
     try {
         $recentOrdersStmt = $pdo->query("
-            SELECT o.*, u.name as customer_name, 'Sample Item' as item_name, 100 as order_total
+            SELECT o.*, u.name as customer_name, u.email as customer_email, u.phone as customer_phone
             FROM orders o
             JOIN users u ON o.user_id = u.id
-            ORDER BY o.updated_at DESC
+            ORDER BY o.created_at DESC
             LIMIT 8
         ");
         $recentOrders = $recentOrdersStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -127,27 +127,66 @@ try {
         $recentOrders = [];
     }
 
-    // Get order status breakdown (simplified for current table structure)
-    $orderStatusData = [
-        ['status' => 'completed', 'count' => $totalOrders],
-        ['status' => 'pending', 'count' => 0]
+    // Get order status breakdown from database
+    try {
+        $statusStmt = $pdo->query("
+            SELECT status, COUNT(*) as count
+            FROM orders
+            GROUP BY status
+            ORDER BY count DESC
+        ");
+        $orderStatusData = $statusStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // If no orders exist, provide default empty states
+        if (empty($orderStatusData)) {
+            $orderStatusData = [
+                ['status' => 'pending', 'count' => 0],
+                ['status' => 'processing', 'count' => 0],
+                ['status' => 'delivered', 'count' => 0],
+                ['status' => 'cancelled', 'count' => 0]
+            ];
+        }
+    } catch (PDOException $e) {
+        error_log("Dashboard: Error fetching order status: " . $e->getMessage());
+        $orderStatusData = [
+            ['status' => 'completed', 'count' => $totalOrders],
+            ['status' => 'pending', 'count' => 0]
+        ];
+    }
+
+    // Prepare chart data for order status distribution
+    $statusLabels = [];
+    $statusData = [];
+    $statusColors = [
+        'pending' => 'rgba(245, 158, 11, 0.8)',      // Yellow
+        'processing' => 'rgba(59, 130, 246, 0.8)',   // Blue
+        'delivered' => 'rgba(16, 185, 129, 0.8)',    // Green
+        'completed' => 'rgba(16, 185, 129, 0.8)',    // Green
+        'cancelled' => 'rgba(239, 68, 68, 0.8)',     // Red
+        'pending_payment' => 'rgba(249, 115, 22, 0.8)', // Orange
     ];
 
-    // Get monthly sales data for the last 6 months (simplified for current table structure)
-    $monthlySalesStmt = $pdo->query("
-        SELECT DATE_FORMAT(o.updated_at, '%Y-%m') as month,
-               COUNT(*) as order_count,
-               COALESCE(SUM(100), 0) as sales
-        FROM orders o
-        WHERE o.updated_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-        GROUP BY DATE_FORMAT(o.updated_at, '%Y-%m')
-        ORDER BY month DESC
-        LIMIT 6
-    ");
-    $monthlySales = $monthlySalesStmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!empty($orderStatusData)) {
+        foreach ($orderStatusData as $status) {
+            $statusLabels[] = ucfirst(str_replace('_', ' ', $status['status']));
+            $statusData[] = $status['count'];
+
+            // Add default color if status not in predefined colors
+            if (!isset($statusColors[strtolower($status['status'])])) {
+                $statusColors[strtolower($status['status'])] = 'rgba(156, 163, 175, 0.8)'; // Gray
+            }
+        }
+    } else {
+        $statusLabels = ['No Data'];
+        $statusData = [0];
+    }
 
 } catch (PDOException $e) {
     $error = "Database error: " . $e->getMessage();
+    $statusLabels = ['No Data'];
+    $statusData = [0];
+    $orderStatusData = [];
+    $monthlySales = [];
 }
 
 // Include activity logger
@@ -241,8 +280,8 @@ require_once 'includes/header.php';
                 </div>
                 <div class="ml-4">
                     <h3 class="text-3xl font-bold text-gray-900 mb-1"><?php echo number_format($totalAllUsers ?? 0); ?></h3>
-                    <p class="text-gray-600 font-medium">Total Customers</p>
-                    <p class="text-sm text-gray-500 mt-1">+<?php echo $newUsersThisMonth; ?> this month</p>
+                    <p class="text-gray-600 font-medium">Total Registered Users</p>
+                    <p class="text-sm text-gray-500 mt-1">+<?php echo number_format($newUsersThisMonth); ?> this month</p>
                 </div>
             </div>
         </div>
@@ -270,7 +309,7 @@ require_once 'includes/header.php';
                 <div class="ml-4">
                     <h3 class="text-3xl font-bold text-gray-900 mb-1">KES <?php echo number_format($totalRevenue, 0); ?></h3>
                     <p class="text-gray-600 font-medium">Total Revenue</p>
-                    <p class="text-sm text-gray-500 mt-1"><?php echo $todayCompleted; ?> completed today</p>
+                    <p class="text-sm text-gray-500 mt-1"><?php echo number_format($todayCompleted); ?> completed today</p>
                 </div>
             </div>
         </div>
@@ -290,66 +329,85 @@ require_once 'includes/header.php';
         </div>
     </div>
 
-    <!-- Charts and Analytics Row -->
+    <!-- Quick Stats Overview -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <!-- Order Status Breakdown -->
+        <!-- Order Status Overview -->
         <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                <i class="fas fa-chart-pie mr-3 text-primary"></i>
-                Order Status Overview
-            </h3>
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-chart-pie mr-3 text-primary"></i>
+                    Order Status Overview
+                </h3>
+                <a href="reports.php" class="text-sm text-primary hover:text-primary-dark font-medium flex items-center">
+                    View Details <i class="fas fa-arrow-right ml-2"></i>
+                </a>
+            </div>
             <div class="space-y-4">
-                <?php foreach ($orderStatusData as $status): ?>
+                <?php if (!empty($orderStatusData)): ?>
+                    <?php
+                    $totalStatusOrders = array_sum(array_column($orderStatusData, 'count'));
+                    foreach ($orderStatusData as $status):
+                        $percentage = $totalStatusOrders > 0 ? ($status['count'] / $totalStatusOrders) * 100 : 0;
+                    ?>
                     <div class="flex items-center justify-between">
                         <div class="flex items-center">
                             <div class="w-4 h-4 rounded-full mr-3
                                 <?php
-                                switch($status['status']) {
+                                switch(strtolower($status['status'])) {
                                     case 'pending': echo 'bg-yellow-400'; break;
                                     case 'processing': echo 'bg-blue-400'; break;
+                                    case 'delivered':
                                     case 'completed': echo 'bg-green-400'; break;
                                     case 'cancelled': echo 'bg-red-400'; break;
+                                    case 'pending_payment': echo 'bg-orange-400'; break;
                                     default: echo 'bg-gray-400';
                                 }
                                 ?>">
                             </div>
-                            <span class="text-gray-700 font-medium"><?php echo ucfirst($status['status']); ?></span>
+                            <span class="text-gray-700 font-medium"><?php echo ucfirst(str_replace('_', ' ', $status['status'])); ?></span>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <span class="text-2xl font-bold text-gray-900"><?php echo $status['count']; ?></span>
+                            <span class="text-2xl font-bold text-gray-900"><?php echo number_format($status['count']); ?></span>
                             <div class="w-16 bg-gray-200 rounded-full h-2">
                                 <div class="bg-primary h-2 rounded-full"
-                                     style="width: <?php echo ($status['count'] / max(1, $totalOrders)) * 100; ?>%">
+                                     style="width: <?php echo $percentage; ?>%">
                                 </div>
                             </div>
                         </div>
                     </div>
-                <?php endforeach; ?>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="text-center py-8">
+                        <i class="fas fa-chart-pie text-4xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500">No order status data available.</p>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
-        <!-- Monthly Sales Trend -->
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                <i class="fas fa-chart-line mr-3 text-primary"></i>
-                Sales Trend (Last 6 Months)
+        <!-- Quick Actions Panel -->
+        <div class="bg-gradient-to-br from-primary to-orange-500 rounded-xl shadow-lg p-6 text-white">
+            <h3 class="text-xl font-bold mb-6 flex items-center">
+                <i class="fas fa-bolt mr-3"></i>
+                Quick Actions
             </h3>
-            <div class="space-y-4">
-                <?php foreach (array_reverse($monthlySales) as $month): ?>
-                    <?php
-                    $monthName = date('M Y', strtotime($month['month'] . '-01'));
-                    $percentage = $month['sales'] > 0 ? 100 : 0;
-                    ?>
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-700 font-medium"><?php echo $monthName; ?></span>
-                        <div class="flex items-center space-x-3">
-                            <span class="text-lg font-bold text-gray-900">KES <?php echo number_format($month['sales'], 0); ?></span>
-                            <div class="w-20 bg-gray-200 rounded-full h-2">
-                                <div class="bg-accent h-2 rounded-full" style="width: <?php echo $percentage; ?>%"></div>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
+            <div class="grid grid-cols-2 gap-4">
+                <a href="orders.php?action=new" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg p-4 transition-all hover:scale-105 flex flex-col items-center justify-center text-center">
+                    <i class="fas fa-plus-circle text-3xl mb-2"></i>
+                    <span class="text-sm font-medium">New Order</span>
+                </a>
+                <a href="menu.php?action=add" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg p-4 transition-all hover:scale-105 flex flex-col items-center justify-center text-center">
+                    <i class="fas fa-utensils text-3xl mb-2"></i>
+                    <span class="text-sm font-medium">Add Menu Item</span>
+                </a>
+                <a href="customers.php" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg p-4 transition-all hover:scale-105 flex flex-col items-center justify-center text-center">
+                    <i class="fas fa-users text-3xl mb-2"></i>
+                    <span class="text-sm font-medium">View Customers</span>
+                </a>
+                <a href="reports.php" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg p-4 transition-all hover:scale-105 flex flex-col items-center justify-center text-center">
+                    <i class="fas fa-chart-bar text-3xl mb-2"></i>
+                    <span class="text-sm font-medium">View Reports</span>
+                </a>
             </div>
         </div>
     </div>
@@ -443,213 +501,6 @@ require_once 'includes/header.php';
             </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div>
-            <div class="bg-white rounded-xl shadow-lg p-6">
-                <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                    <i class="fas fa-bolt mr-3 text-primary"></i>
-                    Quick Actions
-                </h3>
-
-                <div class="space-y-3">
-                    <a href="orders.php"
-                       class="w-full bg-primary hover:bg-primary-dark text-white px-4 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center">
-                        <i class="fas fa-plus mr-2"></i>
-                        Add New Order
-                    </a>
-
-                    <a href="menu.php"
-                       class="w-full bg-secondary hover:bg-secondary-dark text-white px-4 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center">
-                        <i class="fas fa-utensils mr-2"></i>
-                        Manage Menu
-                    </a>
-
-                    <a href="customers.php"
-                       class="w-full bg-accent hover:bg-accent-dark text-white px-4 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center">
-                        <i class="fas fa-users mr-2"></i>
-                        Manage Customers
-                    </a>
-
-                    <a href="catering.php"
-                       class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center">
-                        <i class="fas fa-concierge-bell mr-2"></i>
-                        Catering Requests
-                    </a>
-
-                    <a href="../chat.php"
-                       class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center">
-                        <i class="fas fa-comments mr-2"></i>
-                        Customer Support
-                    </a>
-
-                    <a href="reports.php"
-                       class="w-full bg-light hover:bg-light-dark text-dark px-4 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center">
-                        <i class="fas fa-chart-bar mr-2"></i>
-                        View Reports
-                    </a>
-                </div>
-            </div>
-
-            <!-- CRUD Operations Panel -->
-            <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
-                <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                    <i class="fas fa-database mr-3 text-primary"></i>
-                    CRUD Operations
-                </h3>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Orders CRUD -->
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
-                            <i class="fas fa-shopping-cart mr-2 text-red-600"></i>
-                            Orders
-                        </h4>
-                        <div class="space-y-2">
-                            <a href="orders.php" class="block w-full text-left px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors font-medium">
-                                <i class="fas fa-list mr-2"></i>View All Orders
-                            </a>
-                            <a href="orders.php" class="block w-full text-left px-3 py-2 border-2 border-red-600 text-red-600 rounded text-sm hover:bg-red-600 hover:text-white transition-colors font-medium">
-                                <i class="fas fa-plus mr-2"></i>Add New Order
-                            </a>
-                            <a href="orders.php" class="block w-full text-left px-3 py-2 border-2 border-green-600 text-green-600 rounded text-sm hover:bg-green-600 hover:text-white transition-colors font-medium">
-                                <i class="fas fa-edit mr-2"></i>Manage Status
-                            </a>
-                        </div>
-                    </div>
-
-                    <!-- Menu CRUD -->
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
-                            <i class="fas fa-utensils mr-2 text-yellow-600"></i>
-                            Menu Items
-                        </h4>
-                        <div class="space-y-2">
-                            <a href="menu.php" class="block w-full text-left px-3 py-2 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 transition-colors font-medium">
-                                <i class="fas fa-list mr-2"></i>View All Items
-                            </a>
-                            <a href="menu_add.php" class="block w-full text-left px-3 py-2 border-2 border-yellow-600 text-yellow-600 rounded text-sm hover:bg-yellow-600 hover:text-white transition-colors font-medium">
-                                <i class="fas fa-plus mr-2"></i>Add New Item
-                            </a>
-                            <a href="categories.php" class="block w-full text-left px-3 py-2 border-2 border-purple-600 text-purple-600 rounded text-sm hover:bg-purple-600 hover:text-white transition-colors font-medium">
-                                <i class="fas fa-tags mr-2"></i>Categories
-                            </a>
-                        </div>
-                    </div>
-
-                    <!-- Users CRUD -->
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
-                            <i class="fas fa-user mr-2 text-green-600"></i>
-                            Users
-                        </h4>
-                        <div class="space-y-2">
-                            <a href="customers.php" class="block w-full text-left px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors font-medium">
-                                <i class="fas fa-list mr-2"></i>View All Users
-                            </a>
-                            <a href="user_add.php" class="block w-full text-left px-3 py-2 border-2 border-green-600 text-green-600 rounded text-sm hover:bg-green-600 hover:text-white transition-colors font-medium">
-                                <i class="fas fa-plus mr-2"></i>Add New User
-                            </a>
-                            <a href="users.php" class="block w-full text-left px-3 py-2 border-2 border-blue-600 text-blue-600 rounded text-sm hover:bg-blue-600 hover:text-white transition-colors font-medium">
-                                <i class="fas fa-cog mr-2"></i>Manage Users
-                            </a>
-                        </div>
-                    </div>
-
-                    <!-- Content CRUD -->
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
-                            <i class="fas fa-file-alt mr-2 text-purple-600"></i>
-                            Content
-                        </h4>
-                        <div class="space-y-2">
-                            <a href="blog.php" class="block w-full text-left px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 transition-colors font-medium">
-                                <i class="fas fa-blog mr-2"></i>Blog Posts
-                            </a>
-                            <a href="content.php" class="block w-full text-left px-3 py-2 border-2 border-purple-600 text-purple-600 rounded text-sm hover:bg-purple-600 hover:text-white transition-colors font-medium">
-                                <i class="fas fa-edit mr-2"></i>Page Content
-                            </a>
-                            <a href="feedback.php" class="block w-full text-left px-3 py-2 border-2 border-indigo-600 text-indigo-600 rounded text-sm hover:bg-indigo-600 hover:text-white transition-colors font-medium">
-                                <i class="fas fa-comments mr-2"></i>Feedback
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Advanced Operations -->
-                <div class="mt-6 pt-6 border-t border-gray-200">
-                    <h4 class="font-semibold text-gray-800 mb-4 flex items-center">
-                        <i class="fas fa-cogs mr-2 text-gray-600"></i>
-                        Advanced Operations
-                    </h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <a href="settings.php" class="flex items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors border border-gray-300">
-                            <i class="fas fa-cog mr-3 text-red-600"></i>
-                            <div>
-                                <div class="font-medium">System Settings</div>
-                                <div class="text-sm text-gray-500">Configure application</div>
-                            </div>
-                        </a>
-
-                        <a href="reports.php" class="flex items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors border border-gray-300">
-                            <i class="fas fa-chart-line mr-3 text-green-600"></i>
-                            <div>
-                                <div class="font-medium">Analytics & Reports</div>
-                                <div class="text-sm text-gray-500">View business metrics</div>
-                            </div>
-                        </a>
-
-                        <a href="activity_logs.php" class="flex items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors border border-gray-300">
-                            <i class="fas fa-history mr-3 text-blue-600"></i>
-                            <div>
-                                <div class="font-medium">Activity Logs</div>
-                                <div class="text-sm text-gray-500">System activity tracking</div>
-                            </div>
-                        </a>
-
-                        <a href="customer_support.php" class="flex items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors border border-gray-300">
-                            <i class="fas fa-headset mr-3 text-yellow-600"></i>
-                            <div>
-                                <div class="font-medium">Support Center</div>
-                                <div class="text-sm text-gray-500">Customer service tools</div>
-                            </div>
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- System Status -->
-            <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
-                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                    <i class="fas fa-info-circle mr-2 text-blue-500"></i>
-                    System Status
-                </h3>
-
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-600">Database</span>
-                        <span class="flex items-center text-green-600">
-                            <i class="fas fa-check-circle mr-1"></i>
-                            Connected
-                        </span>
-                    </div>
-
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-600">Orders Today</span>
-                        <span class="font-semibold text-gray-900"><?php echo $todayCompleted; ?></span>
-                    </div>
-
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-600">Pending Orders</span>
-                        <span class="font-semibold text-gray-900"><?php echo $pendingOrders; ?></span>
-                    </div>
-
-                    <div class="flex items-center justify-between">
-                        <span class="text-gray-600">New Users</span>
-                        <span class="font-semibold text-gray-900"><?php echo $newUsersThisMonth; ?></span>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 

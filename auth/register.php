@@ -204,8 +204,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input id="terms" name="terms" type="checkbox" required
                            class="h-4 w-4 text-[#fc7703] focus:ring-[#fc7703] border-gray-300 rounded">
                     <label for="terms" class="ml-2 block text-sm text-gray-700">
-                        I agree to the <a href="/terms" class="text-[#fc7703] hover:underline">Terms of Service</a> and 
-                        <a href="/privacy" class="text-[#fc7703] hover:underline">Privacy Policy</a> *
+                        I agree to the <a href="/terms.php" class="text-[#fc7703] hover:underline">Terms of Service</a> and 
+                        <a href="/privacy.php" class="text-[#fc7703] hover:underline">Privacy Policy</a> *
                     </label>
                 </div>
 

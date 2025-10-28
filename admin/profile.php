@@ -76,6 +76,127 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if (isset($_POST['upload_image'])) {
+        // Debug output
+        error_log("Upload attempt - Files: " . print_r($_FILES, true));
+        error_log("Upload attempt - POST: " . print_r($_POST, true));
+
+        if (isset($_FILES['profile_image'])) {
+            error_log("File upload error code: " . $_FILES['profile_image']['error']);
+
+            if ($_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
+                $file = $_FILES['profile_image'];
+                $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                $maxSize = 2 * 1024 * 1024; // 2MB (reduced from 5MB to fit within PHP limits)
+
+                error_log("File details - Type: {$file['type']}, Size: {$file['size']}, Name: {$file['name']}");
+
+                if (!in_array($file['type'], $allowedTypes)) {
+                    $error = 'Only JPG, PNG, and GIF images are allowed';
+                } elseif ($file['size'] > $maxSize) {
+                    $error = 'Image size must be less than 5MB';
+                } else {
+                    // Create uploads directory if it doesn't exist
+                    $uploadDir = '../uploads/profile_images/';
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                        error_log("Created upload directory: $uploadDir");
+                    }
+
+                    // Generate unique filename
+                    $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                    $filename = 'profile_' . $_SESSION['user_id'] . '_' . time() . '.' . $extension;
+                    $filepath = $uploadDir . $filename;
+
+                    error_log("Attempting to move file to: $filepath");
+
+                    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+                        error_log("File moved successfully");
+                        try {
+                            // Update database with new image path
+                            $stmt = $pdo->prepare("UPDATE users SET profile_image = ? WHERE id = ?");
+                            $result = $stmt->execute([$filename, $_SESSION['user_id']]);
+
+                            error_log("Database update result: " . ($result ? 'SUCCESS' : 'FAILED'));
+
+                            // Log activity
+                            $activityLogger->log('user', 'updated', "Updated profile image", 'user', $_SESSION['user_id']);
+
+                            $success = 'Profile image updated successfully';
+
+                            // Refresh user data to show new image immediately
+                            $userStmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+                            $userStmt->execute([$_SESSION['user_id']]);
+                            $user = $userStmt->fetch(PDO::FETCH_ASSOC);
+
+                        } catch (PDOException $e) {
+                            $error = 'Error updating profile image: ' . $e->getMessage();
+                            error_log("PDO Error: " . $e->getMessage());
+                        }
+                    } else {
+                        $error = 'Error uploading image - could not move file';
+                        error_log("move_uploaded_file failed for: $filepath");
+                    }
+                }
+            } elseif ($_FILES['profile_image']['error'] === UPLOAD_ERR_NO_FILE) {
+                $error = 'Please select an image to upload';
+                error_log("No file was uploaded");
+            } elseif ($_FILES['profile_image']['error'] === UPLOAD_ERR_INI_SIZE) {
+                $error = 'File size exceeds server limit';
+                error_log("File size exceeds upload_max_filesize");
+            } elseif ($_FILES['profile_image']['error'] === UPLOAD_ERR_FORM_SIZE) {
+                $error = 'File size exceeds form limit';
+                error_log("File size exceeds MAX_FILE_SIZE");
+            } elseif ($_FILES['profile_image']['error'] === UPLOAD_ERR_PARTIAL) {
+                $error = 'File was only partially uploaded';
+                error_log("File upload was partial");
+            } elseif ($_FILES['profile_image']['error'] === UPLOAD_ERR_NO_TMP_DIR) {
+                $error = 'Temporary upload directory missing';
+                error_log("No temporary directory");
+            } elseif ($_FILES['profile_image']['error'] === UPLOAD_ERR_CANT_WRITE) {
+                $error = 'Failed to write file to disk';
+                error_log("Cannot write to disk");
+            } elseif ($_FILES['profile_image']['error'] === UPLOAD_ERR_EXTENSION) {
+                $error = 'File upload stopped by extension';
+                error_log("Upload stopped by PHP extension");
+            } else {
+                $error = 'Upload error: ' . $_FILES['profile_image']['error'];
+                error_log("Upload error code: " . $_FILES['profile_image']['error']);
+            }
+        } else {
+            $error = 'No file data received';
+            error_log("No profile_image in FILES array");
+        }
+    }
+
+    if (isset($_POST['remove_image'])) {
+        try {
+            // Get current image
+            $stmt = $pdo->prepare("SELECT profile_image FROM users WHERE id = ?");
+            $stmt->execute([$_SESSION['user_id']]);
+            $currentImage = $stmt->fetchColumn();
+
+            if ($currentImage) {
+                // Delete file
+                $filepath = '../uploads/profile_images/' . $currentImage;
+                if (file_exists($filepath)) {
+                    unlink($filepath);
+                }
+
+                // Update database
+                $stmt = $pdo->prepare("UPDATE users SET profile_image = NULL WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id']]);
+
+                // Log activity
+                $activityLogger->log('user', 'updated', "Removed profile image", 'user', $_SESSION['user_id']);
+
+                $success = 'Profile image removed successfully';
+            }
+        } catch (PDOException $e) {
+            $error = 'Error removing profile image: ' . $e->getMessage();
+        }
+    }
+
     if (isset($_POST['change_password'])) {
         $current_password = $_POST['current_password'];
         $new_password = $_POST['new_password'];
@@ -142,8 +263,14 @@ require_once 'includes/header.php';
     <div class="container mx-auto px-6 py-12">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div class="flex items-center space-x-6">
-                <div class="h-20 w-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-3xl shadow-lg">
-                    <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                <div class="h-20 w-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-3xl shadow-lg overflow-hidden">
+                    <?php if (!empty($user['profile_image'])): ?>
+                        <img src="../uploads/profile_images/<?php echo htmlspecialchars($user['profile_image']); ?>"
+                             alt="Profile Image"
+                             class="w-full h-full object-cover">
+                    <?php else: ?>
+                        <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                    <?php endif; ?>
                 </div>
                 <div>
                     <h1 class="text-3xl md:text-4xl font-bold mb-2"><?php echo htmlspecialchars($user['name']); ?></h1>
@@ -206,6 +333,53 @@ require_once 'includes/header.php';
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Left Column - Profile Information -->
         <div class="lg:col-span-2 space-y-8">
+            <!-- Profile Image Card -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                    <i class="fas fa-camera mr-3 text-primary"></i>
+                    Profile Image
+                </h3>
+
+                <div class="flex items-center space-x-6 mb-6">
+                    <div class="h-24 w-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                        <?php if (!empty($user['profile_image'])): ?>
+                            <img src="../uploads/profile_images/<?php echo htmlspecialchars($user['profile_image']); ?>"
+                                 alt="Profile Image"
+                                 class="w-full h-full object-cover">
+                        <?php else: ?>
+                            <div class="text-gray-400 text-2xl font-bold">
+                                <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="flex-1">
+                        <form method="POST" enctype="multipart/form-data" class="space-y-4">
+                            <div>
+                                <label for="profile_image" class="block text-sm font-semibold text-gray-700 mb-2">Upload New Image</label>
+                                <input type="file" id="profile_image" name="profile_image" accept="image/jpeg,image/png,image/gif"
+                                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors" required>
+                                <p class="text-xs text-gray-500 mt-1">Supported formats: JPG, PNG, GIF. Max size: 2MB</p>
+                            </div>
+                            <div class="flex space-x-3">
+                                <button type="submit" name="upload_image"
+                                        class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center">
+                                    <i class="fas fa-upload mr-2"></i>
+                                    Upload Image
+                                </button>
+                                <?php if (!empty($user['profile_image'])): ?>
+                                    <button type="submit" name="remove_image"
+                                            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center"
+                                            onclick="return confirm('Are you sure you want to remove your profile image?')">
+                                        <i class="fas fa-trash mr-2"></i>
+                                        Remove Image
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <!-- Profile Information Card -->
             <div class="bg-white rounded-xl shadow-lg p-6">
                 <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">

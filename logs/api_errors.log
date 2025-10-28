@@ -1,0 +1,4 @@
+[2025-10-28 19:39:55] Blog interaction error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'comment' in 'field list' in C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php on line 193\nStack trace:\n#0 C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php(193): PDO->prepare('INSERT INTO blo...')
+#1 {main}
+[2025-10-28 19:46:28] Blog interaction error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'comment' in 'field list' in C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php on line 193\nStack trace:\n#0 C:\Users\oluoc_\Desktop\project\addin-meals-on-wheels\api\blog_interactions.php(193): PDO->prepare('INSERT INTO blo...')
+#1 {main}

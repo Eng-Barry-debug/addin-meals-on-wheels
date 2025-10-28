@@ -260,5 +260,10 @@ include 'includes/header.php';
 </div>
 </div>
 </div>
+
+<?php
+// Include footer
+require_once 'includes/footer.php';
+?>
 </body>
 </html>

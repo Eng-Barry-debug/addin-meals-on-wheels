@@ -139,6 +139,9 @@ class ActivityLogger {
                 'backup' => 'fas fa-database',
                 'maintenance' => 'fas fa-cog',
                 'error' => 'fas fa-exclamation-triangle'
+            ],
+            'message' => [
+                'activity' => 'fas fa-envelope'
             ]
         ];
 
@@ -155,7 +158,8 @@ class ActivityLogger {
             'user' => 'purple',
             'system' => 'orange',
             'login' => 'teal',
-            'logout' => 'gray'
+            'logout' => 'gray',
+            'message' => 'blue'
         ];
 
         return $colors[$activity_type] ?? 'gray';

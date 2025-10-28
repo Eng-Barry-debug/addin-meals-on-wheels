@@ -16,7 +16,7 @@ $page_description = 'View and manage customer orders';
 // 3. Include Core Dependencies
 // Adjust paths as necessary based on your project structure.
 require_once dirname(__DIR__) . '/includes/config.php'; // Contains database connection ($pdo)
-require_once 'includes/functions.php'; // For any custom admin-specific PHP functions (optional)
+require_once 'includes/functions.php'; // For custom admin-specific PHP functions
 require_once dirname(__DIR__) . '/includes/ActivityLogger.php'; // Custom activity logging class
 
 // Initialize ActivityLogger with the PDO object
@@ -29,7 +29,7 @@ if (isset($_GET['fetch_order_data']) && is_numeric($_GET['fetch_order_data'])) {
     $order_id_to_fetch = (int)$_GET['fetch_order_data'];
     try {
         // Fetch order and associated customer details
-        $stmt = $pdo->prepare("SELECT o.*, u.name as customer_name, u.email as customer_email FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.id = ?");
+        $stmt = $pdo->prepare("SELECT o.*, o.total as total_amount, u.name as customer_name, u.email as customer_email FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.id = ?");
         $stmt->execute([$order_id_to_fetch]);
         $order_data = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -37,7 +37,7 @@ if (isset($_GET['fetch_order_data']) && is_numeric($_GET['fetch_order_data'])) {
             // Convert monetary values to float to ensure correct JSON and JS handling
             $order_data['subtotal'] = (float)$order_data['subtotal'];
             $order_data['delivery_fee'] = (float)$order_data['delivery_fee'];
-            $order_data['total'] = (float)$order_data['total'];
+            $order_data['total_amount'] = (float)$order_data['total_amount'];
 
             header('Content-Type: application/json');
             echo json_encode($order_data);
@@ -143,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error_message = 'Invalid input for new order. Please fill all required fields and select a customer.';
         } else {
             try {
-                $stmt = $pdo->prepare("INSERT INTO orders (user_id, order_number, status, payment_method, payment_status, delivery_address, delivery_instructions, subtotal, delivery_fee, total_amount, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+                $stmt = $pdo->prepare("INSERT INTO orders (user_id, order_number, status, payment_method, payment_status, delivery_address, delivery_instructions, subtotal, delivery_fee, total, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
                 $stmt->execute([
                     $user_id, $order_number, $status, $payment_method, $payment_status,
                     $delivery_address, $delivery_instructions, $subtotal, $delivery_fee, $total_amount
@@ -195,8 +195,13 @@ $params = [];
 $base_query_joins = "FROM orders o LEFT JOIN users u ON o.user_id = u.id";
 
 if (!empty($status_filter) && $status_filter !== 'all') {
-    $where_conditions[] = "o.status = :status_filter";
-    $params[':status_filter'] = $status_filter;
+    if ($status_filter === 'completed') {
+        // Handle combined delivered + completed filter
+        $where_conditions[] = "o.status IN ('delivered', 'completed')";
+    } else {
+        $where_conditions[] = "o.status = :status_filter";
+        $params[':status_filter'] = $status_filter;
+    }
 }
 
 if (!empty($date_from)) {
@@ -238,7 +243,7 @@ $offset = ($page - 1) * $per_page;
 
 // 11. Main Order Data Retrieval for Current Page
 $query_data = "
-    SELECT o.*, u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone
+    SELECT o.*, o.total as total_amount, u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone
     $base_query_joins
     $final_where_clause
     ORDER BY o.created_at DESC
@@ -268,13 +273,14 @@ unset($order); // Unset the reference after the loop is complete (corrected: fro
 
 // 13. Calculate Status Counts for Filter Tabs (respecting other active filters)
 $status_counts = [];
-$all_status_options = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+$all_status_options = ['pending', 'processing', 'shipped', 'delivered', 'completed', 'cancelled']; // Added 'completed' status
 // Define status colors for filters
 $status_colors = [
     'pending' => 'bg-yellow-100 text-yellow-600',
     'processing' => 'bg-blue-100 text-blue-600',
     'shipped' => 'bg-indigo-100 text-indigo-600',
     'delivered' => 'bg-green-100 text-green-600',
+    'completed' => 'bg-green-100 text-green-600', // Same color as delivered
     'cancelled' => 'bg-red-100 text-red-600'
 ];
 
@@ -296,7 +302,12 @@ foreach ($all_status_options as $status_key) {
     }
 
     $temp_conditions_for_count = array_values($temp_conditions); // Re-index after potential unset
-    $temp_conditions_for_count[] = "o.status = :current_status"; // Add current status for this specific count
+    if ($status_key === 'completed') {
+        // For completed status, count both delivered and completed orders
+        $temp_conditions_for_count[] = "o.status IN ('delivered', 'completed')";
+    } else {
+        $temp_conditions_for_count[] = "o.status = :current_status"; // Add current status for this specific count
+    }
 
     $temp_final_where = !empty($temp_conditions_for_count) ? " WHERE " . implode(" AND ", $temp_conditions_for_count) : "";
 
@@ -307,7 +318,10 @@ foreach ($all_status_options as $status_key) {
     foreach ($temp_params as $param_key => $param_value) {
         $count_this_status_stmt->bindValue($param_key, $param_value, is_int($param_value) ? PDO::PARAM_INT : PDO::PARAM_STR);
     }
-    $count_this_status_stmt->bindValue(':current_status', $status_key); // Bind the specific status for this loop iteration
+
+    if ($status_key !== 'completed') {
+        $count_this_status_stmt->bindValue(':current_status', $status_key); // Bind the specific status for this loop iteration
+    }
 
     $count_this_status_stmt->execute();
     $status_counts[$status_key] = $count_this_status_stmt->fetchColumn() ?: 0; // Ensure it's 0 if no results
@@ -373,9 +387,18 @@ include 'includes/header.php';
                     </div>
                     <div class="ml-4">
                         <h3 class="text-2xl font-bold text-gray-900">
-                            <?php echo number_format($status_counts['delivered'] ?? 0); ?>
+                            <?php
+                            try {
+                                // Calculate completed orders count using helper function
+                                $completed_count = getCompletedOrdersCount($pdo, $where_conditions, $params);
+                                echo number_format($completed_count);
+                            } catch (Exception $e) {
+                                error_log("Error calculating completed orders count: " . $e->getMessage());
+                                echo "0";
+                            }
+                            ?>
                         </h3>
-                        <p class="text-gray-600">Delivered (Filtered)</p>
+                        <p class="text-gray-600">Completed (Filtered)</p>
                     </div>
                 </div>
             </div>
@@ -405,39 +428,16 @@ include 'includes/header.php';
                         <h3 class="text-2xl font-bold text-gray-900">
                             KES <?php
                             try {
-                                $revenue_conditions = $where_conditions;
-                                $revenue_params = $params;
-
-                                // Remove any previous general status filter from the main query's conditions/params
-                                $key_to_remove = null;
-                                foreach($revenue_conditions as $k => $condition_str) {
-                                    if (strpos($condition_str, 'o.status = :status_filter') !== false) {
-                                        $key_to_remove = $k;
-                                        break;
-                                    }
-                                }
-                                if ($key_to_remove !== false && $key_to_remove !== null) {
-                                    unset($revenue_conditions[$key_to_remove]);
-                                    unset($revenue_params[':status_filter']);
-                                }
-
-                                $revenue_conditions_final = array_values($revenue_conditions);
-                                $revenue_conditions_final[] = "o.status = 'delivered'"; // Only count delivered for revenue
-                                $revenue_final_where = !empty($revenue_conditions_final) ? " WHERE " . implode(" AND ", $revenue_conditions_final) : "";
-
-                                $total_revenue_stmt = $pdo->prepare("SELECT SUM(o.total_amount) $base_query_joins $revenue_final_where");
-                                foreach ($revenue_params as $key => $value) {
-                                    $total_revenue_stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
-                                }
-                                $total_revenue_stmt->execute();
-                                echo number_format($total_revenue_stmt->fetchColumn() ?: 0, 0); // Display as integer, or with decimals if needed
-                            } catch (PDOException $e) {
-                                echo "0"; // Display 0 on error
-                                error_log("Error calculating main revenue stat: " . $e->getMessage());
+                                // Calculate revenue using helper function (similar to reports.php approach)
+                                $revenue = getTotalRevenue($pdo, $where_conditions, $params);
+                                echo number_format($revenue, 0);
+                            } catch (Exception $e) {
+                                error_log("Error calculating revenue: " . $e->getMessage());
+                                echo "0";
                             }
                             ?>
                         </h3>
-                        <p class="text-gray-600">Revenue (Filtered Delivered)</p>
+                        <p class="text-gray-600">Revenue (Filtered Completed)</p>
                     </div>
                 </div>
             </div>
@@ -509,7 +509,14 @@ include 'includes/header.php';
                 <button type="button" class="filter-tab <?php echo (empty($status_filter) || $status_filter === 'all') ? 'active' : ''; ?>" data-filter="all">
                     All Orders <span class="ml-1 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs"><?php echo number_format($total_records); ?></span>
                 </button>
-                <?php foreach ($all_status_options as $key): ?>
+                <?php
+                // Calculate combined delivered + completed count for display
+                $completed_count = ($status_counts['delivered'] ?? 0) + ($status_counts['completed'] ?? 0);
+                ?>
+                <button type="button" class="filter-tab <?php echo ($status_filter === 'delivered' || $status_filter === 'completed') ? 'active' : ''; ?>" data-filter="completed">
+                    Completed <span class="ml-1 bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs"><?php echo number_format($completed_count); ?></span>
+                </button>
+                <?php foreach (['pending', 'processing', 'shipped', 'cancelled'] as $key): ?>
                     <button type="button" class="filter-tab <?php echo ($status_filter === $key) ? 'active' : ''; ?>" data-filter="<?php echo $key; ?>">
                         <?php echo ucfirst($key); ?> <span class="ml-1 <?php echo htmlspecialchars($status_colors[$key] ?? 'bg-gray-100 text-gray-600'); ?> px-2 py-1 rounded-full text-xs"><?php echo number_format($status_counts[$key] ?? 0); ?></span>
                     </button>
@@ -550,6 +557,7 @@ include 'includes/header.php';
                                     'processing' => 'cog',
                                     'shipped' => 'shipping-fast',
                                     'delivered' => 'truck',
+                                    'completed' => 'check-circle',
                                     'cancelled' => 'times-circle'
                                 ];
                                 ?>

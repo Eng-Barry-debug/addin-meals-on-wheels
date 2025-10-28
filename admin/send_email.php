@@ -60,7 +60,7 @@ if (!$action || !$order_id || !$customer_email) {
 // Verify order exists and get order details
 try {
     $stmt = $pdo->prepare("
-        SELECT o.*, u.name as customer_name, u.email as customer_email, u.phone as customer_phone,
+        SELECT o.*, o.total as total_amount, u.name as customer_name, u.email as customer_email, u.phone as customer_phone,
                GROUP_CONCAT(oi.item_name SEPARATOR ', ') as item_names,
                GROUP_CONCAT(oi.quantity SEPARATOR ', ') as item_quantities,
                GROUP_CONCAT(oi.price SEPARATOR ', ') as item_prices,
@@ -79,10 +79,12 @@ try {
     if ($order) {
         $itemTotalsString = $order['item_totals'] ?? '';
         $totalItems = $itemTotalsString ? array_map('floatval', explode(', ', $itemTotalsString)) : [];
-        
         $order['subtotal'] = array_sum($totalItems);
-        $order['total_amount'] = floatval($order['total_amount'] ?? 0);
         $order['delivery_fee'] = floatval($order['delivery_fee'] ?? 0);
+        $order['total_amount'] = $order['subtotal'] + $order['delivery_fee'];
+
+        // Debug logging
+        error_log("Order #{$order['order_number']} - Total: {$order['total_amount']}");
     }
 
 

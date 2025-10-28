@@ -430,6 +430,170 @@ include 'includes/header.php';
     </div>
 </div>
 
+<!-- Email Invoice Confirmation Modal -->
+<div id="emailInvoiceModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold flex items-center">
+                    <i class="fas fa-envelope mr-2"></i>Send Invoice Email
+                </h3>
+                <button type="button" onclick="closeEmailInvoiceModal()" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 text-gray-700">
+            <div class="text-center mb-4">
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-file-invoice-dollar text-2xl text-blue-600"></i>
+                </div>
+                <h4 class="text-lg font-semibold text-gray-900 mb-2">Send Invoice to Customer</h4>
+                <p class="text-sm text-gray-600 mb-4">
+                    Are you sure you want to send the invoice for order <strong>#<?= htmlspecialchars($order['order_number']) ?></strong> to the customer via email?
+                </p>
+                <div class="bg-gray-50 rounded-lg p-3 mb-4 text-left">
+                    <div class="text-sm">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-600">Customer:</span>
+                            <span class="font-medium text-gray-900"><?php echo htmlspecialchars($order['customer_name']); ?></span>
+                        </div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-600">Email:</span>
+                            <span class="font-medium text-gray-900"><?php echo htmlspecialchars($order['customer_email']); ?></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Total Amount:</span>
+                            <span class="font-bold text-red-600">KES <?php echo number_format($order['total_amount'] ?? 0, 2); ?></span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500">This will send a professional invoice email with order details and payment information.</p>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <button type="button" onclick="closeEmailInvoiceModal()"
+                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <span class="relative z-10 font-medium">Cancel</span>
+            </button>
+            <button type="button" onclick="confirmEmailInvoice()"
+                    class="group relative bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <i class="fas fa-paper-plane mr-2 relative z-10"></i>
+                <span class="relative z-10 font-medium">Send Invoice</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Email Receipt Confirmation Modal -->
+<div id="emailReceiptModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-orange-600 to-orange-700 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold flex items-center">
+                    <i class="fas fa-receipt mr-2"></i>Send Receipt Email
+                </h3>
+                <button type="button" onclick="closeEmailReceiptModal()" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 text-gray-700">
+            <div class="text-center mb-4">
+                <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-receipt text-2xl text-orange-600"></i>
+                </div>
+                <h4 class="text-lg font-semibold text-gray-900 mb-2">Send Receipt to Customer</h4>
+                <p class="text-sm text-gray-600 mb-4">
+                    Are you sure you want to send the receipt for order <strong>#<?= htmlspecialchars($order['order_number']) ?></strong> to the customer via email?
+                </p>
+                <div class="bg-gray-50 rounded-lg p-3 mb-4 text-left">
+                    <div class="text-sm">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-600">Customer:</span>
+                            <span class="font-medium text-gray-900"><?php echo htmlspecialchars($order['customer_name']); ?></span>
+                        </div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-600">Email:</span>
+                            <span class="font-medium text-gray-900"><?php echo htmlspecialchars($order['customer_email']); ?></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Total Amount:</span>
+                            <span class="font-bold text-red-600">KES <?php echo number_format($order['total_amount'] ?? 0, 2); ?></span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500">This will send a compact receipt email with order summary and payment details.</p>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <button type="button" onclick="closeEmailReceiptModal()"
+                    class="group relative bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <span class="relative z-10 font-medium">Cancel</span>
+            </button>
+            <button type="button" onclick="confirmEmailReceipt()"
+                    class="group relative bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <i class="fas fa-paper-plane mr-2 relative z-10"></i>
+                <span class="relative z-10 font-medium">Send Receipt</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Success Message Modal -->
+<div id="successModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4 animate__animated animate__fadeIn">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-green-600 to-green-700 p-6 text-white rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold flex items-center">
+                    <i class="fas fa-check-circle mr-2"></i>Success!
+                </h3>
+                <button type="button" onclick="closeSuccessModal()" class="text-white hover:text-gray-200 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 text-gray-700">
+            <div class="text-center mb-4">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-check-circle text-2xl text-green-600"></i>
+                </div>
+                <h4 class="text-lg font-semibold text-gray-900 mb-2" id="successTitle">Email Sent Successfully!</h4>
+                <p class="text-sm text-gray-600" id="successMessage">
+                    The email has been sent to the customer successfully.
+                </p>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-6 border-t border-gray-200 flex gap-3 justify-center">
+            <button type="button" onclick="closeSuccessModal()"
+                    class="group relative bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                <i class="fas fa-check mr-2 relative z-10"></i>
+                <span class="relative z-10 font-medium">Okay</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
     <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
@@ -560,100 +724,150 @@ function generateReceipt() {
 
 // Email invoice functionality
 function emailInvoice() {
-    const button = document.querySelector('button[onclick="emailInvoice()"]');
-    if (confirm('Do you want to send this invoice to the customer via email?')) {
-        // Show loading state
-        const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Sending...';
-        button.disabled = true;
+    document.getElementById('emailInvoiceModal').classList.remove('hidden');
+    document.getElementById('emailInvoiceModal').classList.add('animate__fadeIn', 'animate__zoomIn');
+}
 
-        // Send email via AJAX
-        fetch('send_email.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                'action': 'send_invoice',
-                'order_id': <?= $order['id'] ?>,
-                'customer_email': '<?= $order['customer_email'] ?>'
-            })
+function closeEmailInvoiceModal() {
+    document.getElementById('emailInvoiceModal').classList.add('hidden');
+    document.getElementById('emailInvoiceModal').classList.remove('animate__fadeIn', 'animate__zoomIn');
+}
+
+function confirmEmailInvoice() {
+    closeEmailInvoiceModal();
+
+    const button = document.querySelector('button[onclick="emailInvoice()"]');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Sending...';
+    button.disabled = true;
+
+    // Send email via AJAX
+    fetch('send_email.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            'action': 'send_invoice',
+            'order_id': <?= $order['id'] ?>,
+            'customer_email': '<?= $order['customer_email'] ?>'
         })
-        .then(response => {
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
-            if (!response.ok) {
-                throw new Error('HTTP error! status: ' + response.status);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Response data:', data);
-            if (data.success) {
-                alert('Invoice sent successfully to customer!');
-            } else {
-                alert('Error sending invoice: ' + (data.message || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Email sending error:', error);
-            alert('Error sending invoice: ' + error.message);
-        })
-        .finally(() => {
-            // Restore button state
-            button.innerHTML = originalText;
-            button.disabled = false;
-        });
-    }
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error('HTTP error! status: ' + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+            showSuccessModal('Invoice Sent Successfully!', 'The invoice email has been sent to the customer successfully.');
+        } else {
+            showSuccessModal('Error', data.message || 'Unknown error occurred while sending the invoice.');
+        }
+    })
+    .catch(error => {
+        console.error('Email sending error:', error);
+        showSuccessModal('Error', 'Error sending invoice: ' + error.message);
+    })
+    .finally(() => {
+        // Restore button state
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
 }
 
 // Email receipt functionality
 function emailReceipt() {
-    const button = document.querySelector('button[onclick="emailReceipt()"]');
-    if (confirm('Do you want to send this receipt to the customer via email?')) {
-        // Show loading state
-        const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Sending...';
-        button.disabled = true;
+    document.getElementById('emailReceiptModal').classList.remove('hidden');
+    document.getElementById('emailReceiptModal').classList.add('animate__fadeIn', 'animate__zoomIn');
+}
 
-        // Send email via AJAX
-        fetch('send_email.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                'action': 'send_receipt',
-                'order_id': <?= $order['id'] ?>,
-                'customer_email': '<?= $order['customer_email'] ?>'
-            })
+function closeEmailReceiptModal() {
+    document.getElementById('emailReceiptModal').classList.add('hidden');
+    document.getElementById('emailReceiptModal').classList.remove('animate__fadeIn', 'animate__zoomIn');
+}
+
+function confirmEmailReceipt() {
+    closeEmailReceiptModal();
+
+    const button = document.querySelector('button[onclick="emailReceipt()"]');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Sending...';
+    button.disabled = true;
+
+    // Send email via AJAX
+    fetch('send_email.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            'action': 'send_receipt',
+            'order_id': <?= $order['id'] ?>,
+            'customer_email': '<?= $order['customer_email'] ?>'
         })
-        .then(response => {
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
-            if (!response.ok) {
-                throw new Error('HTTP error! status: ' + response.status);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Response data:', data);
-            if (data.success) {
-                alert('Receipt sent successfully to customer!');
-            } else {
-                alert('Error sending receipt: ' + (data.message || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Email sending error:', error);
-            alert('Error sending receipt: ' + error.message);
-        })
-        .finally(() => {
-            // Restore button state
-            button.innerHTML = originalText;
-            button.disabled = false;
-        });
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error('HTTP error! status: ' + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+            showSuccessModal('Receipt Sent Successfully!', 'The receipt email has been sent to the customer successfully.');
+        } else {
+            showSuccessModal('Error', data.message || 'Unknown error occurred while sending the receipt.');
+        }
+    })
+    .catch(error => {
+        console.error('Email sending error:', error);
+        showSuccessModal('Error', 'Error sending receipt: ' + error.message);
+    })
+    .finally(() => {
+        // Restore button state
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+// Success modal functions
+function showSuccessModal(title, message) {
+    document.getElementById('successTitle').textContent = title;
+    document.getElementById('successMessage').textContent = message;
+
+    // Change modal styling based on success or error
+    const modal = document.getElementById('successModal');
+    const header = modal.querySelector('.bg-gradient-to-r');
+    const icon = modal.querySelector('.fas');
+    const button = modal.querySelector('button');
+
+    if (title.toLowerCase().includes('error') || title.toLowerCase().includes('failed')) {
+        // Error styling
+        header.className = 'bg-gradient-to-r from-red-600 to-red-700 p-6 text-white rounded-t-2xl';
+        icon.className = 'fas fa-exclamation-triangle text-2xl text-red-600';
+        button.className = 'group relative bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5';
+        button.innerHTML = '<div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div><i class="fas fa-times mr-2 relative z-10"></i><span class="relative z-10 font-medium">Close</span>';
+    } else {
+        // Success styling (default)
+        header.className = 'bg-gradient-to-r from-green-600 to-green-700 p-6 text-white rounded-t-2xl';
+        icon.className = 'fas fa-check-circle text-2xl text-green-600';
+        button.className = 'group relative bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5';
+        button.innerHTML = '<div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div><i class="fas fa-check mr-2 relative z-10"></i><span class="relative z-10 font-medium">Okay</span>';
     }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('animate__fadeIn', 'animate__zoomIn');
+}
+
+function closeSuccessModal() {
+    document.getElementById('successModal').classList.add('hidden');
+    document.getElementById('successModal').classList.remove('animate__fadeIn', 'animate__zoomIn');
 }
 
 // Generate receipt HTML (compact version)
@@ -1134,7 +1348,26 @@ function generateInvoiceHTML(data) {
     `;
 }
 
-// Delete confirmation functions
+// Close modals when clicking outside
+document.getElementById('emailInvoiceModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeEmailInvoiceModal();
+    }
+});
+
+document.getElementById('emailReceiptModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeEmailReceiptModal();
+    }
+});
+
+document.getElementById('successModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeSuccessModal();
+    }
+});
+
+// Delete confirmation functions (existing)
 function confirmDelete(orderId, orderNumber) {
     document.getElementById('deleteOrderNumber').textContent = orderNumber;
     document.getElementById('confirmDeleteBtn').onclick = function() {
@@ -1147,7 +1380,7 @@ function closeDeleteModal() {
     document.getElementById('deleteModal').classList.add('hidden');
 }
 
-// Close modal when clicking outside
+// Close modal when clicking outside (existing)
 document.getElementById('deleteModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeDeleteModal();

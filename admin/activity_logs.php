@@ -65,6 +65,7 @@ require_once 'includes/header.php';
                         <option value="user" <?php echo $activityType === 'user' ? 'selected' : ''; ?>>Users</option>
                         <option value="system" <?php echo $activityType === 'system' ? 'selected' : ''; ?>>System</option>
                         <option value="login" <?php echo $activityType === 'login' ? 'selected' : ''; ?>>Logins</option>
+                        <option value="message" <?php echo $activityType === 'message' ? 'selected' : ''; ?>>Messages</option>
                     </select>
                 </div>
 

@@ -112,18 +112,22 @@ class NewsletterSender {
         try {
             $mail = new PHPMailer(true);
 
-            // Server settings - MAILTRAP SMTP CONFIGURATION
+            // Load SMTP settings from config
+            require_once __DIR__ . '/config.php';
+            global $smtp_config;
+
+            // Server settings
             $mail->isSMTP();
-            $mail->Host       = 'bulk.smtp.mailtrap.io';
+            $mail->Host       = $smtp_config['host'] ?? 'smtp.gmail.com';
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'api';                        // Mailtrap username
-            $mail->Password   = '1760082479';                 // Your Mailtrap token
-            $mail->Port       = 587;                          // Recommended port
+            $mail->Username   = $smtp_config['username'] ?? 'barrackbarry2023@gmail.com';
+            $mail->Password   = $smtp_config['password'] ?? 'qwhbkksamjgzsfuw';
+            $mail->Port       = $smtp_config['port'] ?? 587;
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
 
             // Recipients
-            $mail->setFrom('noreply@addinsmeals.com', 'Addins Meal on Wheels');
-            $mail->addReplyTo('info@addinsmeals.com', 'Addins Meal on Wheels');
+            $mail->setFrom($smtp_config['from_email'] ?? 'addinsmeals@gmail.com', $smtp_config['from_name'] ?? 'Addins Meals on Wheels');
+            $mail->addReplyTo('info@addinsmeals.com', 'Addins Meals on Wheels');
             $mail->addAddress($subscriber['email']);
             // Content
             $mail->isHTML(true);
@@ -212,5 +216,100 @@ function sendNewsletterCampaign($campaign_id) {
     $result = $sender->sendNewsletter($campaign_id);
 
     return $result;
+}
+
+// Function to process all scheduled newsletters that are due
+function processScheduledNewsletters() {
+    global $pdo;
+
+    try {
+        $current_time = date('Y-m-d H:i:s');
+
+        // Find scheduled newsletters that should be sent now
+        $stmt = $pdo->prepare("
+            SELECT id, subject, scheduled_at
+            FROM newsletter_campaigns
+            WHERE status = 'scheduled'
+            AND scheduled_at <= ?
+            ORDER BY scheduled_at ASC
+            LIMIT 5
+        ");
+        $stmt->execute([$current_time]);
+        $scheduled_campaigns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($scheduled_campaigns)) {
+            return [
+                'success' => true,
+                'message' => 'No scheduled newsletters to send',
+                'processed' => 0,
+                'sent' => 0,
+                'failed' => 0
+            ];
+        }
+
+        $sender = new NewsletterSender($pdo);
+        $sent_count = 0;
+        $failed_count = 0;
+        $processed_campaigns = [];
+
+        foreach ($scheduled_campaigns as $campaign) {
+            try {
+                // Update status to sending
+                $stmt = $pdo->prepare("UPDATE newsletter_campaigns SET status = 'sending' WHERE id = ?");
+                $stmt->execute([$campaign['id']]);
+
+                // Send the newsletter
+                $result = $sender->sendNewsletter($campaign['id']);
+
+                if ($result['success']) {
+                    $sent_count++;
+                    $processed_campaigns[] = [
+                        'id' => $campaign['id'],
+                        'subject' => $campaign['subject'],
+                        'status' => 'sent'
+                    ];
+                } else {
+                    $failed_count++;
+                    $processed_campaigns[] = [
+                        'id' => $campaign['id'],
+                        'subject' => $campaign['subject'],
+                        'status' => 'failed',
+                        'error' => $result['message'] ?? 'Unknown error'
+                    ];
+                }
+
+            } catch (Exception $e) {
+                $failed_count++;
+                $processed_campaigns[] = [
+                    'id' => $campaign['id'],
+                    'subject' => $campaign['subject'],
+                    'status' => 'failed',
+                    'error' => $e->getMessage()
+                ];
+
+                // Update status back to scheduled if sending failed
+                $stmt = $pdo->prepare("UPDATE newsletter_campaigns SET status = 'scheduled' WHERE id = ?");
+                $stmt->execute([$campaign['id']]);
+            }
+        }
+
+        return [
+            'success' => true,
+            'message' => "Processed {$sent_count} scheduled newsletters",
+            'processed' => count($scheduled_campaigns),
+            'sent' => $sent_count,
+            'failed' => $failed_count,
+            'campaigns' => $processed_campaigns
+        ];
+
+    } catch (Exception $e) {
+        return [
+            'success' => false,
+            'message' => 'Error processing scheduled newsletters: ' . $e->getMessage(),
+            'processed' => 0,
+            'sent' => 0,
+            'failed' => 0
+        ];
+    }
 }
 ?>

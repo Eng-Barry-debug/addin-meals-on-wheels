@@ -76,7 +76,7 @@ function requireLogin() {
             // User not logged in
             $_SESSION['error'] = 'Please log in to access this page.';
         }
-        redirect('login.php');
+        redirect('../auth/login.php');
     }
 }
 

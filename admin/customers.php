@@ -84,9 +84,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, role = ?, status = ? WHERE id = ?");
             $stmt->execute([$name, $email, $role, $status, $id]);
-            $success = 'User updated successfully';
-            // Log activity
-            $activityLogger->logActivity("User '{$name}' (ID: {$id}) updated.", $id, 'user_update');
+
+            // Handle profile image upload if provided
+            if (isset($_FILES['edit_user_image']) && $_FILES['edit_user_image']['error'] === UPLOAD_ERR_OK) {
+                $file = $_FILES['edit_user_image'];
+                $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                $maxSize = 2 * 1024 * 1024; // 2MB
+
+                if (!in_array($file['type'], $allowedTypes)) {
+                    $error = 'Only JPG, PNG, and GIF images are allowed';
+                } elseif ($file['size'] > $maxSize) {
+                    $error = 'Image size must be less than 2MB';
+                } else {
+                    // Create uploads directory if it doesn't exist
+                    $uploadDir = '../uploads/profile_images/';
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                    }
+
+                    // Generate unique filename
+                    $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                    $filename = 'profile_' . $id . '_' . time() . '.' . $extension;
+                    $filepath = $uploadDir . $filename;
+
+                    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+                        // Update database with new image path
+                        $stmt = $pdo->prepare("UPDATE users SET profile_image = ? WHERE id = ?");
+                        $stmt->execute([$filename, $id]);
+                    } else {
+                        $error = 'Error uploading image';
+                    }
+                }
+            }
+
+            if (!$error) {
+                $success = 'User updated successfully';
+                // Log activity
+                $activityLogger->logActivity("User '{$name}' (ID: {$id}) updated.", $id, 'user_update');
+            }
         } catch (PDOException $e) {
             $error = 'Error updating user: ' . $e->getMessage();
             error_log("Error updating user (ID: $id): " . $e->getMessage());
@@ -119,7 +154,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Error deleting user: ' . $e->getMessage();
             error_log("Error deleting user (ID: $id): " . $e->getMessage());
         }
-    } elseif (isset($_POST['add_user'])) {
+    }
+
+    if (isset($_POST['update_user_image'])) {
+        $id = (int)$_POST['user_id'];
+
+        if (isset($_FILES['user_image']) && $_FILES['user_image']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['user_image'];
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            $maxSize = 2 * 1024 * 1024; // 2MB
+
+            if (!in_array($file['type'], $allowedTypes)) {
+                $error = 'Only JPG, PNG, and GIF images are allowed';
+            } elseif ($file['size'] > $maxSize) {
+                $error = 'Image size must be less than 2MB';
+            } else {
+                // Create uploads directory if it doesn't exist
+                $uploadDir = '../uploads/profile_images/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+
+                // Generate unique filename
+                $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                $filename = 'profile_' . $id . '_' . time() . '.' . $extension;
+                $filepath = $uploadDir . $filename;
+
+                if (move_uploaded_file($file['tmp_name'], $filepath)) {
+                    try {
+                        // Update database with new image path
+                        $stmt = $pdo->prepare("UPDATE users SET profile_image = ? WHERE id = ?");
+                        $stmt->execute([$filename, $id]);
+
+                        // Log activity
+                        $activityLogger->logActivity("User profile image updated (ID: {$id})", $_SESSION['user_id'], 'user_update');
+
+                        $success = 'User profile image updated successfully';
+                    } catch (PDOException $e) {
+                        $error = 'Error updating user profile image: ' . $e->getMessage();
+                    }
+                } else {
+                    $error = 'Error uploading image';
+                }
+            }
+        } else {
+            $error = 'Please select an image to upload';
+        }
+    }
+
+    if (isset($_POST['remove_user_image'])) {
+        $id = (int)$_POST['user_id'];
+
+        try {
+            // Get current image
+            $stmt = $pdo->prepare("SELECT profile_image FROM users WHERE id = ?");
+            $stmt->execute([$id]);
+            $currentImage = $stmt->fetchColumn();
+
+            if ($currentImage) {
+                // Delete file
+                $filepath = '../uploads/profile_images/' . $currentImage;
+                if (file_exists($filepath)) {
+                    unlink($filepath);
+                }
+
+                // Update database
+                $stmt = $pdo->prepare("UPDATE users SET profile_image = NULL WHERE id = ?");
+                $stmt->execute([$id]);
+
+                // Log activity
+                $activityLogger->logActivity("User profile image removed (ID: {$id})", $_SESSION['user_id'], 'user_update');
+
+                $success = 'User profile image removed successfully';
+            }
+        } catch (PDOException $e) {
+            $error = 'Error removing user profile image: ' . $e->getMessage();
+        }
+    }
+
+    if (isset($_POST['add_user'])) {
         // Add new user
         $name = trim($_POST['name']);
         $email = trim($_POST['email']);
@@ -145,8 +258,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Handle image upload for customers
+    if (isset($_POST['upload_customer_image'])) {
+        $customer_id = (int)$_POST['customer_id'];
+
+        if (isset($_FILES['customer_image']) && $_FILES['customer_image']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['customer_image'];
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            $maxSize = 2 * 1024 * 1024; // 2MB
+
+            if (!in_array($file['type'], $allowedTypes)) {
+                $error = 'Only JPG, PNG, and GIF images are allowed';
+            } elseif ($file['size'] > $maxSize) {
+                $error = 'Image size must be less than 2MB';
+            } else {
+                // Create uploads directory if it doesn't exist
+                $uploadDir = '../uploads/profile_images/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+
+                // Generate unique filename
+                $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                $filename = 'profile_' . $customer_id . '_' . time() . '.' . $extension;
+                $filepath = $uploadDir . $filename;
+
+                if (move_uploaded_file($file['tmp_name'], $filepath)) {
+                    try {
+                        // Update database with new image path
+                        $stmt = $pdo->prepare("UPDATE users SET profile_image = ? WHERE id = ?");
+                        $stmt->execute([$filename, $customer_id]);
+
+                        // Log activity
+                        $activityLogger->logActivity("Customer profile image updated (ID: {$customer_id})", $_SESSION['user_id'], 'user_update');
+
+                        $success = 'Customer profile image updated successfully';
+                    } catch (PDOException $e) {
+                        $error = 'Error updating customer profile image: ' . $e->getMessage();
+                    }
+                } else {
+                    $error = 'Error uploading image';
+                }
+            }
+        } else {
+            $error = 'Please select an image to upload';
+        }
+    }
+
+    if (isset($_POST['remove_customer_image'])) {
+        $customer_id = (int)$_POST['customer_id'];
+
+        try {
+            // Get current image
+            $stmt = $pdo->prepare("SELECT profile_image FROM users WHERE id = ?");
+            $stmt->execute([$customer_id]);
+            $currentImage = $stmt->fetchColumn();
+
+            if ($currentImage) {
+                // Delete file
+                $filepath = '../uploads/profile_images/' . $currentImage;
+                if (file_exists($filepath)) {
+                    unlink($filepath);
+                }
+
+                // Update database
+                $stmt = $pdo->prepare("UPDATE users SET profile_image = NULL WHERE id = ?");
+                $stmt->execute([$customer_id]);
+
+                // Log activity
+                $activityLogger->logActivity("Customer profile image removed (ID: {$customer_id})", $_SESSION['user_id'], 'user_update');
+
+                $success = 'Customer profile image removed successfully';
+            }
+        } catch (PDOException $e) {
+            $error = 'Error removing customer profile image: ' . $e->getMessage();
+        }
+    }
+
     // After any POST operation, re-fetch users to reflect changes
-}
+    }
 
 // Get all users for display and statistics
 $users = [];
@@ -374,8 +564,12 @@ $page_title = 'Manage Customers';
                                 >
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-lg">
-                                            <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                                        <div class="flex-shrink-0 h-10 w-10 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-lg">
+                                            <?php if (!empty($user['profile_image'])): ?>
+                                                <img src="../uploads/profile_images/<?php echo htmlspecialchars($user['profile_image']); ?>" alt="Profile" class="h-10 w-10 object-cover">
+                                            <?php else: ?>
+                                                <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                                            <?php endif; ?>
                                         </div>
                                         <div class="ml-4">
                                             <div class="text-sm font-medium text-gray-900"><?php echo htmlspecialchars($user['name']); ?></div>
@@ -432,6 +626,13 @@ $page_title = 'Manage Customers';
                                             <i class="fas fa-edit text-sm relative z-10"></i>
                                             <span class="relative z-10 font-medium">Edit</span>
                                         </button>
+                                        <button onclick="uploadCustomerImage(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars(addslashes($user['name'])); ?>')"
+                                                class="group relative bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-green-400/20"
+                                                type="button">
+                                            <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                                            <i class="fas fa-camera text-sm relative z-10"></i>
+                                            <span class="relative z-10 font-medium">Image</span>
+                                        </button>
                                         <?php if ($user['id'] != $_SESSION['user_id']): // Prevent admin from deleting their own account ?>
                                             <form action="" method="POST" class="inline" onsubmit="return false;">
                                                 <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
@@ -471,7 +672,7 @@ $page_title = 'Manage Customers';
 
         <!-- Modal Body -->
         <div class="p-6">
-            <form id="editUserForm" action="" method="POST" class="space-y-6">
+            <form id="editUserForm" action="" method="POST" enctype="multipart/form-data" class="space-y-6">
                 <input type="hidden" name="user_id" id="edit_userId">
                 <input type="hidden" name="update_user" value="1">
 
@@ -509,6 +710,13 @@ $page_title = 'Manage Customers';
                             <option value="suspended">Suspended</option>
                         </select>
                     </div>
+                </div>
+
+                <div>
+                    <label for="edit_user_image" class="block text-sm font-semibold text-gray-700 mb-2">Profile Image</label>
+                    <input type="file" id="edit_user_image" name="edit_user_image" accept="image/jpeg,image/png,image/gif"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors">
+                    <p class="text-xs text-gray-500 mt-1">Supported formats: JPG, PNG, GIF. Max size: 2MB (optional)</p>
                 </div>
 
                 <!-- Modal Footer -->
@@ -653,13 +861,61 @@ $page_title = 'Manage Customers';
     </div>
 </div>
 
+<!-- Upload Customer Image Modal -->
+<div id="uploadCustomerImageModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate__animated animate__fadeIn">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate__animated animate__zoomIn">
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-green-500 to-green-600 p-6 text-white rounded-t-2xl">
+            <h3 class="text-xl font-bold">
+                <i class="fas fa-camera mr-2"></i>Upload Profile Image
+            </h3>
+            <button type="button" onclick="document.getElementById('uploadCustomerImageModal').classList.add('hidden'); document.getElementById('uploadCustomerImageModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('uploadCustomerImageForm')?.reset();" class="text-white hover:text-gray-200 text-2xl">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6">
+            <form id="uploadCustomerImageForm" action="" method="POST" enctype="multipart/form-data" class="space-y-6">
+                <input type="hidden" name="customer_id" id="uploadCustomerId">
+                <input type="hidden" name="upload_customer_image" value="1">
+
+                <div>
+                    <label for="customer_image" class="block text-sm font-semibold text-gray-700 mb-2">Select Image <span class="text-red-500">*</span></label>
+                    <input type="file" id="customer_image" name="customer_image" accept="image/jpeg,image/png,image/gif"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors" required>
+                    <p class="text-xs text-gray-500 mt-1">Supported formats: JPG, PNG, GIF. Max size: 2MB</p>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="flex gap-3 pt-4">
+                    <button type="submit"
+                            class="group relative bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-green-400/20 flex-1">
+                        <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                        <i class="fas fa-upload mr-2 relative z-10"></i>
+                        <span class="relative z-10 font-medium">Upload Image</span>
+                    </button>
+                    <button type="button" onclick="document.getElementById('uploadCustomerImageModal').classList.add('hidden'); document.getElementById('uploadCustomerImageModal').classList.remove('animate__fadeIn', 'animate__zoomIn'); document.getElementById('uploadCustomerImageForm')?.reset();"
+                            class="group relative bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-gray-400/20">
+                        <div class="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+                        <span class="relative z-10 font-medium">Cancel</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="../assets/js/sweetalert2.min.js"></script>
+<script>
+// Global functions for customer management
 <script>
 // Global functions for customer management
 
 
 // Close modal when clicking outside (on the black overlay)
 window.addEventListener('click', function(event) {
-    const modalIds = ['editUserModal', 'addUserModal', 'deleteConfirmationModal'];
+    const modalIds = ['editUserModal', 'addUserModal', 'deleteConfirmationModal', 'uploadCustomerImageModal'];
     modalIds.forEach(id => {
         const modal = document.getElementById(id);
         if (modal && !modal.classList.contains('hidden') && event.target === modal) {
@@ -672,7 +928,7 @@ window.addEventListener('click', function(event) {
 // Keyboard navigation for modals (Escape key)
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
-        const modalIds = ['editUserModal', 'addUserModal', 'deleteConfirmationModal'];
+        const modalIds = ['editUserModal', 'addUserModal', 'deleteConfirmationModal', 'uploadCustomerImageModal'];
         modalIds.forEach(id => {
             const modal = document.getElementById(id);
             if (modal && !modal.classList.contains('hidden')) {
@@ -715,6 +971,15 @@ function confirmDeleteUser(userId, userName) {
     document.getElementById('deleteCustomerId').value = userId;
     document.getElementById('customerNameToDelete').textContent = userName;
     document.getElementById('deleteConfirmationModal').classList.remove('hidden');
+}
+
+// Function to open the upload customer image modal
+function uploadCustomerImage(customerId, customerName) {
+    document.getElementById('uploadCustomerId').value = customerId;
+    document.getElementById('uploadCustomerImageModal').classList.remove('hidden');
+    // Update modal title to include customer name
+    const modalTitle = document.querySelector('#uploadCustomerImageModal h3');
+    modalTitle.innerHTML = '<i class="fas fa-camera mr-2"></i>Upload Image for ' + customerName;
 }
 
 

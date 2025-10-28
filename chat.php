@@ -21,6 +21,11 @@ if ($isAdmin) {
                 INSERT INTO customer_messages (customer_name, customer_email, subject, message, status)
                 VALUES ('Test Customer', 'test@example.com', 'Test Message', 'Hello! This is a test message from a customer.', 'unread')
             ");
+
+            // Log the test message activity
+            require_once '../includes/ActivityLogger.php';
+            $activityLogger = new ActivityLogger($pdo);
+            $activityLogger->logActivity("New message from Test Customer (test@example.com): Hello! This is a test message from a customer.", null, 'message');
         }
     } catch (PDOException $e) {
         // Silent fail for test data

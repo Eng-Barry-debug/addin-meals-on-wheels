@@ -61,6 +61,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Force session write
                         session_write_close();
 
+                        // Log login activity
+                        require_once '../includes/ActivityLogger.php';
+                        $activityLogger = new ActivityLogger($pdo);
+                        $activityLogger->logActivity("{$user['name']} ({$user['role']}) logged in successfully", $user['id'], 'login');
+
                         // Set remember me cookie if requested (30 days)
                         if ($remember) {
                             $token = bin2hex(random_bytes(32));

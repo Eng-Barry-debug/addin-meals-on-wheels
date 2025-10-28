@@ -30,7 +30,7 @@ SET time_zone = "+00:00";
 CREATE TABLE `activity_logs` (
   `id` int(11) NOT NULL,
   `user_id` int(11) DEFAULT NULL,
-  `activity_type` enum('order','menu','user','system','login','logout') NOT NULL,
+  `activity_type` enum('order','menu','user','system','login','logout','message') NOT NULL,
   `activity_action` varchar(50) NOT NULL,
   `description` text DEFAULT NULL,
   `entity_type` varchar(50) DEFAULT NULL,
